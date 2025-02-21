@@ -1,0 +1,42 @@
+services:
+  character-generator:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Optional: Mount a volume for persistent storage of models
+      - model-cache:/root/.cache/huggingface
+      - ./models:/app/models:ro  # Mount as read-only
+      - ./packages:/packages:ro  # Mount pre-downloaded packages as read-only
+      # Storage volumes for persistent data
+      - ./storage/base_characters:/app/storage/base_characters
+      - ./storage/lora_models:/app/storage/lora_models  
+      - ./storage/outputs:/app/storage/outputs
+      - ./storage/db:/app/storage/db  # For future database storage
+    environment:
+      # Model and generation parameters
+      - CUDA_VISIBLE_DEVICES=0
+      - MODEL_PATH=${MODEL_PATH}
+      - DEVICE=${DEVICE}
+      - DTYPE=${DTYPE}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - WORKERS=${WORKERS}
+      - MODELS_DIR=/app/models
+      # Storage paths configuration
+      - BASE_CHARACTERS_PATH=/app/storage/base_characters
+      - LORA_MODELS_PATH=/app/storage/lora_models
+      - OUTPUT_PATH=/app/storage/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  model-cache:
+    # This creates a named volume for caching downloaded models 

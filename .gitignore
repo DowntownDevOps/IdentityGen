@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Model files and large data
+models/
+*.pkl
+*.h5
+*.pth
+*.onnx
+*.pb
+*.tflite
+*.pt
+model_weights/
+checkpoints/
+
+# Generated content and storage
+storage/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Logs and temporary files
+logs/
+*.log
+tmp/
+temp/
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Local development settings
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keep scripts directory
+!scripts/
+!requirements.txt
+!README.md 
