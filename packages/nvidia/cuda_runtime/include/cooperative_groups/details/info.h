@@ -310,12 +310,6 @@ struct _is_unsigned<Ty,false> : details::templates::false_type {};
 template <typename Ty>
 struct is_unsigned : _is_unsigned<typename details::templates::remove_cv<Ty>::type> {};
 
-template <typename Ty> struct _is_pointer      : public details::templates::false_type {};
-template <typename Ty> struct _is_pointer<Ty*> : public details::templates::true_type {};
-
-template <typename Ty>
-struct is_pointer : _is_pointer<typename details::templates::remove_cv<Ty>::type> {};
-
 /**
  * programmatic type traits
  **/

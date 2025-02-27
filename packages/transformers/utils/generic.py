@@ -16,17 +16,14 @@ Generic utilities
 """
 
 import inspect
-import json
-import os
 import tempfile
-import warnings
 from collections import OrderedDict, UserDict
 from collections.abc import MutableMapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import fields, is_dataclass
 from enum import Enum
-from functools import partial, wraps
-from typing import Any, ContextManager, Dict, Iterable, List, Optional, Tuple, TypedDict
+from functools import partial
+from typing import Any, ContextManager, Iterable, List, Tuple
 
 import numpy as np
 from packaging import version
@@ -39,6 +36,10 @@ from .import_utils import (
     is_torch_available,
     is_torch_fx_proxy,
 )
+
+
+if is_flax_available():
+    import jax.numpy as jnp
 
 
 class cached_property(property):
@@ -216,7 +217,7 @@ def _is_tf_symbolic_tensor(x):
     # the `is_symbolic_tensor` predicate is only available starting with TF 2.14
     if hasattr(tf, "is_symbolic_tensor"):
         return tf.is_symbolic_tensor(x)
-    return isinstance(x, tf.Tensor)
+    return type(x) == tf.Tensor
 
 
 def is_tf_symbolic_tensor(x):
@@ -623,8 +624,6 @@ def transpose(array, axes=None):
 
         return tf.transpose(array, perm=axes)
     elif is_jax_tensor(array):
-        import jax.numpy as jnp
-
         return jnp.transpose(array, axes=axes)
     else:
         raise ValueError(f"Type not supported for transpose: {type(array)}.")
@@ -644,8 +643,6 @@ def reshape(array, newshape):
 
         return tf.reshape(array, newshape)
     elif is_jax_tensor(array):
-        import jax.numpy as jnp
-
         return jnp.reshape(array, newshape)
     else:
         raise ValueError(f"Type not supported for reshape: {type(array)}.")
@@ -665,8 +662,6 @@ def squeeze(array, axis=None):
 
         return tf.squeeze(array, axis=axis)
     elif is_jax_tensor(array):
-        import jax.numpy as jnp
-
         return jnp.squeeze(array, axis=axis)
     else:
         raise ValueError(f"Type not supported for squeeze: {type(array)}.")
@@ -686,8 +681,6 @@ def expand_dims(array, axis):
 
         return tf.expand_dims(array, axis=axis)
     elif is_jax_tensor(array):
-        import jax.numpy as jnp
-
         return jnp.expand_dims(array, axis=axis)
     else:
         raise ValueError(f"Type not supported for expand_dims: {type(array)}.")
@@ -724,19 +717,6 @@ def add_model_info_to_auto_map(auto_map, repo_id):
     return auto_map
 
 
-def add_model_info_to_custom_pipelines(custom_pipeline, repo_id):
-    """
-    Adds the information of the repo_id to a given custom pipeline.
-    """
-    # {custom_pipelines : {task: {"impl": "path.to.task"},...} }
-    for task in custom_pipeline.keys():
-        if "impl" in custom_pipeline[task]:
-            module = custom_pipeline[task]["impl"]
-            if "--" not in module:
-                custom_pipeline[task]["impl"] = f"{repo_id}--{module}"
-    return custom_pipeline
-
-
 def infer_framework(model_class):
     """
     Infers the framework of a given model without using isinstance(), because we cannot guarantee that the relevant
@@ -753,152 +733,3 @@ def infer_framework(model_class):
             return "flax"
     else:
         raise TypeError(f"Could not infer framework from class {model_class}.")
-
-
-def torch_int(x):
-    """
-    Casts an input to a torch int64 tensor if we are in a tracing context, otherwise to a Python int.
-    """
-    if not is_torch_available():
-        return int(x)
-
-    import torch
-
-    return x.to(torch.int64) if torch.jit.is_tracing() and isinstance(x, torch.Tensor) else int(x)
-
-
-def torch_float(x):
-    """
-    Casts an input to a torch float32 tensor if we are in a tracing context, otherwise to a Python float.
-    """
-    if not is_torch_available():
-        return int(x)
-
-    import torch
-
-    return x.to(torch.float32) if torch.jit.is_tracing() and isinstance(x, torch.Tensor) else int(x)
-
-
-def filter_out_non_signature_kwargs(extra: Optional[list] = None):
-    """
-    Decorator to filter out named arguments that are not in the function signature.
-
-    This decorator ensures that only the keyword arguments that match the function's signature, or are specified in the
-    `extra` list, are passed to the function. Any additional keyword arguments are filtered out and a warning is issued.
-
-    Parameters:
-        extra (`Optional[list]`, *optional*):
-            A list of extra keyword argument names that are allowed even if they are not in the function's signature.
-
-    Returns:
-        Callable:
-            A decorator that wraps the function and filters out invalid keyword arguments.
-
-    Example usage:
-
-        ```python
-        @filter_out_non_signature_kwargs(extra=["allowed_extra_arg"])
-        def my_function(arg1, arg2, **kwargs):
-            print(arg1, arg2, kwargs)
-
-        my_function(arg1=1, arg2=2, allowed_extra_arg=3, invalid_arg=4)
-        # This will print: 1 2 {"allowed_extra_arg": 3}
-        # And issue a warning: "The following named arguments are not valid for `my_function` and were ignored: 'invalid_arg'"
-        ```
-    """
-    extra = extra or []
-    extra_params_to_pass = set(extra)
-
-    def decorator(func):
-        sig = inspect.signature(func)
-        function_named_args = set(sig.parameters.keys())
-        valid_kwargs_to_pass = function_named_args.union(extra_params_to_pass)
-
-        # Required for better warning message
-        is_instance_method = "self" in function_named_args
-        is_class_method = "cls" in function_named_args
-
-        # Mark function as decorated
-        func._filter_out_non_signature_kwargs = True
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            valid_kwargs = {}
-            invalid_kwargs = {}
-
-            for k, v in kwargs.items():
-                if k in valid_kwargs_to_pass:
-                    valid_kwargs[k] = v
-                else:
-                    invalid_kwargs[k] = v
-
-            if invalid_kwargs:
-                invalid_kwargs_names = [f"'{k}'" for k in invalid_kwargs.keys()]
-                invalid_kwargs_names = ", ".join(invalid_kwargs_names)
-
-                # Get the class name for better warning message
-                if is_instance_method:
-                    cls_prefix = args[0].__class__.__name__ + "."
-                elif is_class_method:
-                    cls_prefix = args[0].__name__ + "."
-                else:
-                    cls_prefix = ""
-
-                warnings.warn(
-                    f"The following named arguments are not valid for `{cls_prefix}{func.__name__}`"
-                    f" and were ignored: {invalid_kwargs_names}",
-                    UserWarning,
-                    stacklevel=2,
-                )
-
-            return func(*args, **valid_kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-class LossKwargs(TypedDict, total=False):
-    """
-    Keyword arguments to be passed to the loss function
-
-    Attributes:
-        num_items_in_batch (`int`, *optional*):
-            Number of items in the batch. It is recommended to pass it when
-            you are doing gradient accumulation.
-    """
-
-    num_items_in_batch: Optional[int]
-
-
-def is_timm_config_dict(config_dict: Dict[str, Any]) -> bool:
-    """Checks whether a config dict is a timm config dict."""
-    return "pretrained_cfg" in config_dict
-
-
-def is_timm_local_checkpoint(pretrained_model_path: str) -> bool:
-    """
-    Checks whether a checkpoint is a timm model checkpoint.
-    """
-    if pretrained_model_path is None:
-        return False
-
-    # in case it's Path, not str
-    pretrained_model_path = str(pretrained_model_path)
-
-    is_file = os.path.isfile(pretrained_model_path)
-    is_dir = os.path.isdir(pretrained_model_path)
-
-    # pretrained_model_path is a file
-    if is_file and pretrained_model_path.endswith(".json"):
-        with open(pretrained_model_path, "r") as f:
-            config_dict = json.load(f)
-        return is_timm_config_dict(config_dict)
-
-    # pretrained_model_path is a directory with a config.json
-    if is_dir and os.path.exists(os.path.join(pretrained_model_path, "config.json")):
-        with open(os.path.join(pretrained_model_path, "config.json"), "r") as f:
-            config_dict = json.load(f)
-        return is_timm_config_dict(config_dict)
-
-    return False

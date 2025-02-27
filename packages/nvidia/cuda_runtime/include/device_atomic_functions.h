@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -50,9 +50,6 @@
 #if !defined(__DEVICE_ATOMIC_FUNCTIONS_H__)
 #define __DEVICE_ATOMIC_FUNCTIONS_H__
 
-//NOTE: For NVRTC, these declarations have been moved into the compiler (to reduce compile time)
-#define EXCLUDE_FROM_RTC
-
 #if defined(__CUDACC_RTC__)
 #define __DEVICE_ATOMIC_FUNCTIONS_DECL__ __device__
 #elif defined(_NVHPC_CUDA)
@@ -79,6 +76,30 @@
 #define __DEF_IF_HOST ;
 #endif /* __CUDA_ARCH__ */
 
+#if defined(__CUDA_ARCH__)  || defined(_NVHPC_CUDA)  
+extern "C"
+{
+extern __device__ __device_builtin__ int          __iAtomicAdd(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicAdd(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ int          __iAtomicExch(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicExch(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ float        __fAtomicExch(float *address, float val);
+extern __device__ __device_builtin__ int          __iAtomicMin(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicMin(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ int          __iAtomicMax(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicMax(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicInc(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicDec(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ int          __iAtomicAnd(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicAnd(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ int          __iAtomicOr(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicOr(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ int          __iAtomicXor(int *address, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicXor(unsigned int *address, unsigned int val);
+extern __device__ __device_builtin__ int          __iAtomicCAS(int *address, int compare, int val);
+extern __device__ __device_builtin__ unsigned int __uAtomicCAS(unsigned int *address, unsigned int compare, unsigned int val);
+}
+#endif /* __CUDA_ARCH__ || defined(_NVHPC_CUDA) */
 
 /*******************************************************************************
 *                                                                              *
@@ -155,6 +176,11 @@ __DEVICE_ATOMIC_FUNCTIONS_DECL__ unsigned int atomicCAS(unsigned int *address, u
 
 extern "C"
 {
+#if defined(__CUDA_ARCH__) || defined(_NVHPC_CUDA)
+extern __device__ __device_builtin__ unsigned long long int __ullAtomicAdd(unsigned long long int *address, unsigned long long int val);
+extern __device__ __device_builtin__ unsigned long long int __ullAtomicExch(unsigned long long int *address, unsigned long long int val);
+extern __device__ __device_builtin__ unsigned long long int __ullAtomicCAS(unsigned long long int *address, unsigned long long int compare, unsigned long long int val);
+#endif  /* __CUDA_ARCH__ || _NVHPC_CUDA */
 extern __device__ __device_builtin__ __DEPRECATED__(__WSB_DEPRECATION_MESSAGE(__any)) int __any(int cond);
 extern __device__ __device_builtin__ __DEPRECATED__(__WSB_DEPRECATION_MESSAGE(__all)) int __all(int cond);
 }
@@ -187,7 +213,5 @@ __DEVICE_ATOMIC_FUNCTIONS_DECL__ __DEPRECATED__(__WSB_DEPRECATION_MESSAGE(__all)
 #if !defined(__CUDACC_RTC__) && defined(__CUDA_ARCH__)
 #include "device_atomic_functions.hpp"
 #endif /* !__CUDACC_RTC__ && defined(__CUDA_ARCH__) */
-
-#undef EXCLUDE_FROM_RTC
 
 #endif /* !__DEVICE_ATOMIC_FUNCTIONS_H__ */

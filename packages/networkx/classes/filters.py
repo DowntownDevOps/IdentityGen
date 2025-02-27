@@ -2,7 +2,6 @@
 
 These filters return the function used when creating `SubGraph`.
 """
-
 __all__ = [
     "no_filter",
     "hide_nodes",
@@ -55,14 +54,7 @@ def hide_multiedges(edges):
 
 # write show_nodes as a class to make SubGraph pickleable
 class show_nodes:
-    """Filter class to show specific nodes.
-
-    Attach the set of nodes as an attribute to speed up this commonly used filter
-
-    Note that another allowed attribute for filters is to store the number of nodes
-    on the filter as attribute `length` (used in `__len__`). It is a user
-    responsibility to ensure this attribute is accurate if present.
-    """
+    """Filter class to show specific nodes."""
 
     def __init__(self, nodes):
         self.nodes = set(nodes)

@@ -1,5 +1,4 @@
 """Basic algorithms for depth-first searching the nodes of a graph."""
-
 from collections import defaultdict
 
 import networkx as nx

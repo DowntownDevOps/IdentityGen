@@ -1,4 +1,6 @@
-"""Unit tests for the :mod:`networkx.algorithms.community.utils` module."""
+"""Unit tests for the :mod:`networkx.algorithms.community.utils` module.
+
+"""
 
 import networkx as nx
 

@@ -1,5 +1,4 @@
 """Biconnected components and articulation points."""
-
 from itertools import chain
 
 import networkx as nx

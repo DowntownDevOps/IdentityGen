@@ -8,7 +8,6 @@
 // Just for C10_ANONYMOUS_VARIABLE
 #include <c10/util/Registry.h>
 
-#include <array>
 #include <atomic>
 
 namespace c10 {
@@ -214,15 +213,6 @@ struct C10_API DeviceGuardImplInterface {
   }
 
   /**
-   * Wait (by blocking the calling thread) until all the work previously
-   * enqueued on the device has been completed.
-   */
-  virtual void synchronizeDevice(const DeviceIndex /*device_index*/) const {
-    TORCH_CHECK(
-        false, "Backend doesn't support synchronizing all streams on device.");
-  }
-
-  /**
    * Ensure the caching allocator (if any) is aware that the given DataPtr is
    * being used on the given stream, and that it should thus avoid recycling the
    * DataPtr until all work on that stream is done.
@@ -328,10 +318,10 @@ struct NoOpDeviceGuardImpl final : public DeviceGuardImplInterface {
 // in a Meyer singleton), it implies that you must *leak* objects when
 // putting them in the registry.  This is done by deleting the destructor
 // on DeviceGuardImplInterface.
-extern C10_API std::array<
-    std::atomic<const DeviceGuardImplInterface*>,
-    static_cast<size_t>(DeviceType::COMPILE_TIME_MAX_DEVICE_TYPES)>
-    device_guard_impl_registry;
+// NOLINTNEXTLINE(*c-arrays*)
+extern C10_API std::atomic<const DeviceGuardImplInterface*>
+    device_guard_impl_registry[static_cast<size_t>(
+        DeviceType::COMPILE_TIME_MAX_DEVICE_TYPES)];
 
 // I can't conveniently use c10/util/Registry.h for the following reason:
 // c10/util/Registry.h gives me a slow way of Create'ing a object of some

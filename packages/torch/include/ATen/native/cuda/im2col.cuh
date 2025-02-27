@@ -6,7 +6,8 @@
 
 #include <c10/macros/Macros.h>
 
-namespace at::native {
+namespace at {
+namespace native {
 
 using namespace at::cuda::detail;
 
@@ -107,6 +108,7 @@ __forceinline__ __device__ void col2im_device(
     const dt* data_col,
     const int64_t height,
     const int64_t width,
+    const int64_t channels,
     const int64_t kernel_h,
     const int64_t kernel_w,
     const int64_t pad_height,
@@ -161,6 +163,7 @@ __global__ void col2im_kernel(
     const dt* data_col,
     const int64_t height,
     const int64_t width,
+    const int64_t channels,
     const int64_t kernel_h,
     const int64_t kernel_w,
     const int64_t pad_height,
@@ -178,6 +181,7 @@ __global__ void col2im_kernel(
         data_col,
         height,
         width,
+        channels,
         kernel_h,
         kernel_w,
         pad_height,
@@ -220,6 +224,7 @@ void col2im(
           data_col,
           height,
           width,
+          channels,
           patch_height,
           patch_width,
           pad_height,
@@ -243,6 +248,7 @@ __global__ void col2im_batched_kernel(
     const int64_t nbatch,
     const int64_t height,
     const int64_t width,
+    const int64_t channels,
     const int64_t kernel_h,
     const int64_t kernel_w,
     const int64_t pad_height,
@@ -267,6 +273,7 @@ __global__ void col2im_batched_kernel(
         data_col + ibatch * col_batch_stride,
         height,
         width,
+        channels,
         kernel_h,
         kernel_w,
         pad_height,
@@ -318,6 +325,7 @@ void col2im_batched(
           nbatch,
           height,
           width,
+          channels,
           patch_height,
           patch_width,
           pad_height,
@@ -333,4 +341,5 @@ void col2im_batched(
   C10_CUDA_KERNEL_LAUNCH_CHECK();
 }
 
-} // namespace at::native
+} // namespace native
+} // namespace at

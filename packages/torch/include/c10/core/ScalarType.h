@@ -22,7 +22,6 @@
 #include <limits>
 #include <ostream>
 #include <type_traits>
-#include <unordered_map>
 
 namespace c10 {
 
@@ -30,11 +29,6 @@ namespace c10 {
 // of these dtypes will be implemented in python with Tensor subclass
 template <unsigned int N>
 struct dummy_uint1_7_t {};
-
-// dummy struct for int1 to int7, actual functionality
-// of these dtypes will be implemented in python with Tensor subclass
-template <unsigned int N>
-struct dummy_int1_7_t {};
 
 // For the macros below:
 //
@@ -95,14 +89,7 @@ struct dummy_int1_7_t {};
   _(c10::dummy_uint1_7_t<4>, UInt4) /* 33 */             \
   _(c10::dummy_uint1_7_t<5>, UInt5) /* 34 */             \
   _(c10::dummy_uint1_7_t<6>, UInt6) /* 35 */             \
-  _(c10::dummy_uint1_7_t<7>, UInt7) /* 36 */             \
-  _(c10::dummy_int1_7_t<1>, Int1) /* 37 */               \
-  _(c10::dummy_int1_7_t<2>, Int2) /* 38 */               \
-  _(c10::dummy_int1_7_t<3>, Int3) /* 39 */               \
-  _(c10::dummy_int1_7_t<4>, Int4) /* 40 */               \
-  _(c10::dummy_int1_7_t<5>, Int5) /* 41 */               \
-  _(c10::dummy_int1_7_t<6>, Int6) /* 42 */               \
-  _(c10::dummy_int1_7_t<7>, Int7) /* 43 */
+  _(c10::dummy_uint1_7_t<7>, UInt7) /* 36 */
 
 // If you want to support ComplexHalf for real, add ComplexHalf
 // into this macro (and change the name).  But beware: convert()
@@ -479,14 +466,6 @@ inline bool isSignedType(ScalarType t) {
       CASE_ISSIGNED(ComplexFloat);
       CASE_ISSIGNED(ComplexDouble);
       CASE_ISSIGNED(Bool);
-    case ScalarType::Int1:
-    case ScalarType::Int2:
-    case ScalarType::Int3:
-    case ScalarType::Int4:
-    case ScalarType::Int5:
-    case ScalarType::Int6:
-    case ScalarType::Int7:
-      return true;
     case ScalarType::UInt1:
     case ScalarType::UInt2:
     case ScalarType::UInt3:
@@ -494,7 +473,7 @@ inline bool isSignedType(ScalarType t) {
     case ScalarType::UInt5:
     case ScalarType::UInt6:
     case ScalarType::UInt7:
-      return false;
+      return true;
     case ScalarType::Undefined:
     case ScalarType::NumOptions:
       break;
@@ -581,13 +560,5 @@ inline std::ostream& operator<<(
     at::ScalarType scalar_type) {
   return stream << toString(scalar_type);
 }
-
-// Returns a pair of strings representing the names for each dtype.
-// The returned pair is (name, legacy_name_if_applicable)
-C10_API std::pair<std::string, std::string> getDtypeNames(
-    c10::ScalarType scalarType);
-
-// Returns a map of string name to dtype.
-C10_API const std::unordered_map<std::string, ScalarType>& getStringToDtypeMap();
 
 } // namespace c10

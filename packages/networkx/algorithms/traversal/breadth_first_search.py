@@ -1,5 +1,4 @@
 """Basic algorithms for breadth-first searching the nodes of a graph."""
-
 from collections import deque
 
 import networkx as nx
@@ -17,7 +16,7 @@ __all__ = [
 
 
 @nx._dispatchable
-def generic_bfs_edges(G, source, neighbors=None, depth_limit=None):
+def generic_bfs_edges(G, source, neighbors=None, depth_limit=None, sort_neighbors=None):
     """Iterate over edges in a breadth-first search.
 
     The breadth-first search begins at `source` and enqueues the
@@ -43,6 +42,18 @@ def generic_bfs_edges(G, source, neighbors=None, depth_limit=None):
 
     depth_limit : int, optional(default=len(G))
         Specify the maximum search depth.
+
+    sort_neighbors : Callable (default=None)
+
+        .. deprecated:: 3.2
+
+           The sort_neighbors parameter is deprecated and will be removed in
+           version 3.4. A custom (e.g. sorted) ordering of neighbors can be
+           specified with the `neighbors` parameter.
+
+        A function that takes an iterator over nodes as the input, and
+        returns an iterable of the same nodes with a custom ordering.
+        For example, `sorted` will sort the nodes in increasing order.
 
     Yields
     ------
@@ -84,6 +95,19 @@ def generic_bfs_edges(G, source, neighbors=None, depth_limit=None):
     """
     if neighbors is None:
         neighbors = G.neighbors
+    if sort_neighbors is not None:
+        import warnings
+
+        warnings.warn(
+            (
+                "The sort_neighbors parameter is deprecated and will be removed\n"
+                "in NetworkX 3.4, use the neighbors parameter instead."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _neighbors = neighbors
+        neighbors = lambda node: iter(sort_neighbors(_neighbors(node)))
     if depth_limit is None:
         depth_limit = len(G)
 

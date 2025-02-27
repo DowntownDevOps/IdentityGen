@@ -64,15 +64,9 @@ class DirFileSystem(AsyncFileSystem):
         if isinstance(path, str):
             if not self.path:
                 return path
-            # We need to account for S3FileSystem returning paths that do not
-            # start with a '/'
-            if path == self.path or (
-                self.path.startswith(self.fs.sep) and path == self.path[1:]
-            ):
+            if path == self.path:
                 return ""
             prefix = self.path + self.fs.sep
-            if self.path.startswith(self.fs.sep) and not path.startswith(self.fs.sep):
-                prefix = prefix[1:]
             assert path.startswith(prefix)
             return path[len(prefix) :]
         return [self._relpath(_path) for _path in path]
@@ -366,18 +360,6 @@ class DirFileSystem(AsyncFileSystem):
         **kwargs,
     ):
         return self.fs.open(
-            self._join(path),
-            *args,
-            **kwargs,
-        )
-
-    async def open_async(
-        self,
-        path,
-        *args,
-        **kwargs,
-    ):
-        return await self.fs.open_async(
             self._join(path),
             *args,
             **kwargs,

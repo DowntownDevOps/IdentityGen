@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -49,23 +49,6 @@
 
 #if !defined(__SM_32_ATOMIC_FUNCTIONS_HPP__)
 #define __SM_32_ATOMIC_FUNCTIONS_HPP__
-
-#ifdef __CUDA_ARCH__
-extern "C"
-{
-extern __device__ __device_builtin__ long long __illAtomicMin(long long *address, long long val);
-extern __device__ __device_builtin__ long long __illAtomicMax(long long *address, long long val);
-extern __device__ __device_builtin__ long long __llAtomicAnd(long long *address, long long val);
-extern __device__ __device_builtin__ long long __llAtomicOr(long long *address, long long val);
-extern __device__ __device_builtin__ long long __llAtomicXor(long long *address, long long val);
-extern __device__ __device_builtin__ unsigned long long __ullAtomicMin(unsigned long long *address, unsigned long long val);
-extern __device__ __device_builtin__ unsigned long long __ullAtomicMax(unsigned long long *address, unsigned long long val);
-extern __device__ __device_builtin__ unsigned long long __ullAtomicAnd(unsigned long long *address, unsigned long long val);
-extern __device__ __device_builtin__ unsigned long long __ullAtomicOr (unsigned long long *address, unsigned long long val);
-extern __device__ __device_builtin__ unsigned long long __ullAtomicXor(unsigned long long *address, unsigned long long val);
-}
-#endif /* __CUDA_ARCH__ */
-
 
 #if defined(__CUDACC_RTC__)
 #define __SM_32_ATOMIC_FUNCTIONS_DECL__ __device__

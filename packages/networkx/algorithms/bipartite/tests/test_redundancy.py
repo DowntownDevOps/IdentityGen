@@ -1,4 +1,6 @@
-"""Unit tests for the :mod:`networkx.algorithms.bipartite.redundancy` module."""
+"""Unit tests for the :mod:`networkx.algorithms.bipartite.redundancy` module.
+
+"""
 
 import pytest
 

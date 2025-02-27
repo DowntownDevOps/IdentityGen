@@ -20,7 +20,7 @@
 //
 // In native/MyKernel.h:
 //   using fn_type = void(*)(const Tensor& x);
-//   DECLARE_DISPATCH(fn_type, stub)
+//   DECLARE_DISPATCH(fn_type, stub);
 //
 // In native/MyKernel.cpp
 //   DEFINE_DISPATCH(stub);
@@ -43,8 +43,6 @@
 //   - CUDA: NVIDIA GPUs
 //   - HIP: AMD GPUs
 //   - MPS: Apple Silicon GPUs (Metal Performance Shaders)
-//   - MTIA: Meta Training and Inference Devices
-//   - XPU: Intel GPUs
 //   - PrivateUse1: Reserved for private/custom device types
 //
 // If you want to update the list of supported devices, add a new dispatch_ptr
@@ -64,8 +62,6 @@ enum class CPUCapability {
   VSX = 1,
 #elif defined(HAVE_ZVECTOR_CPU_DEFINITION)
   ZVECTOR = 1,
-#elif defined(HAVE_SVE_CPU_DEFINITION)
-  SVE256 = 1,
 #else
   AVX2 = 1,
   AVX512 = 2,
@@ -115,9 +111,6 @@ struct TORCH_API DispatchStubImpl {
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
       , void *ZVECTOR
 #endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-      , void *SVE256
-#endif
   );
 
   // Analogous to try_get_call_ptr(), but it will return the ErrorType and not
@@ -136,9 +129,6 @@ struct TORCH_API DispatchStubImpl {
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
     , void *ZVECTOR
 #endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-    , void *SVE256
-#endif
   );
 
 
@@ -156,9 +146,6 @@ struct TORCH_API DispatchStubImpl {
 #endif
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
       , void *ZVECTOR
-#endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-      , void *SVE256
 #endif
   );
 
@@ -181,9 +168,6 @@ struct TORCH_API DispatchStubImpl {
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
     , void *ZVECTOR
 #endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-    , void *SVE256
-#endif
   );
 
   // Fixing dispatch error in Windows debug builds.
@@ -193,20 +177,12 @@ struct TORCH_API DispatchStubImpl {
     void* cuda_dispatch_ptr;
     void* hip_dispatch_ptr;
     void* mps_dispatch_ptr;
-    void* mtia_dispatch_ptr;
-  #if defined(USE_XPU)
-    void* xpu_dispatch_ptr;
-  #endif
     void* privateuse1_dispatch_ptr;
   #else
     std::atomic<void*> cpu_dispatch_ptr{nullptr};
     void* cuda_dispatch_ptr = nullptr;
     void* hip_dispatch_ptr = nullptr;
     void* mps_dispatch_ptr = nullptr;
-    void* mtia_dispatch_ptr = nullptr;
-  #if defined(USE_XPU)
-    void* xpu_dispatch_ptr = nullptr;
-  #endif
     void* privateuse1_dispatch_ptr = nullptr;
   #endif
 };
@@ -236,9 +212,6 @@ private:
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
       , reinterpret_cast<void*>(ZVECTOR)
 #endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-      , reinterpret_cast<void*>(SVE256)
-#endif
       )
     );
   }
@@ -254,22 +227,12 @@ public:
     impl.cuda_dispatch_ptr = reinterpret_cast<void*>(fn_ptr);
   }
 
-  #if defined(USE_XPU)
-  void set_xpu_dispatch_ptr(FnPtr fn_ptr){
-    impl.xpu_dispatch_ptr = reinterpret_cast<void*>(fn_ptr);
-  }
-  #endif
-
   void set_hip_dispatch_ptr(FnPtr fn_ptr) {
     impl.hip_dispatch_ptr = reinterpret_cast<void*>(fn_ptr);
   }
 
   void set_mps_dispatch_ptr(FnPtr fn_ptr) {
     impl.mps_dispatch_ptr = reinterpret_cast<void*>(fn_ptr);
-  }
-
-    void set_mtia_dispatch_ptr(FnPtr fn_ptr) {
-    impl.mtia_dispatch_ptr = reinterpret_cast<void*>(fn_ptr);
   }
 
   void set_privateuse1_dispatch_ptr(FnPtr fn_ptr) {
@@ -293,15 +256,12 @@ public:
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
       , reinterpret_cast<void*>(ZVECTOR)
 #endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-      , reinterpret_cast<void*>(SVE256)
-#endif
       );
     if (std::holds_alternative<ErrorType>(result)){
       return false;
     }
     return true;
-  }
+  };
 
   static TORCH_API FnPtr DEFAULT;
 #ifdef HAVE_AVX512_CPU_DEFINITION
@@ -316,9 +276,6 @@ public:
 #ifdef HAVE_ZVECTOR_CPU_DEFINITION
   static TORCH_API FnPtr ZVECTOR;
 #endif
-#ifdef HAVE_SVE256_CPU_DEFINITION
-  static TORCH_API FnPtr SVE256;
-#endif
 private:
   DispatchStubImpl impl;
 };
@@ -328,13 +285,6 @@ template <typename DispatchStub>
 struct RegisterCUDADispatch {
   RegisterCUDADispatch(DispatchStub &stub, typename DispatchStub::FnPtr value) {
     stub.set_cuda_dispatch_ptr(value);
-  }
-};
-
-template <typename DispatchStub>
-struct RegisterXPUDispatch {
-  RegisterXPUDispatch(DispatchStub &stub, typename DispatchStub::FnPtr value){
-    stub.set_xpu_dispatch_ptr(value);
   }
 };
 
@@ -350,13 +300,6 @@ struct RegisterHIPDispatch {
   RegisterHIPDispatch(DispatchStub &stub, typename DispatchStub::FnPtr value) {
     // TODO: make this point at hip_dispatch_ptr
     stub.set_cuda_dispatch_ptr(value);
-  }
-};
-
-template <typename DispatchStub>
-struct RegisterMTIADispatch {
-  RegisterMTIADispatch(DispatchStub &stub, typename DispatchStub::FnPtr value) {
-    stub.set_mtia_dispatch_ptr(value);
   }
 };
 
@@ -378,9 +321,6 @@ struct RegisterPRIVATEUSE1Dispatch {
     name##_DECLARE_DISPATCH_type() = default;                                              \
     name##_DECLARE_DISPATCH_type(const name##_DECLARE_DISPATCH_type&) = delete;            \
     name##_DECLARE_DISPATCH_type& operator=(const name##_DECLARE_DISPATCH_type&) = delete; \
-    name##_DECLARE_DISPATCH_type(name##_DECLARE_DISPATCH_type&&) = delete;                 \
-    name##_DECLARE_DISPATCH_type& operator=(name##_DECLARE_DISPATCH_type&&) = delete;      \
-    ~name##_DECLARE_DISPATCH_type() = default;                                             \
   };                                                                                       \
   extern TORCH_API struct name##_DECLARE_DISPATCH_type name;
 
@@ -413,12 +353,6 @@ struct RegisterPRIVATEUSE1Dispatch {
 #define REGISTER_ZVECTOR_DISPATCH(name, fn)
 #endif
 
-#ifdef HAVE_SVE256_CPU_DEFINITION
-#define REGISTER_SVE256_DISPATCH(name, fn) REGISTER_ARCH_DISPATCH(name, SVE256, fn)
-#else
-#define REGISTER_SVE256_DISPATCH(name, fn)
-#endif
-
 // Macro to register the same kernel for all CPU arch types. This is useful
 // if a kernel does not benefit from being recompiled across different arch types.
 #define REGISTER_ALL_CPU_DISPATCH(name, fn)                                    \
@@ -426,8 +360,7 @@ struct RegisterPRIVATEUSE1Dispatch {
   REGISTER_AVX512_DISPATCH(name, fn)                                           \
   REGISTER_AVX2_DISPATCH(name, fn)                                             \
   REGISTER_VSX_DISPATCH(name, fn)                                              \
-  REGISTER_ZVECTOR_DISPATCH(name, fn)                                          \
-  REGISTER_SVE256_DISPATCH(name, fn)
+  REGISTER_ZVECTOR_DISPATCH(name, fn)
 
 #define REGISTER_NO_CPU_DISPATCH(name)                                         \
   REGISTER_ALL_CPU_DISPATCH(name, nullptr)
@@ -435,17 +368,11 @@ struct RegisterPRIVATEUSE1Dispatch {
 #define REGISTER_CUDA_DISPATCH(name, fn) \
   static RegisterCUDADispatch<struct name##_DECLARE_DISPATCH_type> name ## __register(name, fn);
 
-#define REGISTER_XPU_DISPATCH(name, fn) \
-  static RegisterXPUDispatch<struct name##_DECLARE_DISPATCH_type> name ## __register(name, fn);
-
 #define REGISTER_HIP_DISPATCH(name, fn) \
   static RegisterHIPDispatch<struct name##_DECLARE_DISPATCH_type> name ## __register(name, fn);
 
 #define REGISTER_MPS_DISPATCH(name, fn) \
   static RegisterMPSDispatch<struct name##_DECLARE_DISPATCH_type> name ## __register(name, fn);
-
-#define REGISTER_MTIA_DISPATCH(name, fn) \
-  static RegisterMTIADispatch<struct name##_DECLARE_DISPATCH_type> name ## __register(name, fn);
 
 #define REGISTER_PRIVATEUSE1_DISPATCH(name, fn) \
   static RegisterPRIVATEUSE1Dispatch<struct name##_DECLARE_DISPATCH_type> name ## __register(name, fn);
@@ -465,14 +392,12 @@ struct RegisterPRIVATEUSE1Dispatch {
 #elif defined(CPU_CAPABILITY)
 // REGISTER_DISPATCH now dispatches an AVX512 kernel to nullptr but registers other dispatches.
 // ALSO_REGISTER_AVX512_DISPATCH should be used for ensuring AVX512 dispatch, among others.
-// ALSO_REGISTER_SVE256_DISPATCH should be used for ensuring SVE256 dispatch, among others.
 #ifdef CPU_CAPABILITY_AVX512
 #define REGISTER_DISPATCH(name, fn) REGISTER_ARCH_DISPATCH(name, CPU_CAPABILITY, ((void*)(fn) ? nullptr : nullptr))
 #else
 #define REGISTER_DISPATCH(name, fn) REGISTER_ARCH_DISPATCH(name, CPU_CAPABILITY, fn)
 #endif
 #define ALSO_REGISTER_AVX512_DISPATCH(name, fn) REGISTER_ARCH_DISPATCH(name, CPU_CAPABILITY, fn)
-#define ALSO_REGISTER_SVE256_DISPATCH(name, fn) REGISTER_ARCH_DISPATCH(name, CPU_CAPABILITY, fn)
 #endif
 } // namespace at::native
 

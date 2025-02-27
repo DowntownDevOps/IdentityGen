@@ -18,7 +18,6 @@ import base64
 import io
 import json
 import logging
-from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,12 +49,7 @@ from huggingface_hub.errors import (
     ValidationError,
 )
 
-from ..utils import (
-    get_session,
-    is_aiohttp_available,
-    is_numpy_available,
-    is_pillow_available,
-)
+from ..utils import get_session, is_aiohttp_available, is_numpy_available, is_pillow_available
 from ._generated.types import ChatCompletionStreamOutput, TextGenerationStreamOutput
 
 
@@ -85,33 +79,15 @@ class RequestParameters:
     headers: Dict[str, Any]
 
 
-class TaskProviderHelper(ABC):
-    """Protocol defining the interface for task-specific provider helpers."""
-
-    @abstractmethod
-    def prepare_request(
-        self,
-        *,
-        inputs: Any,
-        parameters: Dict[str, Any],
-        headers: Dict,
-        model: Optional[str],
-        api_key: Optional[str],
-        extra_payload: Optional[Dict[str, Any]] = None,
-    ) -> RequestParameters: ...
-    @abstractmethod
-    def get_response(self, response: Union[bytes, Dict]) -> Any: ...
-
-
 # Add dataclass for ModelStatus. We use this dataclass in get_model_status function.
 @dataclass
 class ModelStatus:
     """
-    This Dataclass represents the model status in the Hugging Face Inference API.
+    This Dataclass represents the model status in the HF Inference API.
 
     Args:
         loaded (`bool`):
-            If the model is currently loaded into Hugging Face's InferenceAPI. Models
+            If the model is currently loaded into HF's Inference API. Models
             are loaded on-demand, leading to the user's first request taking longer.
             If a model is loaded, you can be assured that it is in a healthy state.
         state (`str`):

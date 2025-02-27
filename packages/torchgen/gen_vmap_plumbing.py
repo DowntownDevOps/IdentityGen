@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import textwrap
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import List, Optional, Sequence, Tuple
 
 from torchgen.api.translate import translate
 from torchgen.api.types import DispatcherSignature
@@ -22,10 +20,6 @@ from torchgen.model import (
 from torchgen.utils import mapMaybe
 
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-
 def is_tensor(typ: Type) -> bool:
     return isinstance(typ, BaseType) and typ.name == BaseTy.Tensor
 
@@ -38,16 +32,18 @@ def is_tensor_list(typ: Type) -> bool:
     return isinstance(typ, ListType) and is_tensor(typ.elem)
 
 
-def unwrap_tensor(name: str, cur_level_var: str) -> list[str]:
+def unwrap_tensor(name: str, cur_level_var: str) -> List[str]:
     result = f"""\
-    auto [{name}_value, {name}_bdim] = unwrapTensorAtLevel({name}, {cur_level_var});"""
+    Tensor {name}_value;
+    optional<int64_t> {name}_bdim;
+    std::tie({name}_value, {name}_bdim) = unwrapTensorAtLevel({name}, {cur_level_var});"""
     return textwrap.dedent(result).split("\n")
 
 
-def unwrap_optional_tensor(name: str, cur_level_var: str) -> list[str]:
+def unwrap_optional_tensor(name: str, cur_level_var: str) -> List[str]:
     result = f"""\
-    std::optional<Tensor> {name}_value;
-    std::optional<int64_t> {name}_bdim;
+    optional<Tensor> {name}_value;
+    optional<int64_t> {name}_bdim;
     if ({name}) {{
         std::tie({name}_value, {name}_bdim) = unwrapTensorAtLevel({name}.value(), {cur_level_var});
     }}"""
@@ -56,7 +52,7 @@ def unwrap_optional_tensor(name: str, cur_level_var: str) -> list[str]:
 
 def gen_unwraps(
     flat_arguments: Sequence[Argument], cur_level_var: str
-) -> tuple[str, list[str]]:
+) -> Tuple[str, List[str]]:
     arg_names = [a.name for a in flat_arguments]
     arg_types = [a.type for a in flat_arguments]
 
@@ -103,7 +99,7 @@ if ({' && '.join(conditions)}) {{
 
 
 def gen_returns(
-    returns: tuple[Return, ...], cur_level_var: str, results_var: str
+    returns: Tuple[Return, ...], cur_level_var: str, results_var: str
 ) -> str:
     idx = 0
     wrapped_returns = []
@@ -115,7 +111,7 @@ def gen_returns(
             idx += 2
         elif is_tensor_list(ret.type):
             wrapped_returns.append(
-                f"makeBatchedVector(std::get<{idx}>({results_var}), std::get<{idx + 1}>({results_var}), {cur_level_var})"
+                f"makeBatchedVector(std::get<{idx}>({results_var}), std::get<{idx+1}>({results_var}), {cur_level_var})"
             )
             idx += 2
         else:
@@ -136,7 +132,7 @@ def is_mutated_arg(argument: Argument) -> bool:
     return argument.annotation is not None and argument.annotation.is_write
 
 
-def gen_vmap_inplace_plumbing(native_function: NativeFunction) -> str | None:
+def gen_vmap_inplace_plumbing(native_function: NativeFunction) -> Optional[str]:
     # Assumptions:
     # - only one argument is being modified in-place
     # - the argument that is being modified in-place is the first argument
@@ -201,7 +197,7 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
 }}"""
 
 
-def gen_vmap_plumbing(native_function: NativeFunction) -> str | None:
+def gen_vmap_plumbing(native_function: NativeFunction) -> Optional[str]:
     schema = native_function.func
     sig = DispatcherSignature.from_schema(schema)
     returns = schema.returns
@@ -211,14 +207,7 @@ def gen_vmap_plumbing(native_function: NativeFunction) -> str | None:
         return None
     if len(returns) == 0:
         return gen_vmap_plumbing_no_returns(native_function)
-    return_symint_overrides = [
-        "_scaled_dot_product_flash_attention",
-        "_scaled_dot_product_cudnn_attention",
-    ]
-    if (
-        not all(ret.type.is_tensor_like() for ret in returns)
-        and schema.name.unambiguous_name() not in return_symint_overrides
-    ):
+    if not all(ret.type.is_tensor_like() for ret in returns):
         return None
     # in-place views need special handling
     if "inplace_view" in native_function.tags:
@@ -255,7 +244,7 @@ template <typename batch_rule_t, batch_rule_t batch_rule>
 @dataclass(frozen=True)
 class ComputeBatchRulePlumbing:
     @method_with_native_function
-    def __call__(self, f: NativeFunction) -> str | None:
+    def __call__(self, f: NativeFunction) -> Optional[str]:
         result = gen_vmap_plumbing(f)
         return result
 

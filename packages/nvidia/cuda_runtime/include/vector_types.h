@@ -65,10 +65,6 @@
 #include "crt/host_defines.h"
 #endif
 
-/* NVRTC compiler defines these instead of in the header (to reduce compile time)
-*/
-#ifndef __CUDACC_RTC_BUILTIN_VECTOR_TYPES__
-
 /*******************************************************************************
 *                                                                              *
 *                                                                              *
@@ -413,10 +409,6 @@ typedef __device_builtin__ struct double2 double2;
 typedef __device_builtin__ struct double3 double3;
 typedef __device_builtin__ struct double4 double4;
 
-#undef  __cuda_builtin_vector_align8
-
-#endif /* !defined(__CUDACC_RTC_BUILTIN_VECTOR_TYPES__) */
-
 /*******************************************************************************
 *                                                                              *
 *                                                                              *
@@ -440,6 +432,8 @@ struct __device_builtin__ dim3
 };
 
 typedef __device_builtin__ struct dim3 dim3;
+
+#undef  __cuda_builtin_vector_align8
 
 #if defined(__UNDEF_CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS_VECTOR_TYPES_H__)
 #undef __CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__

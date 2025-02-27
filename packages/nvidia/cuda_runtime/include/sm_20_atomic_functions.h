@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -47,9 +47,6 @@
  * Users Notice.
  */
 
-//NOTE: For NVRTC, these declarations have been moved into the compiler (to reduce compile time)
-#define EXCLUDE_FROM_RTC
-
 #if !defined(__SM_20_ATOMIC_FUNCTIONS_H__)
 #define __SM_20_ATOMIC_FUNCTIONS_H__
 
@@ -71,6 +68,13 @@
 
 #include "cuda_runtime_api.h"
 
+#if defined(_NVHPC_CUDA)
+#undef __device_builtin__
+#define __device_builtin__ __location__(device) __location__(host)
+#endif /* _NVHPC_CUDA */
+
+/* Add !defined(_NVHPC_CUDA) to avoid empty function definition in CUDA
+ * C++ compiler where the macro __CUDA_ARCH__ is not defined. */
 #if !defined(__CUDA_ARCH__) && !defined(_NVHPC_CUDA)
 #define __DEF_IF_HOST { }
 #else  /* !__CUDA_ARCH__ */
@@ -78,6 +82,17 @@
 #endif /* __CUDA_ARCH__ */
 
 
+#if defined(__CUDA_ARCH__) || defined(_NVHPC_CUDA)
+extern "C"
+{
+extern __device__ __device_builtin__ float __fAtomicAdd(float *address, float val);
+}
+#endif /* __CUDA_ARCH__ */
+
+#if defined(_NVHPC_CUDA)
+#undef __device_builtin__
+#define __device_builtin__
+#endif /* _NVHPC_CUDA */
 
 /*******************************************************************************
 *                                                                              *
@@ -92,10 +107,8 @@ __SM_20_ATOMIC_FUNCTIONS_DECL__ float atomicAdd(float *address, float val) __DEF
 #undef __DEF_IF_HOST
 #undef __SM_20_ATOMIC_FUNCTIONS_DECL__
 
-#if !defined(__CUDACC_RTC__) && defined(__CUDA_ARCH__)
+#if !defined(__CUDACC_RTC__) && (defined(__CUDA_ARCH__) || defined(_NVHPC_CUDA))
 #include "sm_20_atomic_functions.hpp"
-#endif /* !__CUDACC_RTC__ && defined(__CUDA_ARCH__) */
+#endif /* !__CUDACC_RTC__ && defined(__CUDA_ARCH__) || defined(_NVHPC_CUDA) */
 
 #endif /* !__SM_20_ATOMIC_FUNCTIONS_H__ */
-
-#undef EXCLUDE_FROM_RTC

@@ -37,9 +37,7 @@ from accelerate.utils import (
     is_datasets_available,
     is_ipex_available,
     is_mlu_available,
-    is_musa_available,
     is_npu_available,
-    is_pytest_available,
     is_xpu_available,
     set_seed,
     synchronize_rng_states,
@@ -400,34 +398,6 @@ def check_seedable_sampler_in_batch_sampler_shard():
     ), "Sampler in BatchSamplerShard is not SeedableRandomSampler."
 
 
-def check_seedable_sampler_with_data_seed():
-    # Set seed
-    set_seed(42)
-    data_seed = 42
-    train_set = RegressionDataset(length=10, seed=42)
-    train_dl = DataLoader(train_set, batch_size=2, shuffle=True)
-
-    config = DataLoaderConfiguration(use_seedable_sampler=True, data_seed=data_seed)
-    accelerator = Accelerator(dataloader_config=config)
-    prepared_dl = accelerator.prepare(train_dl)
-    original_items = []
-    for _ in range(3):
-        for batch in prepared_dl:
-            original_items.append(batch["x"])
-    original_items = torch.cat(original_items)
-
-    # Set new data seed
-    config.data_seed = 43
-    accelerator = Accelerator(dataloader_config=config)
-    prepared_dl = accelerator.prepare(train_dl)
-    new_items = []
-    for _ in range(3):
-        for batch in prepared_dl:
-            new_items.append(batch["x"])
-    new_items = torch.cat(new_items)
-    assert not torch.allclose(original_items, new_items), "Obtained the same items with different data seed."
-
-
 def mock_training(length, batch_size, generator, use_seedable_sampler=False):
     set_seed(42)
     generator.manual_seed(42)
@@ -503,7 +473,7 @@ def training_check(use_seedable_sampler=False):
 
     accelerator.print("Training yielded the same results on one CPU or distributes setup with batch split.")
 
-    if torch.cuda.is_available() or is_npu_available() or is_mlu_available() or is_musa_available():
+    if torch.cuda.is_available() or is_npu_available() or is_mlu_available():
         # Mostly a test that FP16 doesn't crash as the operation inside the model is not converted to FP16
         print("FP16 training check.")
         AcceleratorState._reset_state()
@@ -722,24 +692,6 @@ def test_split_between_processes_tensor():
     state.wait_for_everyone()
 
 
-def test_split_between_processes_evenly():
-    state = AcceleratorState()
-    if state.num_processes in (1, 2, 4, 8):
-        data = list(range(17))
-        num_samples_per_process = len(data) // state.num_processes
-        num_extras = len(data) % state.num_processes
-        with state.split_between_processes(data) as results:
-            if state.process_index < num_extras:
-                assert (
-                    len(results) == num_samples_per_process + 1
-                ), f"Each Process should have even elements. Expected: {num_samples_per_process + 1}, Actual: {len(results)}"
-            else:
-                assert (
-                    len(results) == num_samples_per_process
-                ), f"Each Process should have even elements. Expected: {num_samples_per_process}, Actual: {len(results)}"
-    state.wait_for_everyone()
-
-
 def test_trigger():
     accelerator = Accelerator()
     # should start with being false
@@ -805,10 +757,6 @@ def main():
         test_split_between_processes_tensor()
 
         if state.process_index == 0:
-            print("\n**Test split between processes evenly**")
-        test_split_between_processes_evenly()
-
-        if state.process_index == 0:
             print("\n**Test split between processes as a datasets.Dataset**")
         if is_datasets_available():
             from datasets import Dataset as datasets_Dataset
@@ -828,7 +776,6 @@ def main():
         central_dl_preparation_check()
         custom_sampler_check()
         check_seedable_sampler()
-        check_seedable_sampler_with_data_seed()
 
     if state.num_processes > 1:
         check_seedable_sampler_in_batch_sampler_shard()
@@ -846,12 +793,9 @@ def main():
         print("\n**Breakpoint trigger test**")
     test_trigger()
 
-    if is_pytest_available():
-        if state.local_process_index == 0:
-            print("\n**Test reinstantiated state**")
-        test_reinstantiated_state()
-
-    state.destroy_process_group()
+    if state.local_process_index == 0:
+        print("\n**Test reinstantiated state**")
+    test_reinstantiated_state()
 
 
 if __name__ == "__main__":

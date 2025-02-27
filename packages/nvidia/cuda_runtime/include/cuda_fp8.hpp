@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2022 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -630,14 +630,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e5m2 {
     }
     /**
      * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
-     * Constructor from \p unsigned \p long \p int data type, relies on \p
-     * __NV_SATFINITE behavior for out-of-range values.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ __nv_fp8_e5m2(const unsigned long int val) {
-        __x = static_cast<__nv_fp8_e5m2>(static_cast<float>(val)).__x;
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
      * Constructor from \p unsigned \p long \p long \p int data type, relies on
      * \p __NV_SATFINITE behavior for out-of-range values.
      */
@@ -659,14 +651,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e5m2 {
      * for out-of-range values.
      */
     explicit __CUDA_HOSTDEVICE_FP8__ __nv_fp8_e5m2(const int val) {
-        __x = static_cast<__nv_fp8_e5m2>(static_cast<float>(val)).__x;
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
-     * Constructor from \p long \p int data type, relies on \p __NV_SATFINITE behavior
-     * for out-of-range values.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ __nv_fp8_e5m2(const long int val) {
         __x = static_cast<__nv_fp8_e5m2>(static_cast<float>(val)).__x;
     }
     /**
@@ -761,33 +745,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e5m2 {
     }
     /**
      * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
-     * Conversion operator to \p unsigned \p long \p int data type.
-     * Clamps negative and too large inputs to the output range.
-     * \p NaN inputs convert to \p zero if output type is 32-bit.
-     * \p NaN inputs convert to \p 0x8000000000000000ULL if output type is 64-bit.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ operator unsigned long int() const {
-        unsigned long retval;
-        /* Suppress VS warning: warning C4127: conditional expression is constant */
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (push)
-#pragma warning (disable: 4127)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        if (sizeof(unsigned long) == sizeof(unsigned long long))
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (pop)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        {
-            retval = static_cast<unsigned long>(__half2ull_rz(__half(*this)));
-        }
-        else
-        {
-            retval = static_cast<unsigned long>(__half2uint_rz(__half(*this)));
-        }
-        return retval;
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
      * Conversion operator to \p unsigned \p long \p long \p int data type.
      * Clamps negative and too large inputs to the output range.
      * \p NaN inputs convert to \p 0x8000000000000000ULL.
@@ -824,38 +781,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e5m2 {
         }
         return i;
     }
-
-    /**
-     * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
-     * Conversion operator to an implementation defined \p char data type.
-     * 
-     * Detects signedness of the \p char type and proceeds accordingly, see
-     * further details in signed and unsigned char operators.
-
-     * Clamps inputs to the output range.
-     * \p NaN inputs convert to \p zero.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ operator char() const {
-        char value;
-        /* Suppress VS warning: warning C4127: conditional expression is constant */
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (push)
-#pragma warning (disable: 4127)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        if (((char)-1) < (char)0)
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (pop)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        {
-            value = static_cast<char>(static_cast<signed char>(*this));
-        }
-        else
-        {
-            value = static_cast<char>(static_cast<unsigned char>(*this));
-        }
-        return value;
-    }
-
     /**
      * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
      * Conversion operator to \p short \p int data type.
@@ -873,33 +798,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e5m2 {
      */
     explicit __CUDA_HOSTDEVICE_FP8__ operator int() const {
         return __half2int_rz(__half(*this));
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
-     * Conversion operator to \p long \p int data type.
-     * Clamps too large inputs to the output range.
-     * \p NaN inputs convert to \p zero if output type is 32-bit.
-     * \p NaN inputs convert to \p 0x8000000000000000ULL if output type is 64-bit.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ operator long int() const {
-        long retval;
-        /* Suppress VS warning: warning C4127: conditional expression is constant */
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (push)
-#pragma warning (disable: 4127)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        if (sizeof(long) == sizeof(long long))
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (pop)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        {
-            retval = static_cast<long>(__half2ll_rz(__half(*this)));
-        }
-        else
-        {
-            retval = static_cast<long>(__half2int_rz(__half(*this)));
-        }
-        return retval;
     }
     /**
      * \ingroup CUDA_MATH_FP8_E5M2_STRUCT
@@ -1243,14 +1141,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e4m3 {
     }
     /**
      * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
-     * Constructor from \p unsigned \p long \p int data type, relies on \p
-     * __NV_SATFINITE behavior for out-of-range values.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ __nv_fp8_e4m3(const unsigned long int val) {
-        __x = static_cast<__nv_fp8_e4m3>(static_cast<float>(val)).__x;
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
      * Constructor from \p unsigned \p long \p long \p int data type, relies on
      * \p __NV_SATFINITE behavior for out-of-range values.
      */
@@ -1273,14 +1163,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e4m3 {
      * for out-of-range values.
      */
     explicit __CUDA_HOSTDEVICE_FP8__ __nv_fp8_e4m3(const int val) {
-        __x = static_cast<__nv_fp8_e4m3>(static_cast<float>(val)).__x;
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
-     * Constructor from \p long \p int data type, relies on \p
-     * __NV_SATFINITE behavior for out-of-range values.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ __nv_fp8_e4m3(const long int val) {
         __x = static_cast<__nv_fp8_e4m3>(static_cast<float>(val)).__x;
     }
     /**
@@ -1376,33 +1258,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e4m3 {
     }
     /**
      * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
-     * Conversion operator to \p unsigned \p long \p int data type.
-     * Clamps negative and too large inputs to the output range.
-     * \p NaN inputs convert to \p zero if output type is 32-bit.
-     * \p NaN inputs convert to \p 0x8000000000000000ULL if output type is 64-bit.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ operator unsigned long int() const {
-        unsigned long retval;
-        /* Suppress VS warning: warning C4127: conditional expression is constant */
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (push)
-#pragma warning (disable: 4127)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        if (sizeof(unsigned long) == sizeof(unsigned long long))
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (pop)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        {
-            retval = static_cast<unsigned long>(__half2ull_rz(__half(*this)));
-        }
-        else
-        {
-            retval = static_cast<unsigned long>(__half2uint_rz(__half(*this)));
-        }
-        return retval;
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
      * Conversion operator to \p unsigned \p long \p long \p int data type.
      * Clamps negative inputs to zero.
      * \p NaN inputs convert to \p 0x8000000000000000ULL.
@@ -1439,38 +1294,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e4m3 {
         }
         return i;
     }
-
-    /**
-     * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
-     * Conversion operator to an implementation defined \p char data type.
-     * 
-     * Detects signedness of the \p char type and proceeds accordingly, see
-     * further details in signed and unsigned char operators.
-
-     * Clamps inputs to the output range.
-     * \p NaN inputs convert to \p zero.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ operator char() const {
-        char value;
-        /* Suppress VS warning: warning C4127: conditional expression is constant */
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (push)
-#pragma warning (disable: 4127)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        if (((char)-1) < (char)0)
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (pop)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        {
-            value = static_cast<char>(static_cast<signed char>(*this));
-        }
-        else
-        {
-            value = static_cast<char>(static_cast<unsigned char>(*this));
-        }
-        return value;
-    }
-
     /**
      * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
      * Conversion operator to \p short \p int data type.
@@ -1486,33 +1309,6 @@ struct __CUDA_ALIGN__(1) __nv_fp8_e4m3 {
      */
     explicit __CUDA_HOSTDEVICE_FP8__ operator int() const {
         return __half2int_rz(__half(*this));
-    }
-    /**
-     * \ingroup CUDA_MATH_FP8_E4M3_STRUCT
-     * Conversion operator to \p long \p int data type.
-     * Clamps too large inputs to the output range.
-     * \p NaN inputs convert to \p zero if output type is 32-bit.
-     * \p NaN inputs convert to \p 0x8000000000000000ULL if output type is 64-bit.
-     */
-    explicit __CUDA_HOSTDEVICE_FP8__ operator long int() const {
-        long retval;
-        /* Suppress VS warning: warning C4127: conditional expression is constant */
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (push)
-#pragma warning (disable: 4127)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        if (sizeof(long) == sizeof(long long))
-#if defined(_MSC_VER) && !defined(__CUDA_ARCH__)
-#pragma warning (pop)
-#endif /* _MSC_VER && !defined(__CUDA_ARCH__) */
-        {
-            retval = static_cast<long>(__half2ll_rz(__half(*this)));
-        }
-        else
-        {
-            retval = static_cast<long>(__half2int_rz(__half(*this)));
-        }
-        return retval;
     }
     /**
      * \ingroup CUDA_MATH_FP8_E4M3_STRUCT

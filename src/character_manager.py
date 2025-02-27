@@ -430,7 +430,7 @@ class CharacterManager:
                     seed=seed  # Use unique seed for each variation
                 )
                 
-                # Generate variation using base pipeline
+                # Gerate variation using base pipeline
                 variation = model_handler.generate_image(
                     prompt=full_prompt,
                     reference_latents=reference_latents,

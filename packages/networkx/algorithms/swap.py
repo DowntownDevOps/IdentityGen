@@ -1,4 +1,5 @@
-"""Swap edges in a graph."""
+"""Swap edges in a graph.
+"""
 
 import math
 

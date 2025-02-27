@@ -3,12 +3,21 @@ from diffusers import StableDiffusionXLPipeline, AutoencoderKL
 from transformers import CLIPTokenizer, CLIPTextModel
 from PIL import Image
 import numpy as np
-from typing import Optional
+from typing import Optional, List
 from config import ModelConfig, GenerationConfig
 import logging
 import os
+import torch.nn.functional as F
 
 logger = logging.getLogger(__name__)
+
+# Try to import OpenSora, but don't fail if not available
+try:
+    from opensora.opensora import OpenSoraPipeline, WFVAEModel
+    OPENSORA_AVAILABLE = True
+except ImportError:
+    logger.warning("OpenSora not available. Video generation features will be disabled.")
+    OPENSORA_AVAILABLE = False
 
 class StableDiffusionHandler:
     def __init__(self, model_config: ModelConfig):
@@ -119,7 +128,10 @@ class StableDiffusionHandler:
             "drawing"
         ]
 
-
+        # Initialize video components as None
+        self.video_pipeline = None
+        self.video_vae = None
+        
         try:
             logger.info(f"Loading pipeline from {model_config.base_model_path}")
             # Initialize base pipeline with safety checker disabled for training
@@ -148,9 +160,35 @@ class StableDiffusionHandler:
             self.text_encoder.to(device=self.device, dtype=self.dtype)
             
             logger.info("StableDiffusionHandler initialization complete")
+            
+            # Initialize video generation pipeline only if OpenSora is available
+            if OPENSORA_AVAILABLE and hasattr(model_config, 'opensora_path'):
+                self._init_video_pipeline()
+                
         except Exception as e:
             logger.error(f"Failed to initialize StableDiffusionHandler: {str(e)}")
             raise
+
+    def _init_video_pipeline(self):
+        """Initialize the video generation pipeline if OpenSora is available"""
+        try:
+            logger.info("Initializing video generation pipeline...")
+            self.video_vae = WFVAEModel.from_pretrained(
+                f"{self.config.opensora_path}/vae",
+                torch_dtype=self.dtype
+            ).to(self.device)
+            
+            self.video_pipeline = OpenSoraPipeline.from_pretrained(
+                self.config.opensora_path,
+                vae=self.video_vae,
+                torch_dtype=self.dtype
+            ).to(self.device)
+            logger.info("Video pipeline initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize Open-Sora pipeline: {str(e)}")
+            self.video_pipeline = None
+            self.video_vae = None
         
     def load_character_lora(self, lora_path: str):
         """Load a character-specific LoRA model"""
@@ -204,104 +242,100 @@ class StableDiffusionHandler:
             logger.error(f"Failed to encode reference image: {str(e)}")
             raise
         
-    def _enhance_prompt(self, prompt: str) -> str:
-        """Add default modifiers to user prompt for consistent character generation"""
+    def _enhance_prompt(self, prompt: str, gen_config: Optional[GenerationConfig] = None) -> str:
+        """Add modifiers to the user prompt based on configuration."""
         if not isinstance(prompt, str):
             raise ValueError("Prompt must be a string")
             
-        # For training prompts that already include view/pose instructions, don't add modifiers
-        if any(keyword in prompt.lower() for keyword in ["front view", "side view", "back view", "3/4 view"]):
-            enhanced_prompt = f"{prompt}, RAW photo, photorealistic, sharp focus"
-        else:
-            # Extract the first sentence of the prompt (main character description)
-            main_desc = prompt.split(".")[0] + "."
+        # If no config provided or default enhancements are disabled, return the prompt as is
+        if gen_config is None:
+            gen_config = GenerationConfig()
             
-            # Focused set of modifiers for photorealistic full-body shots
-            essential_modifiers = [
-                "full body centered",
-                "standing pose",
-                "white background",
-                "studio lighting",
-                "RAW photo",
-                "photorealistic",
-                "sharp focus",
+        # Extract the core character description (use the first sentence)
+        main_desc = prompt.split(".")[0].strip()
+        if not main_desc.endswith("."):
+            main_desc += "."
+            
+        # If default enhancements are disabled and no custom modifiers provided, return just the main description
+        if not gen_config.use_default_prompt_enhancements and not gen_config.custom_prompt_modifiers:
+            logger.info(f"Using prompt without enhancements: {prompt}")
+            return prompt
+            
+        # Determine which modifiers to use
+        if not gen_config.use_default_prompt_enhancements and gen_config.custom_prompt_modifiers:
+            # Use custom modifiers
+            modifiers = gen_config.custom_prompt_modifiers
+            logger.info(f"Using custom prompt modifiers: {modifiers}")
+        else:
+            # Use default modifiers
+            modifiers = [
+                "single character only",
+                "full body from head to toe",
+                "full body, standing straight ahead",
+                "arms extended out to the sides in a Vitruvian pose",
+                "symmetrical, one set of arms and legs",
+                "pure white background",
                 "professional photography",
-                "4k"
+                "photorealistic"
             ]
             
-            # Combine main description with essential modifiers
-            enhanced_prompt = f"{main_desc}, {', '.join(essential_modifiers)}"
-            
+        # Combine the main description with the modifiers
+        enhanced_prompt = f"{main_desc}, {', '.join(modifiers)}"
         logger.info(f"Enhanced prompt: {enhanced_prompt}")
         return enhanced_prompt
 
-    def _enhance_negative_prompt(self, negative_prompt: Optional[str] = None) -> str:
-        """Combine user negative prompt with default negative modifiers"""
-        if negative_prompt is not None and not isinstance(negative_prompt, str):
-            raise ValueError("Negative prompt must be a string if provided")
+
+    def _enhance_negative_prompt(self, negative_prompt: Optional[str] = None, gen_config: Optional[GenerationConfig] = None) -> str:
+        """Combine user negative prompt with modifiers based on configuration."""
+        if gen_config is None:
+            gen_config = GenerationConfig()
             
-        # Select essential negative modifiers
-        essential_negative = [
-            "cropped",
-            "close up",
-            "portrait",
-            "zoomed in",
-            "partial body",
-            "cut off feet",
-            "cut off legs",
-            "missing feet",
-            "missing hands",
-            "missing limbs",
-            "bad anatomy",
-            "extra limbs",
-            "floating limbs",
-            "disconnected limbs",
-            "malformed hands",
-            "malformed feet",
-            "mutated",
-            "deformed",
-            "blurry",
-            "duplicate",
-            "watermark",
-            "signature",
-            "text",
-            "frame",
-            "border",
-            "background pattern",
-            "background texture",
-            "background design",
-            "decorative elements",
-            "props",
-            "weapons",
-            "accessories",
-            "pets",
-            "animals",
-            "scenery",
-            "environment",
-            "dynamic pose",
-            "action pose",
-            "tilted head",
-            "twisted body",
-            "artistic background",
-            "gradient background",
-            "textured background",
-            "doll",
-            "anime",
-            "animation",
-            "cartoon",
-            "render",
-            "artwork",
-            "semi-realistic",
-            "CGI",
-            "3d",
-            "sketch",
-            "drawing"
-        ]
+        # If default enhancements are disabled and no custom modifiers provided, return the negative prompt as is
+        if not gen_config.use_default_negative_enhancements and not gen_config.custom_negative_modifiers:
+            return negative_prompt or ""
+            
+        # Determine which negative modifiers to use
+        if not gen_config.use_default_negative_enhancements and gen_config.custom_negative_modifiers:
+            # Use custom negative modifiers
+            base_negative = gen_config.custom_negative_modifiers
+            logger.info(f"Using custom negative modifiers: {base_negative}")
+        else:
+            # Use default negative modifiers
+            base_negative = [
+                "multiple characters",
+                "multiple views",
+                "split image",
+                "side by side",
+                "duplicate",
+                "multiple versions",
+                "abstract",
+                "blurry",
+                "bad quality",
+                "worst quality",
+                "low quality",
+                "normal quality",
+                "lowres",
+                "distorted",
+                "deformed",
+                "mutation",
+                "extra limbs",
+                "missing limbs",
+                "disconnected limbs",
+                "malformed",
+                "out of frame",
+                "cropped",
+                "watermark",
+                "signature",
+                "text",
+                "error",
+                "jpeg artifacts",
+                "duplicate characters"
+            ]
         
-        base_negative = ", ".join(essential_negative)
         if negative_prompt:
-            return f"{negative_prompt}, {base_negative}"
-        return base_negative
+            return f"{negative_prompt}, {', '.join(base_negative)}"
+        return ', '.join(base_negative)
+
 
     def generate_image(
         self,
@@ -320,69 +354,30 @@ class StableDiffusionHandler:
                 raise ValueError("Invalid prompt provided")
                 
             # Enhance prompts with default modifiers
-            enhanced_prompt = self._enhance_prompt(prompt)
-            enhanced_negative_prompt = self._enhance_negative_prompt(negative_prompt)
-                
-            # Generate base latents if no reference provided
-            if reference_latents is None:
-                latents = torch.randn(
-                    (1, 4, 64, 64),
-                    device=self.device,
-                    dtype=self.dtype
-                )
-            else:
-                # Validate reference latents
-                if not isinstance(reference_latents, torch.Tensor):
-                    raise ValueError("Reference latents must be a torch.Tensor")
-                    
-                if reference_latents.shape != (1, 4, 64, 64):
-                    raise ValueError(f"Invalid reference latents shape: {reference_latents.shape}, expected (1, 4, 64, 64)")
-                    
-                # Ensure reference latents are on correct device and dtype
-                reference_latents = reference_latents.to(device=self.device, dtype=self.dtype)
-                
-                # Get random seed from config or generate one
-                seed = getattr(gen_config, 'seed', None)
-                if seed is None:
-                    seed = torch.randint(0, 2**32 - 1, (1,)).item()
-                
-                # Create generator with random seed
-                generator = torch.Generator(device=self.device).manual_seed(seed)
-                
-                # Get strength from config (default to lower value for better consistency)
-                strength = getattr(gen_config, 'strength', 0.6)
-                
-                # Initialize scheduler timesteps
-                num_inference_steps = getattr(gen_config, 'num_inference_steps', 30)
-                self.pipe.scheduler.set_timesteps(num_inference_steps)
-                
-                # Generate random noise
-                noise = torch.randn(
-                    reference_latents.shape,
-                    generator=generator,
-                    device=self.device,
-                    dtype=self.dtype
-                )
-                
-                # Scale noise to match latent scale
-                noise = noise * 0.18215
-                
-                # Interpolate between reference and noise
-                latents = reference_latents * (1 - strength) + noise * strength
+            enhanced_prompt = self._enhance_prompt(prompt, gen_config)
+            enhanced_negative_prompt = self._enhance_negative_prompt(negative_prompt, gen_config)
             
-            # Generate image
+            # Get width and height from config, ensuring they're multiples of 8
+            width = getattr(gen_config, 'width', 1024)
+            height = getattr(gen_config, 'height', 1024)
+            
+            # Ensure dimensions are multiples of 8 as required by Stable Diffusion
+            width = (width // 8) * 8
+            height = (height // 8) * 8
+            
+            # Updated generation parameters for better quality
+            pipeline_kwargs = {
+                "prompt": enhanced_prompt,
+                "negative_prompt": enhanced_negative_prompt,
+                "num_inference_steps": getattr(gen_config, 'num_inference_steps', 50),  # Increased steps
+                "guidance_scale": getattr(gen_config, 'guidance_scale', 8.5),  # Adjusted guidance
+                "width": width,
+                "height": height,
+                "latents": reference_latents if reference_latents is not None else None,
+            }
+            
+            # Generate the image
             with torch.no_grad():
-                # Create pipeline kwargs with adjusted parameters
-                pipeline_kwargs = {
-                    "prompt": enhanced_prompt,
-                    "negative_prompt": enhanced_negative_prompt,
-                    "num_inference_steps": getattr(gen_config, 'num_inference_steps', 30),
-                    "guidance_scale": getattr(gen_config, 'guidance_scale', 7.5),
-                    "latents": latents,
-                    "generator": generator if reference_latents is not None else None
-                }
-                
-                # Generate the image
                 output = self.pipe(
                     **pipeline_kwargs,
                     output_type="pil",
@@ -396,4 +391,102 @@ class StableDiffusionHandler:
             
         except Exception as e:
             logger.error(f"Failed to generate image: {str(e)}")
-            raise 
+            raise
+
+    def generate_video(
+        self,
+        prompt: str,
+        negative_prompt: Optional[str] = None,
+        reference_latents: Optional[torch.Tensor] = None,
+        num_frames: int = 93,
+        width: int = 640,
+        height: int = 640,
+        guidance_scale: float = 8.5,
+        character_consistency: float = 0.8
+    ) -> List[Image.Image]:
+        """Generate video using Open-Sora"""
+        try:
+            if not OPENSORA_AVAILABLE:
+                raise ValueError("OpenSora is not available. Video generation is disabled.")
+                
+            if self.video_pipeline is None:
+                raise ValueError("Video pipeline is not initialized. Please check OpenSora installation.")
+
+            # Enhance prompt for video context
+            enhanced_prompt = self._enhance_prompt(prompt)
+            enhanced_negative = self._enhance_negative_prompt(negative_prompt)
+            
+            logger.info(f"Generating video with prompt: {enhanced_prompt}")
+            
+            # Generate video frames
+            frames = self.video_pipeline(
+                enhanced_prompt,
+                negative_prompt=enhanced_negative,
+                num_frames=num_frames,
+                width=width,
+                height=height,
+                guidance_scale=guidance_scale,
+                num_inference_steps=50
+            ).frames
+            
+            # If we have reference latents, apply character consistency
+            if reference_latents is not None and character_consistency > 0:
+                frames = self._apply_character_consistency(
+                    frames,
+                    reference_latents,
+                    character_consistency
+                )
+                
+            return frames
+            
+        except Exception as e:
+            logger.error(f"Failed to generate video: {str(e)}")
+            raise
+
+    def _apply_character_consistency(
+        self,
+        frames: List[Image.Image],
+        reference_latents: torch.Tensor,
+        consistency_weight: float
+    ) -> List[Image.Image]:
+        """Apply character consistency to generated frames"""
+        try:
+            # Encode frames to latent space
+            frame_latents = torch.stack([
+                self.vae.encode(self._preprocess_image(frame)).latent_dist.sample()
+                for frame in frames
+            ]).to(self.device)
+            
+            # Interpolate reference latents to match frame dimensions
+            ref_latents = F.interpolate(
+                reference_latents.unsqueeze(0).repeat(len(frames), 1, 1, 1),
+                size=frame_latents.shape[2:],
+                mode='bilinear'
+            )
+            
+            # Blend latents
+            blended_latents = (
+                frame_latents * (1 - consistency_weight) +
+                ref_latents * consistency_weight
+            )
+            
+            # Decode back to images
+            return [
+                Image.fromarray(
+                    self.vae.decode(latent).sample.cpu().numpy().astype(np.uint8)
+                )
+                for latent in blended_latents
+            ]
+            
+        except Exception as e:
+            logger.error(f"Failed to apply character consistency: {str(e)}")
+            raise
+
+    def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
+        """Convert PIL image to normalized tensor"""
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        image = image.resize((1024, 1024), Image.Resampling.LANCZOS)
+        return torch.from_numpy(
+            np.array(image, dtype=np.float32) / 255.0
+        ).permute(2, 0, 1).unsqueeze(0).to(self.device) 

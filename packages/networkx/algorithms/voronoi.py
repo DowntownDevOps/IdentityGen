@@ -1,5 +1,4 @@
 """Functions for computing the Voronoi cells of a graph."""
-
 import networkx as nx
 from networkx.utils import groups
 

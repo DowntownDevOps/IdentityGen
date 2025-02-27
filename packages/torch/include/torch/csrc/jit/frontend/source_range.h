@@ -1,11 +1,13 @@
 #pragma once
 #include <c10/util/Exception.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <ostream>
+#include <regex>
 #include <sstream>
 #include <unordered_map>
 
@@ -22,7 +24,7 @@ struct TORCH_API StringCordView {
   StringCordView(const StringCordView&) = default;
   StringCordView(StringCordView&&) noexcept = default;
   StringCordView(
-      std::vector<std::string_view> inputs,
+      std::vector<c10::string_view> inputs,
       std::vector<std::shared_ptr<std::string>> ownerships);
 
   StringCordView& operator=(const StringCordView&) = default;
@@ -55,7 +57,7 @@ struct TORCH_API StringCordView {
 
   bool operator==(const StringCordView& rhs) const;
 
-  std::string_view piece(size_t index) const {
+  c10::string_view piece(size_t index) const {
     return pieces_[index];
   }
 
@@ -138,12 +140,12 @@ struct TORCH_API StringCordView {
     }
 
     // returns rest of the line of the current iterator
-    std::string_view rest_line() const {
+    c10::string_view rest_line() const {
       if (line_ >= str_->pieces_.size()) {
         return "";
       }
 
-      std::string_view cur_line = str_->pieces_[line_];
+      c10::string_view cur_line = str_->pieces_[line_];
       return cur_line.substr(pos_, std::string::npos);
     }
 
@@ -171,7 +173,7 @@ struct TORCH_API StringCordView {
   Iterator iter_for_pos(size_t pos) const;
 
  private:
-  std::vector<std::string_view> pieces_;
+  std::vector<c10::string_view> pieces_;
   std::vector<size_t> accumulated_sizes_;
   std::vector<std::shared_ptr<std::string>> owned_strings_;
 };
@@ -187,8 +189,8 @@ struct TORCH_API Source {
   enum CopiesString { COPIES_STRING, DONT_COPY };
 
   explicit Source(
-      std::string_view text_view,
-      std::optional<std::string> filename = std::nullopt,
+      c10::string_view text_view,
+      std::optional<std::string> filename = c10::nullopt,
       size_t starting_line_no = 0,
       std::shared_ptr<SourceRangeUnpickler> gen_ranges = nullptr,
       CopiesString copies_str = COPIES_STRING)
@@ -208,7 +210,7 @@ struct TORCH_API Source {
 
   explicit Source(
       StringCordView str,
-      std::optional<std::string> filename = std::nullopt,
+      std::optional<std::string> filename = c10::nullopt,
       size_t starting_line_no = 0,
       std::shared_ptr<SourceRangeUnpickler> gen_ranges = nullptr)
       : text_view_(std::move(str)),
@@ -320,7 +322,7 @@ struct TORCH_API SourceRange {
         end_(end_),
         start_iter_(start_iter) {}
 
-  const std::string_view token_text() const {
+  const c10::string_view token_text() const {
     size_t size = end() - start();
     return start_iter_.rest_line().substr(0, size);
   }
@@ -358,7 +360,7 @@ struct TORCH_API SourceRange {
 
   std::optional<std::tuple<std::string, size_t, size_t>> file_line_col() const {
     if (!source_view_ || !source()->filename()) {
-      return std::nullopt;
+      return c10::nullopt;
     }
 
     auto lineno = source_view_->lineno_for_offset(start_);
@@ -381,7 +383,7 @@ struct TORCH_API SourceRange {
 
   std::optional<SourceRange> findSourceRangeThatGenerated() const {
     if (!source_view_) {
-      return std::nullopt;
+      return c10::nullopt;
     }
     return source_view_->findSourceRangeThatGenerated(*this);
   }

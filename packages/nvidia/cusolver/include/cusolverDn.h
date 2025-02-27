@@ -80,11 +80,6 @@ typedef enum {
   CUSOLVERDN_POTRF = 1
 } cusolverDnFunction_t;
 
-typedef enum {
-  CUSOLVER_DETERMINISTIC_RESULTS = 1,
-  CUSOLVER_ALLOW_NON_DETERMINISTIC_RESULTS = 2
-} cusolverDeterministicMode_t;
-
   #include <stdio.h>
 
   #include "cuComplex.h" /* import complex data type */
@@ -102,14 +97,6 @@ extern "C" {
     cusolverDnSetStream(cusolverDnHandle_t handle, cudaStream_t streamId);
   cusolverStatus_t CUSOLVERAPI
     cusolverDnGetStream(cusolverDnHandle_t handle, cudaStream_t *streamId);
-
-  //============================================================
-  // Deterministic Mode
-  //============================================================
-  cusolverStatus_t CUSOLVERAPI cusolverDnSetDeterministicMode(cusolverDnHandle_t
-    handle, cusolverDeterministicMode_t mode);
-  cusolverStatus_t CUSOLVERAPI cusolverDnGetDeterministicMode(cusolverDnHandle_t
-    handle, cusolverDeterministicMode_t* mode);
 
   //============================================================
   // IRS headers
@@ -4861,46 +4848,6 @@ extern "C" {
     void *             bufferOnHost,
     size_t             workspaceInBytesOnHost,
     int *              d_info);
-
-  cusolverStatus_t CUSOLVERAPI cusolverDnXlarft_bufferSize(
-    cusolverDnHandle_t     handle,
-    cusolverDnParams_t     params,
-    cusolverDirectMode_t   direct,
-    cusolverStorevMode_t   storev,
-    int64_t                N,
-    int64_t                K,
-    cudaDataType           dataTypeV,
-    const void            *d_V,
-    int64_t                ldv,
-    cudaDataType           dataTypeTau,
-    const void            *d_tau,
-    cudaDataType           dataTypeT,
-    void                  *d_T,
-    int64_t                ldt,
-    cudaDataType           computeType,
-    size_t                *workspaceInBytesOnDevice,
-    size_t                *workspaceInBytesOnHost);
-
-  cusolverStatus_t CUSOLVERAPI cusolverDnXlarft(
-    cusolverDnHandle_t     handle,
-    cusolverDnParams_t     params,
-    cusolverDirectMode_t   direct,
-    cusolverStorevMode_t   storev,
-    int64_t                N,
-    int64_t                K,
-    cudaDataType           dataTypeV,
-    const void            *d_V,
-    int64_t                ldv,
-    cudaDataType           dataTypeTau,
-    const void            *d_tau,
-    cudaDataType           dataTypeT,
-    void                  *d_T,
-    int64_t                ldt,
-    cudaDataType           computeType,
-    void                  *bufferOnDevice,
-    size_t                 workspaceInBytesOnDevice,
-    void                  *bufferOnHost,
-    size_t                 workspaceInBytesOnHost);
 
   typedef void (*cusolverDnLoggerCallback_t)(
     int         logLevel,

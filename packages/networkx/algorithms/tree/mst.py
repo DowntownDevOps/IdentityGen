@@ -2,7 +2,6 @@
 Algorithms for calculating min/max spanning trees/forests.
 
 """
-
 from dataclasses import dataclass, field
 from enum import Enum
 from heapq import heappop, heappush
@@ -1126,28 +1125,19 @@ class SpanningTreeIterator:
             A Partition dataclass describing a partition on the edges of the
             graph.
         """
-
-        partition_dict = partition.partition_dict
-        partition_key = self.partition_key
-        G = self.G
-
-        edges = (
-            G.edges(keys=True, data=True) if G.is_multigraph() else G.edges(data=True)
-        )
-        for *e, d in edges:
-            d[partition_key] = partition_dict.get(tuple(e), EdgePartition.OPEN)
+        for u, v, d in self.G.edges(data=True):
+            if (u, v) in partition.partition_dict:
+                d[self.partition_key] = partition.partition_dict[(u, v)]
+            else:
+                d[self.partition_key] = EdgePartition.OPEN
 
     def _clear_partition(self, G):
         """
         Removes partition data from the graph
         """
-        partition_key = self.partition_key
-        edges = (
-            G.edges(keys=True, data=True) if G.is_multigraph() else G.edges(data=True)
-        )
-        for *e, d in edges:
-            if partition_key in d:
-                del d[partition_key]
+        for u, v, d in G.edges(data=True):
+            if self.partition_key in d:
+                del d[self.partition_key]
 
 
 @nx._dispatchable(edge_attrs="weight")

@@ -16,7 +16,6 @@ Format
 GEXF is an XML format.  See http://gexf.net/schema.html for the
 specification and http://gexf.net/basic.html for examples.
 """
-
 import itertools
 import time
 from xml.etree.ElementTree import (

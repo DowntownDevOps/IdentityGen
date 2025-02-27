@@ -2,6 +2,7 @@
 Link prediction algorithms.
 """
 
+
 from math import log
 
 import networkx as nx
@@ -299,7 +300,7 @@ def common_neighbor_centrality(G, ebunch=None, alpha=0.8):
         If `G` is a `DiGraph`, a `Multigraph` or a `MultiDiGraph`.
 
     NetworkXAlgorithmError
-        If self loops exist in `ebunch` or in `G` (if `ebunch` is `None`).
+        If self loops exsists in `ebunch` or in `G` (if `ebunch` is `None`).
 
     NodeNotFound
         If `ebunch` has a node that is not in `G`.

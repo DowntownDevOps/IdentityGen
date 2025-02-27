@@ -292,13 +292,23 @@ namespace details {
 
     template <>
     struct tile_async_reduce_dispatch<details::coalesced_group_id> {
-        template <typename GroupT, typename TyDst, typename TyVal, typename TyFn, typename TyResHandler>
-        _CG_STATIC_QUALIFIER void reduce(const GroupT& group, TyDst& dst, TyVal&& val, TyFn&& op, TyResHandler& res_handler) {
+        template <unsigned int TySize, typename ParentT, typename TyDst, typename TyVal, typename TyFn, typename TyResHandler>
+        _CG_STATIC_QUALIFIER void reduce(const __single_warp_thread_block_tile<TySize, ParentT>& group, TyDst& dst, TyVal&& val, TyFn&& op, TyResHandler& res_handler) {
             // Do regular, in group reduction
             auto result = details::reduce(group, _CG_STL_NAMESPACE::forward<TyVal>(val), op);
 
             // One thread stores/updates the destination
             if (group.thread_rank() == 0) {
+                res_handler(result);
+            }
+        }
+        template <typename TyDst, typename TyVal, typename TyFn, typename TyResHandler>
+        _CG_STATIC_QUALIFIER void reduce(const coalesced_group& group, TyDst& dst, TyVal&& val, TyFn&& op, TyResHandler& res_handler) {
+            // Do in group reduction to the last thread
+            auto result = details::coalesced_reduce_to_one(group, _CG_STL_NAMESPACE::forward<TyVal>(val), op);
+
+            // One thread stores/updates the destination
+            if (group.thread_rank() == group.size() - 1) {
                 res_handler(result);
             }
         }

@@ -64,9 +64,9 @@
 //##############################################################################
 
 #define CUSPARSE_VER_MAJOR 12
-#define CUSPARSE_VER_MINOR 3
-#define CUSPARSE_VER_PATCH 1
-#define CUSPARSE_VER_BUILD 170
+#define CUSPARSE_VER_MINOR 1
+#define CUSPARSE_VER_PATCH 0
+#define CUSPARSE_VER_BUILD 106
 #define CUSPARSE_VERSION (CUSPARSE_VER_MAJOR * 1000 + \
                           CUSPARSE_VER_MINOR *  100 + \
                           CUSPARSE_VER_PATCH)
@@ -101,101 +101,54 @@
 
 #   if CUSPARSE_CPP_VERSION >= 201402L
 
-#       define CUSPARSE_DEPRECATED_REPLACE_WITH(new_func)                      \
+#       define CUSPARSE_DEPRECATED(new_func)                                   \
             [[deprecated("please use " #new_func " instead")]]
-
-#       define CUSPARSE_DEPRECATED                                             \
-         [[deprecated("The routine will be removed in the next major release")]]
-
-#       define CUSPARSE_DEPRECATED_TYPE                                        \
-         [[deprecated("The type will be removed in the next major release")]]
-
-#       define CUSPARSE_DEPRECATED_TYPE_MSVC
 
 #   elif defined(_MSC_VER)
 
-#       define CUSPARSE_DEPRECATED_REPLACE_WITH(new_func)                      \
+#       define CUSPARSE_DEPRECATED(new_func)                                   \
             __declspec(deprecated("please use " #new_func " instead"))
-
-#       define CUSPARSE_DEPRECATED                                             \
-            __declspec(deprecated(                                             \
-                "The routine will be removed in the next major release"))
-
-#       define CUSPARSE_DEPRECATED_TYPE
-
-#       define CUSPARSE_DEPRECATED_TYPE_MSVC
-            __declspec(deprecated(                                             \
-                "The type will be removed in the next major release"))
 
 #   elif defined(__INTEL_COMPILER) || defined(__clang__) ||                    \
          (defined(__GNUC__) &&                                                 \
           (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
 
-#       define CUSPARSE_DEPRECATED_REPLACE_WITH(new_func)                      \
+#       define CUSPARSE_DEPRECATED(new_func)                                   \
             __attribute__((deprecated("please use " #new_func " instead")))
-
-#       define CUSPARSE_DEPRECATED                                             \
-            __attribute__((deprecated(                                         \
-                "The routine will be removed in the next major release")))
-
-#       define CUSPARSE_DEPRECATED_TYPE                                        \
-            __attribute__((deprecated(                                         \
-                "The type will be removed in the next major release")))
-
-#       define CUSPARSE_DEPRECATED_TYPE_MSVC
 
 #   elif defined(__GNUC__) || defined(__xlc__)
 
-#       define CUSPARSE_DEPRECATED_REPLACE_WITH(new_func)                      \
+#       define CUSPARSE_DEPRECATED(new_func)                                   \
             __attribute__((deprecated))
-
-#       define CUSPARSE_DEPRECATED      __attribute__((deprecated))
-#       define CUSPARSE_DEPRECATED_TYPE __attribute__((deprecated))
-#       define CUSPARSE_DEPRECATED_TYPE_MSVC
 
 #   else
 
-#       define CUSPARSE_DEPRECATED_REPLACE_WITH(new_func)
-#       define CUSPARSE_DEPRECATED
-#       define CUSPARSE_DEPRECATED_TYPE
-#       define CUSPARSE_DEPRECATED_TYPE_MSVC
+#       define CUSPARSE_DEPRECATED(new_func)
 
 #   endif // defined(__cplusplus) && __cplusplus >= 201402L
 //------------------------------------------------------------------------------
 
 #   if CUSPARSE_CPP_VERSION >= 201703L
 
-#       define CUSPARSE_DEPRECATED_ENUM_REPLACE_WITH(new_enum)                 \
+#       define CUSPARSE_DEPRECATED_ENUM(new_enum)                              \
             [[deprecated("please use " #new_enum " instead")]]
-
-#       define CUSPARSE_DEPRECATED_ENUM                                        \
-            [[deprecated("The enum will be removed in the next major release")]]
 
 #   elif defined(__clang__) ||                                                 \
          (defined(__GNUC__) && __GNUC__ >= 6 && !defined(__PGI))
 
-#       define CUSPARSE_DEPRECATED_ENUM_REPLACE_WITH(new_enum)                 \
+#       define CUSPARSE_DEPRECATED_ENUM(new_enum)                              \
             __attribute__((deprecated("please use " #new_enum " instead")))
-
-#       define CUSPARSE_DEPRECATED_ENUM                                        \
-            __attribute__((deprecated(                                         \
-                "The enum will be removed in the next major release")))
 
 #   else
 
-#       define CUSPARSE_DEPRECATED_ENUM_REPLACE_WITH(new_enum)
-#       define CUSPARSE_DEPRECATED_ENUM
+#       define CUSPARSE_DEPRECATED_ENUM(new_enum)
 
 #   endif // defined(__cplusplus) && __cplusplus >= 201402L
 
 #else // defined(DISABLE_CUSPARSE_DEPRECATED)
 
-#   define CUSPARSE_DEPRECATED_REPLACE_WITH(new_func)
-#   define CUSPARSE_DEPRECATED
-#   define CUSPARSE_DEPRECATED_TYPE
-#   define CUSPARSE_DEPRECATED_TYPE_MSVC
-#   define CUSPARSE_DEPRECATED_ENUM_REPLACE_WITH(new_enum)
-#   define CUSPARSE_DEPRECATED_ENUM
+#   define CUSPARSE_DEPRECATED(new_func)
+#   define CUSPARSE_DEPRECATED_ENUM(new_enum)
 
 #endif // !defined(DISABLE_CUSPARSE_DEPRECATED)
 
@@ -212,46 +165,37 @@ extern "C" {
 //##############################################################################
 
 struct cusparseContext;
-typedef struct cusparseContext* cusparseHandle_t;
+typedef struct cusparseContext*       cusparseHandle_t;
 
 struct cusparseMatDescr;
 typedef struct cusparseMatDescr* cusparseMatDescr_t;
 
 struct bsrsv2Info;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct bsrsv2Info* bsrsv2Info_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct bsrsv2Info* bsrsv2Info_t;
 
 struct bsrsm2Info;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct bsrsm2Info* bsrsm2Info_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct bsrsm2Info* bsrsm2Info_t;
 
 struct csric02Info;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct csric02Info* csric02Info_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct csric02Info* csric02Info_t;
 
 struct bsric02Info;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct bsric02Info* bsric02Info_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct bsric02Info* bsric02Info_t;
 
 struct csrilu02Info;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct csrilu02Info* csrilu02Info_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct csrilu02Info* csrilu02Info_t;
 
 struct bsrilu02Info;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct bsrilu02Info* bsrilu02Info_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct bsrilu02Info* bsrilu02Info_t;
 
 struct csru2csrInfo;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct csru2csrInfo* csru2csrInfo_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct csru2csrInfo* csru2csrInfo_t;
 
 struct cusparseColorInfo;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct cusparseColorInfo* cusparseColorInfo_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct cusparseColorInfo* cusparseColorInfo_t;
 
 struct pruneInfo;
-typedef CUSPARSE_DEPRECATED_TYPE_MSVC
-struct pruneInfo* pruneInfo_t CUSPARSE_DEPRECATED_TYPE;
+typedef struct pruneInfo* pruneInfo_t;
 
 //##############################################################################
 //# ENUMERATORS
@@ -318,12 +262,12 @@ typedef enum {
 typedef enum {
     CUSPARSE_SOLVE_POLICY_NO_LEVEL = 0,
     CUSPARSE_SOLVE_POLICY_USE_LEVEL = 1
-} cusparseSolvePolicy_t CUSPARSE_DEPRECATED_TYPE;
+} cusparseSolvePolicy_t;
 
 typedef enum {
     CUSPARSE_COLOR_ALG0 = 0, // default
     CUSPARSE_COLOR_ALG1 = 1
-} cusparseColorAlg_t CUSPARSE_DEPRECATED_TYPE;
+} cusparseColorAlg_t;
 
 //##############################################################################
 //# INITIALIZATION AND MANAGEMENT ROUTINES
@@ -401,6 +345,10 @@ cusparseCreateMatDescr(cusparseMatDescr_t* descrA);
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyMatDescr(cusparseMatDescr_t descrA);
 
+//cusparseStatus_t CUSPARSEAPI
+//cusparseCopyMatDescr(cusparseMatDescr_t       dest,
+//                     const cusparseMatDescr_t src);
+
 cusparseStatus_t CUSPARSEAPI
 cusparseSetMatType(cusparseMatDescr_t   descrA,
                    cusparseMatrixType_t type);
@@ -429,75 +377,57 @@ cusparseSetMatIndexBase(cusparseMatDescr_t  descrA,
 cusparseIndexBase_t CUSPARSEAPI
 cusparseGetMatIndexBase(const cusparseMatDescr_t descrA);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateCsric02Info(csric02Info_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyCsric02Info(csric02Info_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateBsric02Info(bsric02Info_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyBsric02Info(bsric02Info_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateCsrilu02Info(csrilu02Info_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyCsrilu02Info(csrilu02Info_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateBsrilu02Info(bsrilu02Info_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyBsrilu02Info(bsrilu02Info_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateBsrsv2Info(bsrsv2Info_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyBsrsv2Info(bsrsv2Info_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateBsrsm2Info(bsrsm2Info_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyBsrsm2Info(bsrsm2Info_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateCsru2csrInfo(csru2csrInfo_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyCsru2csrInfo(csru2csrInfo_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateColorInfo(cusparseColorInfo_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyColorInfo(cusparseColorInfo_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreatePruneInfo(pruneInfo_t* info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDestroyPruneInfo(pruneInfo_t info);
 
@@ -669,7 +599,6 @@ cusparseZbsrmv(cusparseHandle_t         handle,
                const cuDoubleComplex*   beta,
                cuDoubleComplex*         y);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrxmv(cusparseHandle_t         handle,
                 cusparseDirection_t      dirA,
@@ -690,7 +619,6 @@ cusparseSbsrxmv(cusparseHandle_t         handle,
                 const float*             beta,
                 float*                   y);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrxmv(cusparseHandle_t         handle,
                 cusparseDirection_t      dirA,
@@ -711,7 +639,6 @@ cusparseDbsrxmv(cusparseHandle_t         handle,
                 const double*            beta,
                 double*                  y);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrxmv(cusparseHandle_t         handle,
                 cusparseDirection_t      dirA,
@@ -732,7 +659,6 @@ cusparseCbsrxmv(cusparseHandle_t         handle,
                 const cuComplex*         beta,
                 cuComplex*               y);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrxmv(cusparseHandle_t         handle,
                 cusparseDirection_t      dirA,
@@ -753,13 +679,11 @@ cusparseZbsrxmv(cusparseHandle_t         handle,
                 const cuDoubleComplex*   beta,
                 cuDoubleComplex*         y);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXbsrsv2_zeroPivot(cusparseHandle_t handle,
                           bsrsv2Info_t     info,
                           int*             position);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsv2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -774,7 +698,6 @@ cusparseSbsrsv2_bufferSize(cusparseHandle_t         handle,
                            bsrsv2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsv2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -789,7 +712,6 @@ cusparseDbsrsv2_bufferSize(cusparseHandle_t         handle,
                            bsrsv2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsv2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -804,7 +726,6 @@ cusparseCbsrsv2_bufferSize(cusparseHandle_t         handle,
                            bsrsv2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsv2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -819,7 +740,6 @@ cusparseZbsrsv2_bufferSize(cusparseHandle_t         handle,
                            bsrsv2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -834,7 +754,6 @@ cusparseSbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsv2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -849,7 +768,6 @@ cusparseDbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsv2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -864,7 +782,6 @@ cusparseCbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsv2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -879,7 +796,6 @@ cusparseZbsrsv2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsv2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -895,7 +811,6 @@ cusparseSbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -911,7 +826,6 @@ cusparseDbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -927,7 +841,6 @@ cusparseCbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -943,7 +856,6 @@ cusparseZbsrsv2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -962,7 +874,6 @@ cusparseSbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseSolvePolicy_t    policy,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -981,7 +892,6 @@ cusparseDbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseSolvePolicy_t    policy,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -1000,7 +910,6 @@ cusparseCbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseSolvePolicy_t    policy,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsv2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -1087,7 +996,7 @@ cusparseCbsrmm(cusparseHandle_t         handle,
                int              ldc);
 
 cusparseStatus_t CUSPARSEAPI
-cusparseZbsrmm(cusparseHandle_t         handle,
+ cusparseZbsrmm(cusparseHandle_t         handle,
                 cusparseDirection_t      dirA,
                 cusparseOperation_t      transA,
                 cusparseOperation_t      transB,
@@ -1107,13 +1016,11 @@ cusparseZbsrmm(cusparseHandle_t         handle,
                 cuDoubleComplex*         C,
                 int                      ldc);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXbsrsm2_zeroPivot(cusparseHandle_t handle,
                           bsrsm2Info_t     info,
                           int*             position);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsm2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1130,7 +1037,6 @@ cusparseSbsrsm2_bufferSize(cusparseHandle_t         handle,
                            bsrsm2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsm2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1147,7 +1053,6 @@ cusparseDbsrsm2_bufferSize(cusparseHandle_t         handle,
                            bsrsm2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsm2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1164,7 +1069,6 @@ cusparseCbsrsm2_bufferSize(cusparseHandle_t         handle,
                            bsrsm2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsm2_bufferSize(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1181,7 +1085,6 @@ cusparseZbsrsm2_bufferSize(cusparseHandle_t         handle,
                            bsrsm2Info_t             info,
                            int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -1198,7 +1101,6 @@ cusparseSbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsm2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -1215,7 +1117,6 @@ cusparseDbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsm2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -1232,7 +1133,6 @@ cusparseCbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsm2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               cusparseDirection_t      dirA,
@@ -1249,7 +1149,6 @@ cusparseZbsrsm2_bufferSizeExt(cusparseHandle_t         handle,
                               bsrsm2Info_t             info,
                               size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -1267,7 +1166,6 @@ cusparseSbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -1285,7 +1183,6 @@ cusparseDbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -1303,7 +1200,6 @@ cusparseCbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseDirection_t      dirA,
@@ -1321,7 +1217,6 @@ cusparseZbsrsm2_analysis(cusparseHandle_t         handle,
                          cusparseSolvePolicy_t    policy,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -1344,7 +1239,6 @@ cusparseSbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseSolvePolicy_t    policy,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -1367,7 +1261,6 @@ cusparseDbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseSolvePolicy_t    policy,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -1390,7 +1283,6 @@ cusparseCbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseSolvePolicy_t    policy,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrsm2_solve(cusparseHandle_t         handle,
                       cusparseDirection_t      dirA,
@@ -1417,7 +1309,6 @@ cusparseZbsrsm2_solve(cusparseHandle_t         handle,
 //# PRECONDITIONERS
 //##############################################################################
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsrilu02_numericBoost(cusparseHandle_t handle,
                                csrilu02Info_t   info,
@@ -1425,7 +1316,6 @@ cusparseScsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                float*           boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsrilu02_numericBoost(cusparseHandle_t handle,
                                csrilu02Info_t   info,
@@ -1433,7 +1323,6 @@ cusparseDcsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                double*          boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsrilu02_numericBoost(cusparseHandle_t handle,
                                csrilu02Info_t   info,
@@ -1441,7 +1330,6 @@ cusparseCcsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                cuComplex*       boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsrilu02_numericBoost(cusparseHandle_t handle,
                                csrilu02Info_t   info,
@@ -1449,13 +1337,11 @@ cusparseZcsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                cuDoubleComplex* boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXcsrilu02_zeroPivot(cusparseHandle_t handle,
                             csrilu02Info_t   info,
                             int*             position);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsrilu02_bufferSize(cusparseHandle_t         handle,
                              int                      m,
@@ -1467,7 +1353,6 @@ cusparseScsrilu02_bufferSize(cusparseHandle_t         handle,
                              csrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsrilu02_bufferSize(cusparseHandle_t         handle,
                              int                      m,
@@ -1479,7 +1364,6 @@ cusparseDcsrilu02_bufferSize(cusparseHandle_t         handle,
                              csrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsrilu02_bufferSize(cusparseHandle_t         handle,
                              int                      m,
@@ -1491,7 +1375,6 @@ cusparseCcsrilu02_bufferSize(cusparseHandle_t         handle,
                              csrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsrilu02_bufferSize(cusparseHandle_t         handle,
                              int                      m,
@@ -1503,7 +1386,6 @@ cusparseZcsrilu02_bufferSize(cusparseHandle_t         handle,
                              csrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 int                      m,
@@ -1515,7 +1397,6 @@ cusparseScsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 csrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 int                      m,
@@ -1527,7 +1408,6 @@ cusparseDcsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 csrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 int                      m,
@@ -1539,7 +1419,6 @@ cusparseCcsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 csrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 int                      m,
@@ -1551,7 +1430,6 @@ cusparseZcsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 csrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsrilu02_analysis(cusparseHandle_t         handle,
                            int                      m,
@@ -1564,7 +1442,6 @@ cusparseScsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsrilu02_analysis(cusparseHandle_t         handle,
                            int                      m,
@@ -1577,7 +1454,6 @@ cusparseDcsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsrilu02_analysis(cusparseHandle_t         handle,
                            int                      m,
@@ -1590,7 +1466,6 @@ cusparseCcsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsrilu02_analysis(cusparseHandle_t         handle,
                            int                      m,
@@ -1603,7 +1478,6 @@ cusparseZcsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsrilu02(cusparseHandle_t         handle,
                   int                      m,
@@ -1616,7 +1490,6 @@ cusparseScsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t policy,
                   void*                 pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsrilu02(cusparseHandle_t         handle,
                   int                      m,
@@ -1629,7 +1502,6 @@ cusparseDcsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t policy,
                   void*                 pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsrilu02(cusparseHandle_t         handle,
                   int                      m,
@@ -1642,7 +1514,6 @@ cusparseCcsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t policy,
                   void*                 pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsrilu02(cusparseHandle_t         handle,
                   int                      m,
@@ -1655,7 +1526,6 @@ cusparseZcsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t policy,
                   void*                 pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrilu02_numericBoost(cusparseHandle_t handle,
                                bsrilu02Info_t   info,
@@ -1663,7 +1533,6 @@ cusparseSbsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                float*           boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrilu02_numericBoost(cusparseHandle_t handle,
                                bsrilu02Info_t   info,
@@ -1671,7 +1540,6 @@ cusparseDbsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                double*          boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrilu02_numericBoost(cusparseHandle_t handle,
                                bsrilu02Info_t   info,
@@ -1679,7 +1547,6 @@ cusparseCbsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                cuComplex*       boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrilu02_numericBoost(cusparseHandle_t handle,
                                bsrilu02Info_t   info,
@@ -1687,13 +1554,11 @@ cusparseZbsrilu02_numericBoost(cusparseHandle_t handle,
                                double*          tol,
                                cuDoubleComplex* boost_val);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXbsrilu02_zeroPivot(cusparseHandle_t handle,
                             bsrilu02Info_t   info,
                             int*             position);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrilu02_bufferSize(cusparseHandle_t         handle,
                              cusparseDirection_t      dirA,
@@ -1707,7 +1572,6 @@ cusparseSbsrilu02_bufferSize(cusparseHandle_t         handle,
                              bsrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrilu02_bufferSize(cusparseHandle_t         handle,
                              cusparseDirection_t      dirA,
@@ -1721,7 +1585,6 @@ cusparseDbsrilu02_bufferSize(cusparseHandle_t         handle,
                              bsrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrilu02_bufferSize(cusparseHandle_t         handle,
                              cusparseDirection_t      dirA,
@@ -1735,7 +1598,6 @@ cusparseCbsrilu02_bufferSize(cusparseHandle_t         handle,
                              bsrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrilu02_bufferSize(cusparseHandle_t         handle,
                              cusparseDirection_t      dirA,
@@ -1749,7 +1611,6 @@ cusparseZbsrilu02_bufferSize(cusparseHandle_t         handle,
                              bsrilu02Info_t           info,
                              int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 cusparseDirection_t      dirA,
@@ -1763,7 +1624,6 @@ cusparseSbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 bsrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 cusparseDirection_t      dirA,
@@ -1777,7 +1637,6 @@ cusparseDbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 bsrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 cusparseDirection_t      dirA,
@@ -1791,7 +1650,6 @@ cusparseCbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                 bsrilu02Info_t           info,
                                 size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                cusparseDirection_t      dirA,
@@ -1805,7 +1663,6 @@ cusparseZbsrilu02_bufferSizeExt(cusparseHandle_t         handle,
                                bsrilu02Info_t           info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1820,7 +1677,6 @@ cusparseSbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1835,7 +1691,6 @@ cusparseDbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1850,7 +1705,6 @@ cusparseCbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseDirection_t      dirA,
@@ -1865,7 +1719,6 @@ cusparseZbsrilu02_analysis(cusparseHandle_t         handle,
                            cusparseSolvePolicy_t    policy,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsrilu02(cusparseHandle_t         handle,
                   cusparseDirection_t      dirA,
@@ -1880,7 +1733,6 @@ cusparseSbsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t    policy,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsrilu02(cusparseHandle_t         handle,
                   cusparseDirection_t      dirA,
@@ -1895,7 +1747,6 @@ cusparseDbsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t    policy,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsrilu02(cusparseHandle_t         handle,
                   cusparseDirection_t      dirA,
@@ -1910,7 +1761,6 @@ cusparseCbsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t    policy,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsrilu02(cusparseHandle_t         handle,
                   cusparseDirection_t      dirA,
@@ -1925,13 +1775,11 @@ cusparseZbsrilu02(cusparseHandle_t         handle,
                   cusparseSolvePolicy_t    policy,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXcsric02_zeroPivot(cusparseHandle_t handle,
                            csric02Info_t    info,
                            int*             position);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsric02_bufferSize(cusparseHandle_t         handle,
                             int                      m,
@@ -1943,7 +1791,6 @@ cusparseScsric02_bufferSize(cusparseHandle_t         handle,
                             csric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsric02_bufferSize(cusparseHandle_t         handle,
                             int                      m,
@@ -1955,7 +1802,6 @@ cusparseDcsric02_bufferSize(cusparseHandle_t         handle,
                             csric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsric02_bufferSize(cusparseHandle_t         handle,
                             int                      m,
@@ -1967,7 +1813,6 @@ cusparseCcsric02_bufferSize(cusparseHandle_t         handle,
                             csric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsric02_bufferSize(cusparseHandle_t         handle,
                             int                      m,
@@ -1979,7 +1824,6 @@ cusparseZcsric02_bufferSize(cusparseHandle_t         handle,
                             csric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsric02_bufferSizeExt(cusparseHandle_t         handle,
                                int                      m,
@@ -1991,7 +1835,6 @@ cusparseScsric02_bufferSizeExt(cusparseHandle_t         handle,
                                csric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsric02_bufferSizeExt(cusparseHandle_t         handle,
                                int                      m,
@@ -2003,7 +1846,6 @@ cusparseDcsric02_bufferSizeExt(cusparseHandle_t         handle,
                                csric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsric02_bufferSizeExt(cusparseHandle_t         handle,
                                int                      m,
@@ -2015,7 +1857,6 @@ cusparseCcsric02_bufferSizeExt(cusparseHandle_t         handle,
                                csric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsric02_bufferSizeExt(cusparseHandle_t         handle,
                                int                      m,
@@ -2027,7 +1868,6 @@ cusparseZcsric02_bufferSizeExt(cusparseHandle_t         handle,
                                csric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsric02_analysis(cusparseHandle_t         handle,
                           int                      m,
@@ -2040,7 +1880,6 @@ cusparseScsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsric02_analysis(cusparseHandle_t         handle,
                           int                      m,
@@ -2053,7 +1892,6 @@ cusparseDcsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsric02_analysis(cusparseHandle_t         handle,
                           int                      m,
@@ -2066,7 +1904,6 @@ cusparseCcsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsric02_analysis(cusparseHandle_t         handle,
                           int                      m,
@@ -2079,7 +1916,6 @@ cusparseZcsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsric02(cusparseHandle_t         handle,
                  int                      m,
@@ -2092,7 +1928,6 @@ cusparseScsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsric02(cusparseHandle_t         handle,
                  int                      m,
@@ -2105,7 +1940,6 @@ cusparseDcsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsric02(cusparseHandle_t         handle,
                  int                      m,
@@ -2118,7 +1952,6 @@ cusparseCcsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsric02(cusparseHandle_t         handle,
                  int                      m,
@@ -2131,13 +1964,11 @@ cusparseZcsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXbsric02_zeroPivot(cusparseHandle_t handle,
                            bsric02Info_t    info,
                            int*             position);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsric02_bufferSize(cusparseHandle_t         handle,
                             cusparseDirection_t      dirA,
@@ -2151,7 +1982,6 @@ cusparseSbsric02_bufferSize(cusparseHandle_t         handle,
                             bsric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsric02_bufferSize(cusparseHandle_t         handle,
                             cusparseDirection_t      dirA,
@@ -2165,7 +1995,6 @@ cusparseDbsric02_bufferSize(cusparseHandle_t         handle,
                             bsric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsric02_bufferSize(cusparseHandle_t         handle,
                             cusparseDirection_t      dirA,
@@ -2179,7 +2008,6 @@ cusparseCbsric02_bufferSize(cusparseHandle_t         handle,
                             bsric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsric02_bufferSize(cusparseHandle_t         handle,
                             cusparseDirection_t      dirA,
@@ -2193,7 +2021,6 @@ cusparseZbsric02_bufferSize(cusparseHandle_t         handle,
                             bsric02Info_t            info,
                             int*                     pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                cusparseDirection_t      dirA,
@@ -2207,7 +2034,6 @@ cusparseSbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                bsric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                cusparseDirection_t      dirA,
@@ -2221,7 +2047,6 @@ cusparseDbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                bsric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                cusparseDirection_t      dirA,
@@ -2235,7 +2060,6 @@ cusparseCbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                bsric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                cusparseDirection_t      dirA,
@@ -2249,7 +2073,6 @@ cusparseZbsric02_bufferSizeExt(cusparseHandle_t         handle,
                                bsric02Info_t            info,
                                size_t*                  pBufferSize);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsric02_analysis(cusparseHandle_t         handle,
                           cusparseDirection_t      dirA,
@@ -2264,7 +2087,6 @@ cusparseSbsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pInputBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsric02_analysis(cusparseHandle_t         handle,
                           cusparseDirection_t      dirA,
@@ -2279,7 +2101,6 @@ cusparseDbsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pInputBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsric02_analysis(cusparseHandle_t         handle,
                           cusparseDirection_t      dirA,
@@ -2294,7 +2115,6 @@ cusparseCbsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pInputBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsric02_analysis(cusparseHandle_t         handle,
                           cusparseDirection_t      dirA,
@@ -2309,7 +2129,6 @@ cusparseZbsric02_analysis(cusparseHandle_t         handle,
                           cusparseSolvePolicy_t    policy,
                           void*                    pInputBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSbsric02(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -2324,7 +2143,6 @@ cusparseSbsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDbsric02(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -2339,7 +2157,6 @@ cusparseDbsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCbsric02(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -2355,7 +2172,6 @@ cusparseCbsric02(cusparseHandle_t         handle,
                  cusparseSolvePolicy_t    policy,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZbsric02(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -3027,7 +2843,6 @@ cusparseZcsrgeam2(cusparseHandle_t         handle,
 //# SPARSE MATRIX REORDERING
 //##############################################################################
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsrcolor(cusparseHandle_t         handle,
                   int                      m,
@@ -3042,7 +2857,6 @@ cusparseScsrcolor(cusparseHandle_t         handle,
                   int*                      reordering,
                   const cusparseColorInfo_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsrcolor(cusparseHandle_t         handle,
                   int                      m,
@@ -3057,7 +2871,6 @@ cusparseDcsrcolor(cusparseHandle_t         handle,
                   int*                     reordering,
                   const cusparseColorInfo_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsrcolor(cusparseHandle_t         handle,
                   int                      m,
@@ -3072,7 +2885,6 @@ cusparseCcsrcolor(cusparseHandle_t         handle,
                   int*                      reordering,
                   const cusparseColorInfo_t info);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsrcolor(cusparseHandle_t          handle,
                   int                       m,
@@ -3139,7 +2951,6 @@ cusparseZnnz(cusparseHandle_t         handle,
 //# SPARSE FORMAT CONVERSION
 //##############################################################################
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSnnz_compress(cusparseHandle_t         handle,
                       int                      m,
@@ -3150,7 +2961,6 @@ cusparseSnnz_compress(cusparseHandle_t         handle,
                       int*                     nnzC,
                       float                    tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDnnz_compress(cusparseHandle_t         handle,
                       int                      m,
@@ -3161,7 +2971,6 @@ cusparseDnnz_compress(cusparseHandle_t         handle,
                       int*                     nnzC,
                       double                   tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCnnz_compress(cusparseHandle_t         handle,
                       int                      m,
@@ -3172,7 +2981,6 @@ cusparseCnnz_compress(cusparseHandle_t         handle,
                       int*                     nnzC,
                       cuComplex                tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZnnz_compress(cusparseHandle_t         handle,
                       int                      m,
@@ -3183,7 +2991,6 @@ cusparseZnnz_compress(cusparseHandle_t         handle,
                       int*                     nnzC,
                       cuDoubleComplex          tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsr2csr_compress(cusparseHandle_t         handle,
                           int                      m,
@@ -3199,7 +3006,6 @@ cusparseScsr2csr_compress(cusparseHandle_t         handle,
                           int*                     csrSortedRowPtrC,
                           float                    tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsr2csr_compress(cusparseHandle_t         handle,
                           int                      m,
@@ -3215,7 +3021,6 @@ cusparseDcsr2csr_compress(cusparseHandle_t         handle,
                           int*                     csrSortedRowPtrC,
                           double                   tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsr2csr_compress(cusparseHandle_t         handle,
                           int                      m,
@@ -3231,7 +3036,6 @@ cusparseCcsr2csr_compress(cusparseHandle_t         handle,
                           int*                     csrSortedRowPtrC,
                           cuComplex                tol);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsr2csr_compress(cusparseHandle_t         handle,
                           int                      m,
@@ -3263,7 +3067,6 @@ cusparseXcsr2coo(cusparseHandle_t    handle,
                  int*                cooRowInd,
                  cusparseIndexBase_t idxBase);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXcsr2bsrNnz(cusparseHandle_t         handle,
                     cusparseDirection_t      dirA,
@@ -3277,7 +3080,6 @@ cusparseXcsr2bsrNnz(cusparseHandle_t         handle,
                     int*                     bsrSortedRowPtrC,
                     int*                     nnzTotalDevHostPtr);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsr2bsr(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -3293,7 +3095,6 @@ cusparseScsr2bsr(cusparseHandle_t         handle,
                  int*                     bsrSortedRowPtrC,
                  int*                     bsrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsr2bsr(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -3309,7 +3110,6 @@ cusparseDcsr2bsr(cusparseHandle_t         handle,
                  int*                     bsrSortedRowPtrC,
                  int*                     bsrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsr2bsr(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -3325,7 +3125,6 @@ cusparseCcsr2bsr(cusparseHandle_t         handle,
                  int*                     bsrSortedRowPtrC,
                  int*                     bsrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsr2bsr(cusparseHandle_t         handle,
                  cusparseDirection_t      dirA,
@@ -3565,7 +3364,6 @@ cusparseZgebsr2gebsc(cusparseHandle_t       handle,
                      cusparseIndexBase_t    idxBase,
                      void*                  pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseXgebsr2csr(cusparseHandle_t         handle,
                    cusparseDirection_t      dirA,
@@ -3580,7 +3378,6 @@ cusparseXgebsr2csr(cusparseHandle_t         handle,
                    int*                     csrSortedRowPtrC,
                    int*                     csrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSgebsr2csr(cusparseHandle_t         handle,
                    cusparseDirection_t      dirA,
@@ -3597,7 +3394,6 @@ cusparseSgebsr2csr(cusparseHandle_t         handle,
                    int*                     csrSortedRowPtrC,
                    int*                     csrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDgebsr2csr(cusparseHandle_t         handle,
                    cusparseDirection_t      dirA,
@@ -3614,7 +3410,6 @@ cusparseDgebsr2csr(cusparseHandle_t         handle,
                    int*                     csrSortedRowPtrC,
                    int*                     csrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCgebsr2csr(cusparseHandle_t         handle,
                    cusparseDirection_t      dirA,
@@ -3631,7 +3426,6 @@ cusparseCgebsr2csr(cusparseHandle_t         handle,
                    int*                     csrSortedRowPtrC,
                    int*                     csrSortedColIndC);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZgebsr2csr(cusparseHandle_t         handle,
                    cusparseDirection_t      dirA,
@@ -4065,7 +3859,6 @@ cusparseZgebsr2gebsr(cusparseHandle_t         handle,
 //# SPARSE MATRIX SORTING
 //##############################################################################
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCreateIdentityPermutation(cusparseHandle_t handle,
                                   int              n,
@@ -4140,7 +3933,6 @@ cusparseXcscsort(cusparseHandle_t         handle,
                  int*                     P,
                  void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 int              m,
@@ -4152,7 +3944,6 @@ cusparseScsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 csru2csrInfo_t   info,
                                 size_t*          pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 int              m,
@@ -4164,7 +3955,6 @@ cusparseDcsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 csru2csrInfo_t   info,
                                 size_t*          pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 int              m,
@@ -4176,7 +3966,6 @@ cusparseCcsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 csru2csrInfo_t   info,
                                 size_t*          pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 int              m,
@@ -4188,7 +3977,6 @@ cusparseZcsru2csr_bufferSizeExt(cusparseHandle_t handle,
                                 csru2csrInfo_t   info,
                                 size_t*          pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsru2csr(cusparseHandle_t         handle,
                   int                      m,
@@ -4201,7 +3989,6 @@ cusparseScsru2csr(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsru2csr(cusparseHandle_t         handle,
                   int                      m,
@@ -4214,7 +4001,6 @@ cusparseDcsru2csr(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsru2csr(cusparseHandle_t         handle,
                   int                      m,
@@ -4227,7 +4013,6 @@ cusparseCcsru2csr(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsru2csr(cusparseHandle_t         handle,
                   int                      m,
@@ -4240,7 +4025,6 @@ cusparseZcsru2csr(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseScsr2csru(cusparseHandle_t         handle,
                   int                      m,
@@ -4253,7 +4037,6 @@ cusparseScsr2csru(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDcsr2csru(cusparseHandle_t         handle,
                   int                      m,
@@ -4266,7 +4049,6 @@ cusparseDcsr2csru(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseCcsr2csru(cusparseHandle_t         handle,
                   int                      m,
@@ -4279,7 +4061,6 @@ cusparseCcsr2csru(cusparseHandle_t         handle,
                   csru2csrInfo_t           info,
                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseZcsr2csru(cusparseHandle_t         handle,
                   int                      m,
@@ -4293,8 +4074,6 @@ cusparseZcsr2csru(cusparseHandle_t         handle,
                   void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneDense2csr_bufferSizeExt(cusparseHandle_t         handle,
                                       int                      m,
@@ -4309,7 +4088,6 @@ cusparseHpruneDense2csr_bufferSizeExt(cusparseHandle_t         handle,
                                       size_t* pBufferSizeInBytes);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneDense2csr_bufferSizeExt(cusparseHandle_t         handle,
                                       int                      m,
@@ -4323,7 +4101,6 @@ cusparseSpruneDense2csr_bufferSizeExt(cusparseHandle_t         handle,
                                       const int*               csrSortedColIndC,
                                       size_t* pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneDense2csr_bufferSizeExt(cusparseHandle_t         handle,
                                       int                      m,
@@ -4338,8 +4115,6 @@ cusparseDpruneDense2csr_bufferSizeExt(cusparseHandle_t         handle,
                                       size_t*               pBufferSizeInBytes);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneDense2csrNnz(cusparseHandle_t         handle,
                            int                      m,
@@ -4353,7 +4128,6 @@ cusparseHpruneDense2csrNnz(cusparseHandle_t         handle,
                            void*                    pBuffer);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneDense2csrNnz(cusparseHandle_t         handle,
                            int                      m,
@@ -4366,7 +4140,6 @@ cusparseSpruneDense2csrNnz(cusparseHandle_t         handle,
                            int*                     nnzTotalDevHostPtr,
                            void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneDense2csrNnz(cusparseHandle_t         handle,
                            int                      m,
@@ -4380,8 +4153,6 @@ cusparseDpruneDense2csrNnz(cusparseHandle_t         handle,
                            void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneDense2csr(cusparseHandle_t         handle,
                         int                      m,
@@ -4396,7 +4167,6 @@ cusparseHpruneDense2csr(cusparseHandle_t         handle,
                         void*                    pBuffer);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneDense2csr(cusparseHandle_t         handle,
                         int                      m,
@@ -4410,7 +4180,6 @@ cusparseSpruneDense2csr(cusparseHandle_t         handle,
                         int*                     csrSortedColIndC,
                         void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneDense2csr(cusparseHandle_t         handle,
                         int                      m,
@@ -4425,8 +4194,6 @@ cusparseDpruneDense2csr(cusparseHandle_t         handle,
                         void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneCsr2csr_bufferSizeExt(cusparseHandle_t         handle,
                                     int                      m,
@@ -4444,7 +4211,6 @@ cusparseHpruneCsr2csr_bufferSizeExt(cusparseHandle_t         handle,
                                     size_t* pBufferSizeInBytes);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneCsr2csr_bufferSizeExt(cusparseHandle_t         handle,
                                     int                      m,
@@ -4461,7 +4227,6 @@ cusparseSpruneCsr2csr_bufferSizeExt(cusparseHandle_t         handle,
                                     const int*               csrSortedColIndC,
                                     size_t*                 pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneCsr2csr_bufferSizeExt(cusparseHandle_t         handle,
                                     int                      m,
@@ -4479,8 +4244,6 @@ cusparseDpruneCsr2csr_bufferSizeExt(cusparseHandle_t         handle,
                                     size_t*                 pBufferSizeInBytes);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneCsr2csrNnz(cusparseHandle_t         handle,
                          int                      m,
@@ -4497,7 +4260,6 @@ cusparseHpruneCsr2csrNnz(cusparseHandle_t         handle,
                          void*                    pBuffer);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneCsr2csrNnz(cusparseHandle_t         handle,
                          int                      m,
@@ -4513,9 +4275,8 @@ cusparseSpruneCsr2csrNnz(cusparseHandle_t         handle,
                          int*                     nnzTotalDevHostPtr,
                          void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
-cusparseDpruneCsr2csrNnz(cusparseHandle_t         handle,
+ cusparseDpruneCsr2csrNnz(cusparseHandle_t         handle,
                           int                      m,
                           int                      n,
                           int                      nnzA,
@@ -4530,8 +4291,6 @@ cusparseDpruneCsr2csrNnz(cusparseHandle_t         handle,
                           void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneCsr2csr(cusparseHandle_t         handle,
                       int                      m,
@@ -4549,7 +4308,6 @@ cusparseHpruneCsr2csr(cusparseHandle_t         handle,
                       void*                    pBuffer);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneCsr2csr(cusparseHandle_t         handle,
                       int                      m,
@@ -4566,7 +4324,6 @@ cusparseSpruneCsr2csr(cusparseHandle_t         handle,
                       int*                     csrSortedColIndC,
                       void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneCsr2csr(cusparseHandle_t         handle,
                       int                      m,
@@ -4584,8 +4341,6 @@ cusparseDpruneCsr2csr(cusparseHandle_t         handle,
                       void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneDense2csrByPercentage_bufferSizeExt(
                                    cusparseHandle_t         handle,
@@ -4600,10 +4355,8 @@ cusparseHpruneDense2csrByPercentage_bufferSizeExt(
                                    const int*               csrSortedColIndC,
                                    pruneInfo_t              info,
                                    size_t*                  pBufferSizeInBytes);
-
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneDense2csrByPercentage_bufferSizeExt(
                                    cusparseHandle_t         handle,
@@ -4619,7 +4372,6 @@ cusparseSpruneDense2csrByPercentage_bufferSizeExt(
                                    pruneInfo_t              info,
                                    size_t*                  pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneDense2csrByPercentage_bufferSizeExt(
                                    cusparseHandle_t         handle,
@@ -4636,8 +4388,6 @@ cusparseDpruneDense2csrByPercentage_bufferSizeExt(
                                    size_t*                  pBufferSizeInBytes);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneDense2csrNnzByPercentage(
                                     cusparseHandle_t         handle,
@@ -4653,7 +4403,6 @@ cusparseHpruneDense2csrNnzByPercentage(
                                     void*                    pBuffer);
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneDense2csrNnzByPercentage(
                                     cusparseHandle_t         handle,
@@ -4668,7 +4417,6 @@ cusparseSpruneDense2csrNnzByPercentage(
                                     pruneInfo_t              info,
                                     void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneDense2csrNnzByPercentage(
                                     cusparseHandle_t         handle,
@@ -4684,8 +4432,6 @@ cusparseDpruneDense2csrNnzByPercentage(
                                     void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneDense2csrByPercentage(cusparseHandle_t         handle,
                                     int                      m,
@@ -4699,10 +4445,8 @@ cusparseHpruneDense2csrByPercentage(cusparseHandle_t         handle,
                                     int*                     csrSortedColIndC,
                                     pruneInfo_t              info,
                                     void*                    pBuffer);
-
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneDense2csrByPercentage(cusparseHandle_t         handle,
                                     int                      m,
@@ -4717,7 +4461,6 @@ cusparseSpruneDense2csrByPercentage(cusparseHandle_t         handle,
                                     pruneInfo_t              info,
                                     void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneDense2csrByPercentage(cusparseHandle_t         handle,
                                     int                      m,
@@ -4734,7 +4477,6 @@ cusparseDpruneDense2csrByPercentage(cusparseHandle_t         handle,
 
 #if defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneCsr2csrByPercentage_bufferSizeExt(
                                    cusparseHandle_t         handle,
@@ -4755,7 +4497,6 @@ cusparseHpruneCsr2csrByPercentage_bufferSizeExt(
 
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneCsr2csrByPercentage_bufferSizeExt(
                                    cusparseHandle_t         handle,
@@ -4774,7 +4515,6 @@ cusparseSpruneCsr2csrByPercentage_bufferSizeExt(
                                    pruneInfo_t              info,
                                    size_t*                  pBufferSizeInBytes);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneCsr2csrByPercentage_bufferSizeExt(
                                    cusparseHandle_t         handle,
@@ -4795,7 +4535,6 @@ cusparseDpruneCsr2csrByPercentage_bufferSizeExt(
 
 #if defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneCsr2csrNnzByPercentage(
                                     cusparseHandle_t         handle,
@@ -4815,7 +4554,6 @@ cusparseHpruneCsr2csrNnzByPercentage(
 
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneCsr2csrNnzByPercentage(
                                     cusparseHandle_t         handle,
@@ -4833,7 +4571,6 @@ cusparseSpruneCsr2csrNnzByPercentage(
                                     pruneInfo_t              info,
                                     void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneCsr2csrNnzByPercentage(
                                     cusparseHandle_t         handle,
@@ -4852,8 +4589,6 @@ cusparseDpruneCsr2csrNnzByPercentage(
                                     void*                    pBuffer);
 
 #if defined(__cplusplus)
-
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseHpruneCsr2csrByPercentage(cusparseHandle_t         handle,
                                   int                      m,
@@ -4873,7 +4608,6 @@ cusparseHpruneCsr2csrByPercentage(cusparseHandle_t         handle,
 
 #endif // defined(__cplusplus)
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseSpruneCsr2csrByPercentage(cusparseHandle_t         handle,
                                   int                      m,
@@ -4891,7 +4625,6 @@ cusparseSpruneCsr2csrByPercentage(cusparseHandle_t         handle,
                                   pruneInfo_t              info,
                                   void*                    pBuffer);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseDpruneCsr2csrByPercentage(cusparseHandle_t         handle,
                                   int                      m,
@@ -5152,7 +4885,7 @@ cusparseStatus_t CUSPARSEAPI
 cusparseBsrSetStridedBatch(cusparseSpMatDescr_t spMatDescr,
                            int                  batchCount,
                            int64_t              offsetsBatchStride,
-                           int64_t              columnsBatchStride,
+                           int64_t              columnsValuesBatchStride,
                            int64_t              ValuesBatchStride);
 
 typedef enum {
@@ -5299,8 +5032,8 @@ cusparseCreateBsr(cusparseSpMatDescr_t* spMatDescr,
                   int64_t               brows,
                   int64_t               bcols,
                   int64_t               bnnz,
-                  int64_t               rowBlockSize,
-                  int64_t               colBlockSize,
+                  int64_t               rowBlockDim,
+                  int64_t               colBlockDim,
                   void*                 bsrRowOffsets,
                   void*                 bsrColInd,
                   void*                 bsrValues,
@@ -5453,19 +5186,19 @@ cusparseCreateSlicedEll(cusparseSpMatDescr_t*   spMatDescr,
                         cudaDataType            valueType);
 
 cusparseStatus_t CUSPARSEAPI
-cusparseCreateConstSlicedEll(cusparseConstSpMatDescr_t* spMatDescr,
-                             int64_t                    rows,
-                             int64_t                    cols,
-                             int64_t                    nnz,
-                             int64_t                    sellValuesSize,
-                             int64_t                    sliceSize,
-                             const void*                sellSliceOffsets,
-                             const void*                sellColInd,
-                             const void*                sellValues,
-                             cusparseIndexType_t        sellSliceOffsetsType,
-                             cusparseIndexType_t        sellColIndType,
-                             cusparseIndexBase_t        idxBase,
-                             cudaDataType               valueType);
+cusparseCreateConstSlicedEll(cusparseConstSpMatDescr_t*     spMatDescr,
+                             int64_t                        rows,
+                             int64_t                        cols,
+                             int64_t                        nnz,
+                             int64_t                        sellValuesSize,
+                             int64_t                        sliceSize,
+                             const void*                    sellSliceOffsets,
+                             const void*                    sellColInd,
+                             const void*                    sellValues,
+                             cusparseIndexType_t            sellSliceOffsetsType,
+                             cusparseIndexType_t            sellColIndType,
+                             cusparseIndexBase_t            idxBase,
+                             cudaDataType                   valueType);
 
 // #############################################################################
 // # DENSE MATRIX DESCRIPTOR
@@ -5553,7 +5286,6 @@ cusparseScatter(cusparseHandle_t          handle,
                 cusparseConstSpVecDescr_t vecX,
                 cusparseDnVecDescr_t      vecY);
 
-CUSPARSE_DEPRECATED
 cusparseStatus_t CUSPARSEAPI
 cusparseRot(cusparseHandle_t     handle,
             const void*          c_coeff,
@@ -5667,17 +5399,6 @@ cusparseSpMV_bufferSize(cusparseHandle_t          handle,
                         cusparseSpMVAlg_t         alg,
                         size_t*                   bufferSize);
 
-cusparseStatus_t CUSPARSEAPI
-cusparseSpMV_preprocess(cusparseHandle_t          handle,
-                        cusparseOperation_t       opA,
-                        const void*               alpha,
-                        cusparseConstSpMatDescr_t matA,
-                        cusparseConstDnVecDescr_t vecX,
-                        const void*               beta,
-                        cusparseDnVecDescr_t      vecY,
-                        cudaDataType              computeType,
-                        cusparseSpMVAlg_t         alg,
-                        void*                     externalBuffer);
 // #############################################################################
 // # SPARSE TRIANGULAR VECTOR SOLVE
 // #############################################################################
@@ -5751,11 +5472,6 @@ typedef enum {
     CUSPARSE_SPSM_ALG_DEFAULT = 0,
 } cusparseSpSMAlg_t;
 
-typedef enum {
-    CUSPARSE_SPSM_UPDATE_GENERAL  = 0,
-    CUSPARSE_SPSM_UPDATE_DIAGONAL = 1
-} cusparseSpSMUpdate_t;
-
 struct cusparseSpSMDescr;
 typedef struct cusparseSpSMDescr* cusparseSpSMDescr_t;
 
@@ -5802,12 +5518,6 @@ cusparseSpSM_solve(cusparseHandle_t          handle,
                    cudaDataType              computeType,
                    cusparseSpSMAlg_t         alg,
                    cusparseSpSMDescr_t       spsmDescr);
-
-cusparseStatus_t CUSPARSEAPI
-cusparseSpSM_updateMatrix(cusparseHandle_t      handle,
-				          cusparseSpSMDescr_t   spsmDescr,
-                          void*                 newValues,
-                          cusparseSpSMUpdate_t  updatePart);
 
 // #############################################################################
 // # SPARSE MATRIX-MATRIX MULTIPLICATION
@@ -6096,11 +5806,6 @@ cusparseSpMMOp_destroyPlan(cusparseSpMMOpPlan_t plan);
 } // extern "C"
 #endif // defined(__cplusplus)
 
-#undef CUSPARSE_DEPRECATED_REPLACE_WITH
 #undef CUSPARSE_DEPRECATED
-#undef CUSPARSE_DEPRECATED_TYPE
-#undef CUSPARSE_DEPRECATED_TYPE_MSVC
-#undef CUSPARSE_DEPRECATED_ENUM_REPLACE_WITH
-#undef CUSPARSE_DEPRECATED_ENUM
 
 #endif // !defined(CUSPARSE_H_)

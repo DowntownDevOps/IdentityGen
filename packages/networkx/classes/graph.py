@@ -7,7 +7,6 @@ Self-loops are allowed but multiple edges are not (see MultiGraph).
 
 For directed graphs see DiGraph and MultiDiGraph.
 """
-
 from copy import deepcopy
 from functools import cached_property
 
@@ -38,11 +37,8 @@ class _CachedPropertyResetterAdj:
     def __set__(self, obj, value):
         od = obj.__dict__
         od["_adj"] = value
-        # reset cached properties
-        props = ["adj", "edges", "degree"]
-        for prop in props:
-            if prop in od:
-                del od[prop]
+        if "adj" in od:
+            del od["adj"]
 
 
 class _CachedPropertyResetterNode:
@@ -63,7 +59,6 @@ class _CachedPropertyResetterNode:
     def __set__(self, obj, value):
         od = obj.__dict__
         od["_node"] = value
-        # reset cached properties
         if "nodes" in od:
             del od["nodes"]
 
@@ -307,8 +302,6 @@ class Graph:
     >>> G[2][1] is G[2][2]
     True
     """
-
-    __networkx_backend__ = "networkx"
 
     _adj = _CachedPropertyResetterAdj()
     _node = _CachedPropertyResetterNode()
@@ -1229,20 +1222,12 @@ class Graph:
         >>> DG = nx.DiGraph()
         >>> # dict-of-dict-of-attribute
         >>> adj = {1: {2: 1.3, 3: 0.7}, 2: {1: 1.4}, 3: {1: 0.7}}
-        >>> e = [
-        ...     (u, v, {"weight": d})
-        ...     for u, nbrs in adj.items()
-        ...     for v, d in nbrs.items()
-        ... ]
+        >>> e = [(u, v, {"weight": d}) for u, nbrs in adj.items() for v, d in nbrs.items()]
         >>> DG.update(edges=e, nodes=adj)
 
         >>> # dict-of-dict-of-dict
         >>> adj = {1: {2: {"weight": 1.3}, 3: {"color": 0.7, "weight": 1.2}}}
-        >>> e = [
-        ...     (u, v, {"weight": d})
-        ...     for u, nbrs in adj.items()
-        ...     for v, d in nbrs.items()
-        ... ]
+        >>> e = [(u, v, {"weight": d}) for u, nbrs in adj.items() for v, d in nbrs.items()]
         >>> DG.update(edges=e, nodes=adj)
 
         >>> # predecessor adjacency (dict-of-set)

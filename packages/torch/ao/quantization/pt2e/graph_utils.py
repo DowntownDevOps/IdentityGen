@@ -1,20 +1,19 @@
 # mypy: allow-untyped-defs
 import itertools
+from typing import Any, List, OrderedDict, Set, Optional, Callable
 import operator
-from typing import Any, Callable, List, Optional, OrderedDict, Sequence, Set, Tuple
+from torch.fx import Node
 
 import torch
-from torch.fx import Node
+
 from torch.fx.passes.utils.source_matcher_utils import (
     check_subgraphs_connected,
     get_source_partitions,
     SourcePartition,
 )
 
-
 __all__ = [
     "find_sequential_partitions",
-    "get_control_flow_submodules",
     "get_equivalent_types",
     "update_equivalent_types_dict",
 ]
@@ -41,10 +40,8 @@ def _create_equivalent_types_dict():
 
 _EQUIVALENT_TYPES_DICT = _create_equivalent_types_dict()
 
-
 def get_equivalent_types() -> List[Set]:
     return _EQUIVALENT_TYPES
-
 
 def update_equivalent_types_dict(customized_equivalent_types=None):
     """Help function for user who wants to customize the _EQUIVALENT_TYPES and _EQUIVALENT_TYPES_DICT.
@@ -58,8 +55,7 @@ def update_equivalent_types_dict(customized_equivalent_types=None):
     _EQUIVALENT_TYPES = customized_equivalent_types
     _EQUIVALENT_TYPES_DICT = _create_equivalent_types_dict()
 
-
-def _partitions_sequential(partitions: Sequence[SourcePartition]):
+def _partitions_sequential(partitions: List[SourcePartition]):
     prev_partition = None
     for partition in partitions:
         if prev_partition is not None and not check_subgraphs_connected(
@@ -103,51 +99,12 @@ def find_sequential_partitions(
     for partition_type in partition_types:
         types_to_match = _get_matching_types(partition_type)
         partitions = get_source_partitions(gm.graph, types_to_match, filter_fn)
-        typed_partitions[partition_type] = list(
-            itertools.chain.from_iterable(partitions.values())
-        )
+        typed_partitions[partition_type] = list(itertools.chain.from_iterable(partitions.values()))
 
     typed_partitions_list = list(typed_partitions.values())
     fusion_candidates = itertools.product(*typed_partitions_list)
-    fused_partitions = [
-        candidate
-        for candidate in fusion_candidates
-        if _partitions_sequential(candidate)
-    ]
+    fused_partitions = []
+    for candidate in fusion_candidates:
+        if _partitions_sequential(candidate):  # type: ignore[arg-type]
+            fused_partitions.append(candidate)
     return fused_partitions
-
-
-def _get_submodule(
-    graph_module: torch.fx.GraphModule, node: torch.fx.Node, arg_index: int
-) -> Tuple[str, torch.nn.Module, torch.fx.Node]:
-    submod_node = node.args[arg_index]
-    assert isinstance(submod_node, torch.fx.Node)
-    assert submod_node.op == "get_attr"
-    assert isinstance(submod_node.target, str)
-    submodule = graph_module.get_submodule(submod_node.target)
-    # pyre-ignore
-    return submod_node.target, submodule, node
-
-
-def get_control_flow_submodules(
-    graph_module: torch.fx.GraphModule,
-) -> List[Tuple[str, torch.nn.Module, torch.fx.Node]]:
-    """
-    Returns a list of submodules used for control flow operations
-    (torch.ops.higher_order.cond/map) that are in the given toplevel graph (does not look
-    into submodules). Specifically, the returned value is a list containing a
-    tuple of (name of the submodule that's stored in the graph module, the
-    submodule itself, and the fx node that uses this submodule).
-    """
-    control_flow_submodules = []
-    for node in graph_module.graph.nodes:
-        if node.op != "call_function":
-            continue
-
-        if node.target is torch.ops.higher_order.cond:
-            control_flow_submodules.append(_get_submodule(graph_module, node, 1))
-            control_flow_submodules.append(_get_submodule(graph_module, node, 2))
-        if node.target is torch.ops.higher_order.map_impl:
-            control_flow_submodules.append(_get_submodule(graph_module, node, 0))
-
-    return control_flow_submodules

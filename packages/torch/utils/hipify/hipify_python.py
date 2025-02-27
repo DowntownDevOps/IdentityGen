@@ -38,8 +38,6 @@ from .cuda_to_hip_mappings import MATH_TRANSPILATIONS
 from typing import Dict, List, Iterator, Optional
 from collections.abc import Mapping, Iterable
 from enum import Enum
-import functools
-import hashlib
 
 class CurrentState(Enum):
     INITIALIZED = 1
@@ -139,10 +137,6 @@ class GeneratedFileCleaner:
                 os.rmdir(d)
 
 
-# Follow UNIX convention for paths to use '/' instead of '\\' on Windows
-def _to_unix_path(path: str) -> str:
-    return path.replace(os.sep, '/')
-
 def match_extensions(filename: str, extensions: Iterable) -> bool:
     """Helper method to see if filename ends with certain extension"""
     return any(filename.endswith(e) for e in extensions)
@@ -179,8 +173,8 @@ def matched_files_iter(
                 dirs.remove("third_party")
                 dirs.append("third_party/nvfuser")
         for filename in filenames:
-            filepath = _to_unix_path(os.path.join(abs_dirpath, filename))
-            rel_filepath = _to_unix_path(os.path.join(rel_dirpath, filename))
+            filepath = os.path.join(abs_dirpath, filename)
+            rel_filepath = os.path.join(rel_dirpath, filename)
             # We respect extensions, UNLESS you wrote the entire
             # filename verbatim, in which case we always accept it
             if (
@@ -680,13 +674,9 @@ class Trie:
     def __init__(self):
         """Initialize the trie with an empty root node."""
         self.root = TrieNode()
-        self._hash = hashlib.md5()
-        self._digest = self._hash.digest()
 
     def add(self, word):
         """Add a word to the Trie. """
-        self._hash.update(word.encode())
-        self._digest = self._hash.digest()
         node = self.root
 
         for char in word:
@@ -715,13 +705,8 @@ class Trie:
         # make sure to check the end-of-word marker present
         return '' in node.children
 
-    @functools.lru_cache  # noqa: B019
-    def _pattern(self, root, digest):
-        """Convert a Trie into a regular expression pattern
-
-        Memoized on the hash digest of the trie, which is built incrementally
-        during add().
-        """
+    def _pattern(self, root):
+        """Convert a Trie into a regular expression pattern"""
         node = root
 
         if "" in node.children and len(node.children.keys()) == 1:
@@ -733,7 +718,7 @@ class Trie:
         for char in sorted(node.children.keys()):
             if isinstance(node.children[char], TrieNode):
                 try:
-                    recurse = self._pattern(node.children[char], self._digest)
+                    recurse = self._pattern(node.children[char])
                     alt.append(self.quote(char) + recurse)
                 except Exception:
                     cc.append(self.quote(char))
@@ -761,11 +746,11 @@ class Trie:
 
     def pattern(self):
         """Export the Trie to a regex pattern."""
-        return self._pattern(self.root, self._digest)
+        return self._pattern(self.root)
 
     def export_to_regex(self):
         """Export the Trie to a regex pattern."""
-        return self._pattern(self.root, self._digest)
+        return self._pattern(self.root)
 
 CAFFE2_TRIE = Trie()
 CAFFE2_MAP = {}
@@ -836,7 +821,7 @@ def preprocessor(
         hipify_result.current_state = CurrentState.DONE
         return hipify_result
 
-    rel_filepath = _to_unix_path(os.path.relpath(filepath, output_directory))
+    rel_filepath = os.path.relpath(filepath, output_directory)
 
     with open(fin_path, encoding='utf-8') as fin:
         if fin.readline() == HIPIFY_C_BREADCRUMB:
@@ -879,7 +864,7 @@ def preprocessor(
     def mk_repl(templ, include_current_dir=True):
         def repl(m):
             f = m.group(1)
-            filename = os.path.basename(f)
+            dirpath, filename = os.path.split(f)
             if (
                 f.startswith(("ATen/cuda",
                               "ATen/native/cuda",
@@ -1128,9 +1113,6 @@ def hipify(
     if not os.path.exists(output_directory):
         shutil.copytree(project_directory, output_directory)
 
-    includes = list(map(_to_unix_path, includes))
-    ignores = list(map(_to_unix_path, ignores))
-
     all_files = list(matched_files_iter(output_directory, includes=includes,
                                         ignores=ignores, extensions=extensions,
                                         out_of_place_only=out_of_place_only,
@@ -1149,12 +1131,14 @@ def hipify(
             header_include_dir_path = Path(header_include_dir)
         else:
             header_include_dir_path = Path(os.path.join(output_directory, header_include_dir))
-        all_files.extend(
-            str(path) for path in header_include_dir_path.rglob('*') if path.is_file()
-            and _fnmatch(str(path), includes)
-            and (not _fnmatch(str(path), ignores))
-            and match_extensions(path.name, header_extensions)
-        )
+        for path in header_include_dir_path.rglob('*'):
+            if (
+                path.is_file()
+                and _fnmatch(str(path), includes)
+                and (not _fnmatch(str(path), ignores))
+                and match_extensions(path.name, header_extensions)
+            ):
+                all_files.append(str(path))
 
     if clean_ctx is None:
         clean_ctx = GeneratedFileCleaner(keep_intermediates=True)

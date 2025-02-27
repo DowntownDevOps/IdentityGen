@@ -1,7 +1,6 @@
 """Generators - Directed Graphs
 ----------------------------
 """
-
 import pytest
 
 import networkx as nx

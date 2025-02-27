@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2015 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -52,8 +52,6 @@
 
 
 
-#ifndef __CUDACC_RTC_MINIMAL__
-
 typedef enum cudaDataType_t
 {
     CUDA_R_16F  =  2, /* real as a half */
@@ -102,5 +100,4 @@ typedef enum cudaDataType_t cudaDataType_t;
 typedef enum libraryPropertyType_t libraryPropertyType_t;
 #endif
 
-#endif  /* !__CUDACC_RTC_MINIMAL__ */
 #endif /* !__LIBRARY_TYPES_H__ */

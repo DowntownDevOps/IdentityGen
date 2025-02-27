@@ -84,9 +84,9 @@ extern "C" {
 #endif /* __cplusplus */
 
 #define CUBLAS_VER_MAJOR 12
-#define CUBLAS_VER_MINOR 4
-#define CUBLAS_VER_PATCH 5
-#define CUBLAS_VER_BUILD 8
+#define CUBLAS_VER_MINOR 1
+#define CUBLAS_VER_PATCH 3
+#define CUBLAS_VER_BUILD 1
 #define CUBLAS_VERSION (CUBLAS_VER_MAJOR * 10000 + CUBLAS_VER_MINOR * 100 + CUBLAS_VER_PATCH)
 
 /* CUBLAS status type returns */
@@ -4926,74 +4926,6 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasGemmStridedBatchedEx_64(cublasHandle
                                                                     int64_t batchCount,
                                                                     cublasComputeType_t computeType,
                                                                     cublasGemmAlgo_t algo);
-
-CUBLASAPI cublasStatus_t CUBLASWINAPI cublasSgemmGroupedBatched(cublasHandle_t handle,
-                                                                const cublasOperation_t transa_array[],
-                                                                const cublasOperation_t transb_array[],
-                                                                const int m_array[],
-                                                                const int n_array[],
-                                                                const int k_array[],
-                                                                const float alpha_array[],
-                                                                const float* const Aarray[],
-                                                                const int lda_array[],
-                                                                const float* const Barray[],
-                                                                const int ldb_array[],
-                                                                const float beta_array[],
-                                                                float* const Carray[],
-                                                                const int ldc_array[],
-                                                                int group_count,
-                                                                const int group_size[]);
-
-CUBLASAPI cublasStatus_t CUBLASWINAPI cublasSgemmGroupedBatched_64(cublasHandle_t handle,
-                                                                   const cublasOperation_t transa_array[],
-                                                                   const cublasOperation_t transb_array[],
-                                                                   const int64_t m_array[],
-                                                                   const int64_t n_array[],
-                                                                   const int64_t k_array[],
-                                                                   const float alpha_array[],
-                                                                   const float* const Aarray[],
-                                                                   const int64_t lda_array[],
-                                                                   const float* const Barray[],
-                                                                   const int64_t ldb_array[],
-                                                                   const float beta_array[],
-                                                                   float* const Carray[],
-                                                                   const int64_t ldc_array[],
-                                                                   int64_t group_count,
-                                                                   const int64_t group_size[]);
-
-CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemmGroupedBatched(cublasHandle_t handle,
-                                                                const cublasOperation_t transa_array[],
-                                                                const cublasOperation_t transb_array[],
-                                                                const int m_array[],
-                                                                const int n_array[],
-                                                                const int k_array[],
-                                                                const double alpha_array[],
-                                                                const double* const Aarray[],
-                                                                const int lda_array[],
-                                                                const double* const Barray[],
-                                                                const int ldb_array[],
-                                                                const double beta_array[],
-                                                                double* const Carray[],
-                                                                const int ldc_array[],
-                                                                int group_count,
-                                                                const int group_size[]);
-
-CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemmGroupedBatched_64(cublasHandle_t handle,
-                                                                   const cublasOperation_t transa_array[],
-                                                                   const cublasOperation_t transb_array[],
-                                                                   const int64_t m_array[],
-                                                                   const int64_t n_array[],
-                                                                   const int64_t k_array[],
-                                                                   const double alpha_array[],
-                                                                   const double* const Aarray[],
-                                                                   const int64_t lda_array[],
-                                                                   const double* const Barray[],
-                                                                   const int64_t ldb_array[],
-                                                                   const double beta_array[],
-                                                                   double* const Carray[],
-                                                                   const int64_t ldc_array[],
-                                                                   int64_t group_count,
-                                                                   const int64_t group_size[]);
 
 /* ---------------- CUBLAS BLAS-like Extension ---------------- */
 

@@ -1,7 +1,6 @@
 """
 Shortest path algorithms for unweighted graphs.
 """
-
 import warnings
 
 import networkx as nx
@@ -240,11 +239,9 @@ def bidirectional_shortest_path(G, source, target):
     This algorithm is used by shortest_path(G, source, target).
     """
 
-    if source not in G:
-        raise nx.NodeNotFound(f"Source {source} is not in G")
-
-    if target not in G:
-        raise nx.NodeNotFound(f"Target {target} is not in G")
+    if source not in G or target not in G:
+        msg = f"Either source {source} or target {target} is not in G"
+        raise nx.NodeNotFound(msg)
 
     # call helper to do the real work
     results = _bidirectional_pred_succ(G, source, target)

@@ -18,14 +18,12 @@ To improve the performance we can move parts of the implementation to C++.
 import dataclasses
 import functools
 import importlib
-import importlib.metadata
 import json
 import sys
 import threading
 import types
 import warnings
 from collections import defaultdict, deque, namedtuple, OrderedDict
-from enum import Enum
 from typing import (
     Any,
     Callable,
@@ -112,13 +110,6 @@ class KeyEntry(Protocol):
         ...
 
 
-class EnumEncoder(json.JSONEncoder):
-    def default(self, obj: object) -> str:
-        if isinstance(obj, Enum):
-            return obj.value  # type: ignore[no-any-return]
-        return super().default(obj)  # type: ignore[no-any-return]
-
-
 Context = Any
 PyTree = Any
 FlattenFunc = Callable[[PyTree], Tuple[List[Any], Context]]
@@ -169,31 +160,6 @@ class _SerializeNodeDef(NamedTuple):
 SUPPORTED_SERIALIZED_TYPES: Dict[Type[Any], _SerializeNodeDef] = {}
 SERIALIZED_TYPE_TO_PYTHON_TYPE: Dict[str, Type[Any]] = {}
 
-# NB: we try really hard to not import _cxx_pytree (which depends on optree)
-# as much as possible. This is for isolation: a user who is not using C++ pytree
-# shouldn't pay for it, and it helps makes things like cpython upgrades easier.
-try:
-    _optree_version = importlib.metadata.version("optree")
-except importlib.metadata.PackageNotFoundError:
-    _cxx_pytree_dynamo_traceable = _cxx_pytree_exists = False
-else:
-    _cxx_pytree_exists = True
-    from torch._vendor.packaging.version import Version
-
-    _cxx_pytree_dynamo_traceable = Version(_optree_version) >= Version("0.13.0")
-    if not _cxx_pytree_dynamo_traceable:
-        warnings.warn(
-            "optree is installed but the version is too old to support PyTorch Dynamo in C++ pytree. "
-            "C++ pytree support is disabled. "
-            "Please consider upgrading optree using `python3 -m pip install --upgrade 'optree>=0.13.0'`.",
-            FutureWarning,
-        )
-
-    del Version
-
-_cxx_pytree_imported = False
-_cxx_pytree_pending_imports: List[Any] = []
-
 
 def register_pytree_node(
     cls: Type[Any],
@@ -243,12 +209,11 @@ def register_pytree_node(
         flatten_with_keys_fn=flatten_with_keys_fn,
     )
 
-    if not _cxx_pytree_exists:
-        return
-
-    if _cxx_pytree_imported:
+    try:
         from . import _cxx_pytree as cxx
-
+    except ImportError:
+        pass
+    else:
         cxx._private_register_pytree_node(
             cls,
             flatten_fn,
@@ -257,14 +222,6 @@ def register_pytree_node(
             to_dumpable_context=to_dumpable_context,
             from_dumpable_context=from_dumpable_context,
         )
-    else:
-        args = (cls, flatten_fn, unflatten_fn)
-        kwargs = {
-            "serialized_type_name": serialized_type_name,
-            "to_dumpable_context": to_dumpable_context,
-            "from_dumpable_context": from_dumpable_context,
-        }
-        _cxx_pytree_pending_imports.append((args, kwargs))
 
 
 def _register_namedtuple(
@@ -1021,7 +978,7 @@ def tree_map_(
     """
     leaves, treespec = tree_flatten(tree, is_leaf=is_leaf)
     flat_args = [leaves] + [treespec.flatten_up_to(r) for r in rests]
-    deque(map(func, *flat_args), maxlen=0)  # consume and exhaust the iterable
+    tuple(map(func, *flat_args))  # consume and exhaust the iterable
     return tree
 
 
@@ -1396,7 +1353,7 @@ def _treespec_to_json(treespec: TreeSpec) -> _TreeSpecSchema:
 
     if serialize_node_def.to_dumpable_context is None:
         try:
-            serialized_context = json.dumps(treespec.context, cls=EnumEncoder)
+            serialized_context = json.dumps(treespec.context)
         except TypeError as e:
             raise TypeError(
                 "Unable to serialize context. "
@@ -1439,9 +1396,9 @@ def _json_to_treespec(json_schema: DumpableContext) -> TreeSpec:
     else:
         context = serialize_node_def.from_dumpable_context(json_schema["context"])
 
-    children_specs = [
-        _json_to_treespec(child_string) for child_string in json_schema["children_spec"]
-    ]
+    children_specs = []
+    for child_string in json_schema["children_spec"]:
+        children_specs.append(_json_to_treespec(child_string))
 
     return TreeSpec(typ, context, children_specs)
 

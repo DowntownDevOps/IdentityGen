@@ -27,6 +27,7 @@ import torch.distributed as dist
 import torch.distributed.fsdp._traversal_utils as traversal_utils
 import torch.nn as nn
 from torch.distributed._state_dict_utils import _gather_state_dict
+from torch.distributed._tensor import DTensor, Replicate
 from torch.distributed.distributed_c10d import _get_pg_default_device
 from torch.distributed.fsdp._common_utils import (
     _apply_to_modules,
@@ -52,9 +53,7 @@ from torch.distributed.fsdp.api import (
     StateDictSettings,
     StateDictType,
 )
-from torch.distributed.tensor import DTensor, Replicate
 from torch.utils._pytree import tree_map_only
-
 
 if TYPE_CHECKING:
     from torch.distributed._shard.sharded_tensor import ShardedTensor
@@ -105,7 +104,7 @@ class _ConsolidatedOptimState:
 
 class _PosDimTensorInfo(NamedTuple):
     """
-    Metadata for positive-dimension tensors used internally for
+    Meatadata for positive-dimension tensors used internally for
     :meth:`scatter_full_optim_state_dict`.
 
     Attributes:
@@ -536,7 +535,9 @@ def _flatten_optim_state_dict(
                     else:
                         # Move the tensor in the original osd back to CPU to make the
                         # original osd unaffected.
-                        unflat_osd_state[fqn][state_name] = param_state.cpu()
+                        unflat_osd_state[fqn][state_name] = unflat_osd_state[fqn][
+                            state_name
+                        ].cpu()
 
     # Handle user-defined state, states that are not associated with parameters.
     for key in all_state_keys:
@@ -630,7 +631,7 @@ def _flatten_optim_state(
     assert state_names is not None
 
     # Flatten the state
-    flat_state: Dict[str, Optional[torch.Tensor]] = {}
+    flat_state: Dict[str, Any] = {}
     for state_name in state_names:
         state_values = [
             unflat_param_state[state_name] if unflat_param_state is not None else None
@@ -658,7 +659,7 @@ def _flatten_optim_state(
         if are_pos_dim_tensors:
             flat_tensor = _flatten_tensor_optim_state(
                 state_name,
-                state_values,  # type: ignore[arg-type]
+                state_values,
                 unflat_param_names,
                 unflat_param_shapes,
                 handle,
@@ -680,7 +681,7 @@ def _flatten_optim_state(
         elif are_zero_dim_tensors:
             flat_state[state_name] = _flatten_zero_dim_tensor_optim_state(
                 state_name,
-                state_values,  # type: ignore[arg-type]
+                state_values,
                 unflat_param_names,
             )
         else:
@@ -1455,7 +1456,7 @@ def _unflatten_orig_param_states(
             # gather the tensor on its TP dimension before chunking them into DTensor again.
             if placement != Replicate():
                 placement_dim = placement.dim  # type: ignore[attr-defined]
-                value.redistribute(placements=(Replicate(),))
+                value_local = value.redistribute(placements=(Replicate(),))
                 reshape_size = list(flat_param._shapes[param_idx])
                 reshape_size[placement_dim] *= value.device_mesh.size(0)
                 reshape_size = torch.Size(reshape_size)

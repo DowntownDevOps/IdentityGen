@@ -126,13 +126,12 @@ class MemoryFileSystem(AbstractFileSystem):
             if not exist_ok:
                 raise
 
-    def pipe_file(self, path, value, mode="overwrite", **kwargs):
+    def pipe_file(self, path, value, **kwargs):
         """Set the bytes of given file
 
         Avoids copies of the data if possible
         """
-        mode = "xb" if mode == "create" else "wb"
-        self.open(path, mode=mode, data=value)
+        self.open(path, "wb", data=value)
 
     def rmdir(self, path):
         path = self._strip_protocol(path)
@@ -179,8 +178,6 @@ class MemoryFileSystem(AbstractFileSystem):
         **kwargs,
     ):
         path = self._strip_protocol(path)
-        if "x" in mode and self.exists(path):
-            raise FileExistsError
         if path in self.pseudo_dirs:
             raise IsADirectoryError(path)
         parent = path
@@ -200,9 +197,7 @@ class MemoryFileSystem(AbstractFileSystem):
                 return f
             else:
                 raise FileNotFoundError(path)
-        elif mode in {"wb", "xb"}:
-            if mode == "xb" and self.exists(path):
-                raise FileExistsError
+        elif mode == "wb":
             m = MemoryFile(self, path, kwargs.get("data"))
             if not self._intrans:
                 m.commit()
@@ -229,8 +224,8 @@ class MemoryFileSystem(AbstractFileSystem):
         path = self._strip_protocol(path)
         try:
             return bytes(self.store[path].getbuffer()[start:end])
-        except KeyError as e:
-            raise FileNotFoundError(path) from e
+        except KeyError:
+            raise FileNotFoundError(path)
 
     def _rm(self, path):
         path = self._strip_protocol(path)
@@ -243,19 +238,15 @@ class MemoryFileSystem(AbstractFileSystem):
         path = self._strip_protocol(path)
         try:
             return self.store[path].modified
-        except KeyError as e:
-            raise FileNotFoundError(path) from e
+        except KeyError:
+            raise FileNotFoundError(path)
 
     def created(self, path):
         path = self._strip_protocol(path)
         try:
             return self.store[path].created
-        except KeyError as e:
-            raise FileNotFoundError(path) from e
-
-    def isfile(self, path):
-        path = self._strip_protocol(path)
-        return path in self.store
+        except KeyError:
+            raise FileNotFoundError(path)
 
     def rm(self, path, recursive=False, maxdepth=None):
         if isinstance(path, str):
@@ -264,14 +255,14 @@ class MemoryFileSystem(AbstractFileSystem):
             path = [self._strip_protocol(p) for p in path]
         paths = self.expand_path(path, recursive=recursive, maxdepth=maxdepth)
         for p in reversed(paths):
-            if self.isfile(p):
-                self.rm_file(p)
             # If the expanded path doesn't exist, it is only because the expanded
             # path was a directory that does not exist in self.pseudo_dirs. This
             # is possible if you directly create files without making the
             # directories first.
-            elif not self.exists(p):
+            if not self.exists(p):
                 continue
+            if self.isfile(p):
+                self.rm_file(p)
             else:
                 self.rmdir(p)
 

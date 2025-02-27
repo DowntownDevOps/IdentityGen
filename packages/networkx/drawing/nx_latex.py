@@ -126,7 +126,6 @@ TikZ:          https://tikz.dev/
 
 TikZ options details:   https://tikz.dev/tikz-actions
 """
-
 import numbers
 import os
 

@@ -342,43 +342,20 @@ private:
         details::grid::sync(&_data.grid.gridWs->barrier);
     }
 
-#if defined(_CG_CPP11_FEATURES)
-    using arrival_token = unsigned int;
-
-    _CG_QUALIFIER arrival_token barrier_arrive() const {
-        if (!is_valid()) {
-            _CG_ABORT();
-        }
-        return details::grid::barrier_arrive(&_data.grid.gridWs->barrier);
-    }
-
-    _CG_QUALIFIER void barrier_wait(arrival_token&& token) const {
-        details::grid::barrier_wait(token, &_data.grid.gridWs->barrier);
-    }
-#endif
-
     _CG_STATIC_QUALIFIER unsigned long long size() {
         return details::grid::size();
+    }
+
+    _CG_STATIC_QUALIFIER unsigned long long thread_rank() {
+        return details::grid::thread_rank();
     }
 
     _CG_STATIC_QUALIFIER dim3 group_dim() {
         return details::grid::grid_dim();
     }
 
-    _CG_STATIC_QUALIFIER dim3 dim_threads() {
-        return details::grid::dim_threads();
-    }
-
     _CG_STATIC_QUALIFIER unsigned long long num_threads() {
         return details::grid::num_threads();
-    }
-
-    _CG_STATIC_QUALIFIER dim3 thread_index() {
-        return details::grid::thread_index();
-    }
-
-    _CG_STATIC_QUALIFIER unsigned long long thread_rank() {
-        return details::grid::thread_rank();
     }
 
     _CG_STATIC_QUALIFIER dim3 dim_blocks() {
@@ -499,11 +476,6 @@ class cluster_group : public thread_group_base<details::cluster_group_id>
     _CG_STATIC_QUALIFIER unsigned int block_rank()
     {
         return details::cluster::block_rank();
-    }
-
-    _CG_STATIC_QUALIFIER dim3 thread_index()
-    {
-        return details::cluster::thread_index();
     }
 
     _CG_STATIC_QUALIFIER unsigned int thread_rank()
@@ -637,18 +609,6 @@ class thread_block : public thread_group_base<details::thread_block_id>
     _CG_STATIC_QUALIFIER void sync() {
         details::cta::sync();
     }
-
-#if defined(_CG_CPP11_FEATURES)
-    struct arrival_token {};
-
-    _CG_QUALIFIER arrival_token barrier_arrive() const {
-        return arrival_token();
-    }
-
-    _CG_QUALIFIER void barrier_wait(arrival_token&&) const {
-        details::cta::sync();
-    }
-#endif
 
     _CG_STATIC_QUALIFIER unsigned int size() {
         return details::cta::size();
@@ -1171,7 +1131,7 @@ class __single_warp_thread_block_tile<Size, void> :
     typedef __static_size_thread_block_tile_base<numThreads> staticSizeBaseT;
 
 protected:
-    _CG_QUALIFIER __single_warp_thread_block_tile(unsigned int meta_group_rank = 0, unsigned int meta_group_size = 1) {
+    _CG_QUALIFIER __single_warp_thread_block_tile(unsigned int meta_group_rank, unsigned int meta_group_size) {
         _data.coalesced.mask = staticSizeBaseT::build_mask();
         _data.coalesced.size = numThreads;
         _data.coalesced.metaGroupRank = meta_group_rank;

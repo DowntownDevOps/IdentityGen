@@ -480,10 +480,7 @@ class DDIMParallelScheduler(SchedulerMixin, ConfigMixin):
             prev_sample = prev_sample + variance
 
         if not return_dict:
-            return (
-                prev_sample,
-                pred_original_sample,
-            )
+            return (prev_sample,)
 
         return DDIMParallelSchedulerOutput(prev_sample=prev_sample, pred_original_sample=pred_original_sample)
 

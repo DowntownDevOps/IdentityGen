@@ -50,9 +50,6 @@
 #if !defined(__SM_32_INTRINSICS_H__)
 #define __SM_32_INTRINSICS_H__
 
-//NOTE: For NVRTC, these declarations have been moved into the compiler (to reduce compile time)
-#define EXCLUDE_FROM_RTC
-
 #if defined(__CUDACC_RTC__)
 #define __SM_32_INTRINSICS_DECL__ __device__
 #else /* !__CUDACC_RTC__ */
@@ -87,7 +84,6 @@
 /******************************************************************************
  *                                   __ldg                                    *
  ******************************************************************************/
-
 __SM_32_INTRINSICS_DECL__ long __ldg(const long *ptr) __DEF_IF_HOST
 __SM_32_INTRINSICS_DECL__ unsigned long __ldg(const unsigned long *ptr) __DEF_IF_HOST
 
@@ -121,7 +117,6 @@ __SM_32_INTRINSICS_DECL__ double __ldg(const double *ptr) __DEF_IF_HOST
 __SM_32_INTRINSICS_DECL__ float2 __ldg(const float2 *ptr) __DEF_IF_HOST
 __SM_32_INTRINSICS_DECL__ float4 __ldg(const float4 *ptr) __DEF_IF_HOST
 __SM_32_INTRINSICS_DECL__ double2 __ldg(const double2 *ptr) __DEF_IF_HOST
-
 /******************************************************************************
  *                                   __ldcg                                   *
  ******************************************************************************/
@@ -512,5 +507,4 @@ __SM_32_INTRINSICS_DECL__ unsigned int __funnelshift_rc(unsigned int lo, unsigne
 #include "sm_32_intrinsics.hpp"
 #endif /* !defined(__CUDACC_RTC__) && (defined(__CUDA_ARCH__) || defined(_NVHPC_CUDA))  */
 
-#undef EXCLUDE_FROM_RTC
 #endif /* !__SM_32_INTRINSICS_H__ */

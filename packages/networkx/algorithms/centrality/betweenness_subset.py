@@ -1,5 +1,4 @@
 """Betweenness centrality measures for subsets of nodes."""
-
 import networkx as nx
 from networkx.algorithms.centrality.betweenness import (
     _add_edge_keys,

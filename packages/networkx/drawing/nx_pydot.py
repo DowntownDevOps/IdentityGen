@@ -19,7 +19,6 @@ See Also
  - Graphviz:      https://www.graphviz.org
  - DOT Language:  http://www.graphviz.org/doc/info/lang.html
 """
-
 from locale import getpreferredencoding
 
 import networkx as nx
@@ -173,6 +172,13 @@ def from_pydot(P):
     return N
 
 
+def _check_colon_quotes(s):
+    # A quick helper function to check if a string has a colon in it
+    # and if it is quoted properly with double quotes.
+    # refer https://github.com/pydot/pydot/issues/258
+    return ":" in s and (s[0] != '"' or s[-1] != '"')
+
+
 def to_pydot(N):
     """Returns a pydot graph from a NetworkX graph N.
 
@@ -218,7 +224,20 @@ def to_pydot(N):
 
     for n, nodedata in N.nodes(data=True):
         str_nodedata = {str(k): str(v) for k, v in nodedata.items()}
+        # Explicitly catch nodes with ":" in node names or nodedata.
         n = str(n)
+        raise_error = _check_colon_quotes(n) or (
+            any(
+                (_check_colon_quotes(k) or _check_colon_quotes(v))
+                for k, v in str_nodedata.items()
+            )
+        )
+        if raise_error:
+            raise ValueError(
+                f'Node names and attributes should not contain ":" unless they are quoted with "".\
+                For example the string \'attribute:data1\' should be written as \'"attribute:data1"\'.\
+                Please refer https://github.com/pydot/pydot/issues/258'
+            )
         p = pydot.Node(n, **str_nodedata)
         P.add_node(p)
 
@@ -226,6 +245,22 @@ def to_pydot(N):
         for u, v, key, edgedata in N.edges(data=True, keys=True):
             str_edgedata = {str(k): str(v) for k, v in edgedata.items() if k != "key"}
             u, v = str(u), str(v)
+            raise_error = (
+                _check_colon_quotes(u)
+                or _check_colon_quotes(v)
+                or (
+                    any(
+                        (_check_colon_quotes(k) or _check_colon_quotes(val))
+                        for k, val in str_edgedata.items()
+                    )
+                )
+            )
+            if raise_error:
+                raise ValueError(
+                    f'Node names and attributes should not contain ":" unless they are quoted with "".\
+                    For example the string \'attribute:data1\' should be written as \'"attribute:data1"\'.\
+                    Please refer https://github.com/pydot/pydot/issues/258'
+                )
             edge = pydot.Edge(u, v, key=str(key), **str_edgedata)
             P.add_edge(edge)
 
@@ -233,6 +268,22 @@ def to_pydot(N):
         for u, v, edgedata in N.edges(data=True):
             str_edgedata = {str(k): str(v) for k, v in edgedata.items()}
             u, v = str(u), str(v)
+            raise_error = (
+                _check_colon_quotes(u)
+                or _check_colon_quotes(v)
+                or (
+                    any(
+                        (_check_colon_quotes(k) or _check_colon_quotes(val))
+                        for k, val in str_edgedata.items()
+                    )
+                )
+            )
+            if raise_error:
+                raise ValueError(
+                    f'Node names and attributes should not contain ":" unless they are quoted with "".\
+                    For example the string \'attribute:data1\' should be written as \'"attribute:data1"\'.\
+                    Please refer https://github.com/pydot/pydot/issues/258'
+                )
             edge = pydot.Edge(u, v, **str_edgedata)
             P.add_edge(edge)
     return P
@@ -305,7 +356,7 @@ def pydot_layout(G, prog="neato", root=None):
     for the layout computation using something similar to::
 
         H = nx.convert_node_labels_to_integers(G, label_attribute="node_label")
-        H_layout = nx.nx_pydot.pydot_layout(H, prog="dot")
+        H_layout = nx.nx_pydot.pydot_layout(G, prog="dot")
         G_layout = {H.nodes[n]["node_label"]: p for n, p in H_layout.items()}
 
     """
@@ -341,7 +392,15 @@ def pydot_layout(G, prog="neato", root=None):
     node_pos = {}
     for n in G.nodes():
         str_n = str(n)
-        node = Q.get_node(pydot.quote_id_if_necessary(str_n))
+        # Explicitly catch nodes with ":" in node names or nodedata.
+        if _check_colon_quotes(str_n):
+            raise ValueError(
+                f'Node names and node attributes should not contain ":" unless they are quoted with "".\
+                For example the string \'attribute:data1\' should be written as \'"attribute:data1"\'.\
+                Please refer https://github.com/pydot/pydot/issues/258'
+            )
+        pydot_node = pydot.Node(str_n).get_name()
+        node = Q.get_node(pydot_node)
 
         if isinstance(node, list):
             node = node[0]

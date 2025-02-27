@@ -5,8 +5,7 @@
 #include <ATen/ATen.h>
 
 struct THPDTypeInfo {
-  PyObject_HEAD
-  at::ScalarType type;
+  PyObject_HEAD at::ScalarType type;
 };
 
 struct THPFInfo : THPDTypeInfo {};

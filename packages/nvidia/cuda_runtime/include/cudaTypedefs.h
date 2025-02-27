@@ -123,8 +123,6 @@ extern "C" {
 #define PFN_cuModuleGetGlobal  PFN_cuModuleGetGlobal_v3020
 #define PFN_cuModuleGetTexRef  PFN_cuModuleGetTexRef_v2000
 #define PFN_cuModuleGetSurfRef  PFN_cuModuleGetSurfRef_v3000
-#define PFN_cuModuleGetFunctionCount PFN_cuModuleGetFunctionCount_v12040
-#define PFN_cuModuleEnumerateFunctions PFN_cuModuleEnumerateFunctions_v12040
 #define PFN_cuLinkCreate  PFN_cuLinkCreate_v6050
 #define PFN_cuLinkAddData  PFN_cuLinkAddData_v6050
 #define PFN_cuLinkAddFile  PFN_cuLinkAddFile_v6050
@@ -230,8 +228,6 @@ extern "C" {
 #define PFN_cuPointerGetAttribute  PFN_cuPointerGetAttribute_v4000
 #define PFN_cuMemPrefetchAsync  __API_TYPEDEF_PTSZ(PFN_cuMemPrefetchAsync, 8000, 8000)
 #define PFN_cuMemAdvise  PFN_cuMemAdvise_v8000
-#define PFN_cuMemAdvise_v2  PFN_cuMemAdvise_v12020
-#define PFN_cuMemPrefetchAsync_v2  __API_TYPEDEF_PTSZ(PFN_cuMemPrefetchAsync, 12020, 12020)
 #define PFN_cuMemRangeGetAttribute  PFN_cuMemRangeGetAttribute_v8000
 #define PFN_cuMemRangeGetAttributes  PFN_cuMemRangeGetAttributes_v8000
 #define PFN_cuMulticastCreate  PFN_cuMulticastCreate_v12010
@@ -251,15 +247,12 @@ extern "C" {
 #define PFN_cuStreamWaitEvent  __API_TYPEDEF_PTSZ(PFN_cuStreamWaitEvent, 3020, 7000)
 #define PFN_cuStreamAddCallback  __API_TYPEDEF_PTSZ(PFN_cuStreamAddCallback, 5000, 7000)
 #define PFN_cuStreamBeginCapture  __API_TYPEDEF_PTSZ(PFN_cuStreamBeginCapture, 10010, 10010)
-#define PFN_cuStreamBeginCaptureToGraph  __API_TYPEDEF_PTSZ(PFN_cuStreamBeginCaptureToGraph, 12030, 12030)
 #define PFN_cuThreadExchangeStreamCaptureMode  PFN_cuThreadExchangeStreamCaptureMode_v10010
 #define PFN_cuStreamEndCapture  __API_TYPEDEF_PTSZ(PFN_cuStreamEndCapture, 10000, 10000)
 #define PFN_cuStreamIsCapturing  __API_TYPEDEF_PTSZ(PFN_cuStreamIsCapturing, 10000, 10000)
 #define PFN_cuStreamGetCaptureInfo  __API_TYPEDEF_PTSZ(PFN_cuStreamGetCaptureInfo, 10010, 10010)
 #define PFN_cuStreamGetCaptureInfo_v2  __API_TYPEDEF_PTSZ(PFN_cuStreamGetCaptureInfo, 11030, 11030)
-#define PFN_cuStreamGetCaptureInfo_v3  __API_TYPEDEF_PTSZ(PFN_cuStreamGetCaptureInfo, 12030, 12030)
 #define PFN_cuStreamUpdateCaptureDependencies  __API_TYPEDEF_PTSZ(PFN_cuStreamUpdateCaptureDependencies, 11030, 11030)
-#define PFN_cuStreamUpdateCaptureDependencies_v2  __API_TYPEDEF_PTSZ(PFN_cuStreamUpdateCaptureDependencies, 12030, 12030)
 #define PFN_cuStreamAttachMemAsync  __API_TYPEDEF_PTSZ(PFN_cuStreamAttachMemAsync, 6000, 7000)
 #define PFN_cuStreamQuery  __API_TYPEDEF_PTSZ(PFN_cuStreamQuery, 2000, 7000)
 #define PFN_cuStreamSynchronize  __API_TYPEDEF_PTSZ(PFN_cuStreamSynchronize, 2000, 7000)
@@ -296,10 +289,6 @@ extern "C" {
 #define PFN_cuFuncSetAttribute  PFN_cuFuncSetAttribute_v9000
 #define PFN_cuFuncSetCacheConfig  PFN_cuFuncSetCacheConfig_v3000
 #define PFN_cuFuncSetSharedMemConfig  PFN_cuFuncSetSharedMemConfig_v4020
-#define PFN_cuFuncGetName  PFN_cuFuncGetName_v12030
-#define PFN_cuFuncGetParamInfo  PFN_cuFuncGetParamInfo_v12040
-#define PFN_cuFuncIsLoaded PFN_cuFuncIsLoaded_v12040
-#define PFN_cuFuncLoad PFN_cuFuncLoad_v12040
 #define PFN_cuLaunchKernel  __API_TYPEDEF_PTSZ(PFN_cuLaunchKernel, 4000, 7000)
 #define PFN_cuLaunchKernelEx __API_TYPEDEF_PTSZ(PFN_cuLaunchKernelEx, 11060, 11060)
 #define PFN_cuLaunchCooperativeKernel  __API_TYPEDEF_PTSZ(PFN_cuLaunchCooperativeKernel, 9000, 9000)
@@ -352,11 +341,11 @@ extern "C" {
 #define PFN_cuGraphNodeGetType  PFN_cuGraphNodeGetType_v10000
 #define PFN_cuGraphGetNodes  PFN_cuGraphGetNodes_v10000
 #define PFN_cuGraphGetRootNodes  PFN_cuGraphGetRootNodes_v10000
-#define PFN_cuGraphGetEdges  PFN_cuGraphGetEdges_v12030
-#define PFN_cuGraphNodeGetDependencies  PFN_cuGraphNodeGetDependencies_v12030
-#define PFN_cuGraphNodeGetDependentNodes  PFN_cuGraphNodeGetDependentNodes_v12030
-#define PFN_cuGraphAddDependencies  PFN_cuGraphAddDependencies_v12030
-#define PFN_cuGraphRemoveDependencies  PFN_cuGraphRemoveDependencies_v12030
+#define PFN_cuGraphGetEdges  PFN_cuGraphGetEdges_v10000
+#define PFN_cuGraphNodeGetDependencies  PFN_cuGraphNodeGetDependencies_v10000
+#define PFN_cuGraphNodeGetDependentNodes  PFN_cuGraphNodeGetDependentNodes_v10000
+#define PFN_cuGraphAddDependencies  PFN_cuGraphAddDependencies_v10000
+#define PFN_cuGraphRemoveDependencies  PFN_cuGraphRemoveDependencies_v10000
 #define PFN_cuGraphDestroyNode  PFN_cuGraphDestroyNode_v10000
 
 #define PFN_cuGraphInstantiate  PFN_cuGraphInstantiateWithFlags_v11040
@@ -388,10 +377,6 @@ extern "C" {
 #define PFN_cuGraphMemFreeNodeGetParams PFN_cuGraphMemFreeNodeGetParams_v11040
 #define PFN_cuGraphNodeSetEnabled PFN_cuGraphNodeSetEnabled_v11060
 #define PFN_cuGraphNodeGetEnabled PFN_cuGraphNodeGetEnabled_v11060
-#define PFN_cuGraphAddNode PFN_cuGraphAddNode_v12030
-#define PFN_cuGraphNodeSetParams PFN_cuGraphNodeSetParams_v12020
-#define PFN_cuGraphExecNodeSetParams PFN_cuGraphExecNodeSetParams_v12020
-#define PFN_GraphConditionalHandleCreate PFN_cuGraphConditionalHandleCreate_v12030
 #define PFN_cuDeviceGraphMemTrim  PFN_cuDeviceGraphMemTrim_v11040
 #define PFN_cuDeviceGetGraphMemAttribute  PFN_cuDeviceGetGraphMemAttribute_v11040
 #define PFN_cuDeviceSetGraphMemAttribute  PFN_cuDeviceSetGraphMemAttribute_v11040
@@ -472,31 +457,15 @@ extern "C" {
 #define PFN_cuKernelGetFunction PFN_cuKernelGetFunction_v12000
 #define PFN_cuLibraryGetGlobal PFN_cuLibraryGetGlobal_v12000
 #define PFN_cuLibraryGetManaged PFN_cuLibraryGetManaged_v12000
-#define PFN_cuLibraryGetKernelCount PFN_cuLibraryGetKernelCount_v12040
-#define PFN_cuLibraryEnumerateKernels PFN_cuLibraryEnumerateKernels_v12040
 #define PFN_cuKernelGetAttribute PFN_cuKernelGetAttribute_v12000
 #define PFN_cuKernelSetAttribute PFN_cuKernelSetAttribute_v12000
 #define PFN_cuKernelSetCacheConfig PFN_cuKernelSetCacheConfig_v12000
-#define PFN_cuKernelGetName  PFN_cuKernelGetName_v12030
-#define PFN_cuKernelGetParamInfo  PFN_cuKernelGetParamInfo_v12040
 #define PFN_cuLibraryGetUnifiedFunction PFN_cuLibraryGetUnifiedFunction_v12000
 #define PFN_cuCoredumpGetAttribute PFN_cuCoredumpGetAttribute_v12010
 #define PFN_cuCoredumpGetAttributeGlobal PFN_cuCoredumpGetAttributeGlobal_v12010
 #define PFN_cuCoredumpSetAttribute PFN_cuCoredumpSetAttribute_v12010
 #define PFN_cuCoredumpSetAttributeGlobal PFN_cuCoredumpSetAttributeGlobal_v12010
-#define PFN_cuDeviceRegisterAsyncNotification PFN_cuDeviceRegisterAsyncNotification_v12040
-#define PFN_cuDeviceUnregisterAsyncNotification PFN_cuDeviceUnregisterAsyncNotification_v12040
-#define PFN_cuGreenCtxCreate PFN_cuGreenCtxCreate_v12040
-#define PFN_cuGreenCtxDestroy PFN_cuGreenCtxDestroy_v12040
-#define PFN_cuDeviceGetDevResource PFN_cuDeviceGetDevResource_v12040
-#define PFN_cuCtxGetDevResource PFN_cuCtxGetDevResource_v12040
-#define PFN_cuGreenCtxGetDevResource PFN_cuGreenCtxGetDevResource_v12040
-#define PFN_cuGreenCtxRecordEvent PFN_cuGreenCtxRecordEvent_v12040
-#define PFN_cuGreenCtxWaitEvent PFN_cuGreenCtxWaitEvent_v12040
-#define PFN_cuDevResourceGenerateDesc PFN_cuDevResourceGenerateDesc_v12040
-#define PFN_cuDevSmResourceSplitByCount PFN_cuDevSmResourceSplitByCount_v12040
-#define PFN_cuStreamGetGreenCtx PFN_cuStreamGetGreenCtx_v12040
-#define PFN_cuCtxFromGreenCtx PFN_cuCtxFromGreenCtx_v12040
+
 
 /*
  * Type definitions for functions defined in cuda.h
@@ -559,8 +528,6 @@ typedef CUresult (CUDAAPI *PFN_cuModuleGetFunction_v2000)(CUfunction *hfunc, CUm
 typedef CUresult (CUDAAPI *PFN_cuModuleGetGlobal_v3020)(CUdeviceptr_v2 *dptr, size_t *bytes, CUmodule hmod, const char *name);
 typedef CUresult (CUDAAPI *PFN_cuModuleGetTexRef_v2000)(CUtexref *pTexRef, CUmodule hmod, const char *name);
 typedef CUresult (CUDAAPI *PFN_cuModuleGetSurfRef_v3000)(CUsurfref *pSurfRef, CUmodule hmod, const char *name);
-typedef CUresult (CUDAAPI *PFN_cuModuleGetFunctionCount)(unsigned int *count, CUmodule hmod);
-typedef CUresult (CUDAAPI *PFN_cuModuleEnumerateFunctions)(CUfunction *functions, unsigned int numFunctions, CUmodule mod);
 typedef CUresult (CUDAAPI *PFN_cuLinkCreate_v6050)(unsigned int numOptions, CUjit_option *options, void **optionValues, CUlinkState *stateOut);
 typedef CUresult (CUDAAPI *PFN_cuLinkAddData_v6050)(CUlinkState state, CUjitInputType type, void *data, size_t size, const char *name, unsigned int numOptions, CUjit_option *options, void **optionValues);
 typedef CUresult (CUDAAPI *PFN_cuLinkAddFile_v6050)(CUlinkState state, CUjitInputType type, const char *path, unsigned int numOptions, CUjit_option *options, void **optionValues);
@@ -666,8 +633,6 @@ typedef CUresult (CUDAAPI *PFN_cuMemPoolImportPointer_v11020)(CUdeviceptr_v2 *pt
 typedef CUresult (CUDAAPI *PFN_cuPointerGetAttribute_v4000)(void *data, CUpointer_attribute attribute, CUdeviceptr_v2 ptr);
 typedef CUresult (CUDAAPI *PFN_cuMemPrefetchAsync_v8000_ptsz)(CUdeviceptr_v2 devPtr, size_t count, CUdevice_v1 dstDevice, CUstream hStream);
 typedef CUresult (CUDAAPI *PFN_cuMemAdvise_v8000)(CUdeviceptr_v2 devPtr, size_t count, CUmem_advise advice, CUdevice_v1 device);
-typedef CUresult (CUDAAPI *PFN_cuMemAdvise_v12020)(CUdeviceptr_v2 devPtr, size_t count, CUmem_advise advice, CUmemLocation_v1 location);
-typedef CUresult (CUDAAPI *PFN_cuMemPrefetchAsync_v12020_ptsz)(CUdeviceptr_v2 devPtr, size_t count, CUmemLocation_v1 location, unsigned int flags, CUstream hStream);
 typedef CUresult (CUDAAPI *PFN_cuMemRangeGetAttribute_v8000)(void *data, size_t dataSize, CUmem_range_attribute attribute, CUdeviceptr_v2 devPtr, size_t count);
 typedef CUresult (CUDAAPI *PFN_cuMemRangeGetAttributes_v8000)(void **data, size_t *dataSizes, CUmem_range_attribute *attributes, size_t numAttributes, CUdeviceptr_v2 devPtr, size_t count);
 typedef CUresult (CUDAAPI *PFN_cuMulticastCreate_v12010)(CUmemGenericAllocationHandle *mcHandle, const CUmulticastObjectProp *prop);
@@ -688,15 +653,12 @@ typedef CUresult (CUDAAPI *PFN_cuStreamGetCtx_v9020_ptsz)(CUstream hStream, CUco
 typedef CUresult (CUDAAPI *PFN_cuStreamWaitEvent_v7000_ptsz)(CUstream hStream, CUevent hEvent, unsigned int Flags);
 typedef CUresult (CUDAAPI *PFN_cuStreamAddCallback_v7000_ptsz)(CUstream hStream, CUstreamCallback callback, void *userData, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuStreamBeginCapture_v10010_ptsz)(CUstream hStream, CUstreamCaptureMode mode);
-typedef CUresult (CUDAAPI *PFN_cuStreamBeginCaptureToGraph_v12030_ptsz)(CUstream hStream, CUgraph hGraph, const CUgraphNode *dependencies, const CUgraphEdgeData *dependencyData, size_t numDependencies, CUstreamCaptureMode mode);
 typedef CUresult (CUDAAPI *PFN_cuThreadExchangeStreamCaptureMode_v10010)(CUstreamCaptureMode *mode);
 typedef CUresult (CUDAAPI *PFN_cuStreamEndCapture_v10000_ptsz)(CUstream hStream, CUgraph *phGraph);
 typedef CUresult (CUDAAPI *PFN_cuStreamIsCapturing_v10000_ptsz)(CUstream hStream, CUstreamCaptureStatus *captureStatus);
 typedef CUresult (CUDAAPI *PFN_cuStreamGetCaptureInfo_v10010_ptsz)(CUstream hStream, CUstreamCaptureStatus *captureStatus_out, cuuint64_t *id_out);
 typedef CUresult (CUDAAPI *PFN_cuStreamGetCaptureInfo_v11030_ptsz)(CUstream hStream, CUstreamCaptureStatus *captureStatus_out, cuuint64_t *id_out, CUgraph *graph_out, const CUgraphNode **dependencies_out, size_t *numDependencies_out);
-typedef CUresult (CUDAAPI *PFN_cuStreamGetCaptureInfo_v12030_ptsz)(CUstream hStream, CUstreamCaptureStatus *captureStatus_out, cuuint64_t *id_out, CUgraph *graph_out, const CUgraphNode **dependencies_out, const CUgraphEdgeData **edgeData_out, size_t *numDependencies_out);
 typedef CUresult (CUDAAPI *PFN_cuStreamUpdateCaptureDependencies_v11030_ptsz)(CUstream hStream, CUgraphNode *dependencies, size_t numDependencies, unsigned int flags);
-typedef CUresult (CUDAAPI *PFN_cuStreamUpdateCaptureDependencies_v12030_ptsz)(CUstream hStream, CUgraphNode *dependencies, const CUgraphEdgeData *dependencyData, size_t numDependencies, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuStreamAttachMemAsync_v7000_ptsz)(CUstream hStream, CUdeviceptr_v2 dptr, size_t length, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuStreamQuery_v7000_ptsz)(CUstream hStream);
 typedef CUresult (CUDAAPI *PFN_cuStreamSynchronize_v7000_ptsz)(CUstream hStream);
@@ -733,10 +695,6 @@ typedef CUresult (CUDAAPI *PFN_cuFuncGetAttribute_v2020)(int *pi, CUfunction_att
 typedef CUresult (CUDAAPI *PFN_cuFuncSetAttribute_v9000)(CUfunction hfunc, CUfunction_attribute attrib, int value);
 typedef CUresult (CUDAAPI *PFN_cuFuncSetCacheConfig_v3000)(CUfunction hfunc, CUfunc_cache config);
 typedef CUresult (CUDAAPI *PFN_cuFuncSetSharedMemConfig_v4020)(CUfunction hfunc, CUsharedconfig config);
-typedef CUresult (CUDAAPI *PFN_cuFuncGetName_v12030)(const char **name, CUfunction hfunc);
-typedef CUresult (CUDAAPI *PFN_cuFuncGetParamInfo_v12040)(CUfunction func, size_t paramIndex, size_t *paramOffset, size_t *paramSize);
-typedef CUresult (CUDAAPI *PFN_cuFuncIsLoaded_v12040)(CUfunctionLoadingState *state, CUfunction hfunc);
-typedef CUresult (CUDAAPI *PFN_cuFuncLoad_v12040)(CUfunction hfunc);
 typedef CUresult (CUDAAPI *PFN_cuLaunchKernel_v7000_ptsz)(CUfunction f, unsigned int gridDimX, unsigned int gridDimY, unsigned int gridDimZ, unsigned int blockDimX, unsigned int blockDimY, unsigned int blockDimZ, unsigned int sharedMemBytes, CUstream hStream, void **kernelParams, void **extra);
 typedef CUresult (CUDAAPI *PFN_cuLaunchKernelEx_v11060_ptsz)(const CUlaunchConfig *config, CUfunction f, void **kernelParams, void **extra);
 typedef CUresult (CUDAAPI *PFN_cuLaunchCooperativeKernel_v9000_ptsz)(CUfunction f, unsigned int gridDimX, unsigned int gridDimY, unsigned int gridDimZ, unsigned int blockDimX, unsigned int blockDimY, unsigned int blockDimZ, unsigned int sharedMemBytes, CUstream hStream, void **kernelParams);
@@ -793,15 +751,10 @@ typedef CUresult (CUDAAPI *PFN_cuGraphNodeGetType_v10000)(CUgraphNode hNode, CUg
 typedef CUresult (CUDAAPI *PFN_cuGraphGetNodes_v10000)(CUgraph hGraph, CUgraphNode *nodes, size_t *numNodes);
 typedef CUresult (CUDAAPI *PFN_cuGraphGetRootNodes_v10000)(CUgraph hGraph, CUgraphNode *rootNodes, size_t *numRootNodes);
 typedef CUresult (CUDAAPI *PFN_cuGraphGetEdges_v10000)(CUgraph hGraph, CUgraphNode *from, CUgraphNode *to, size_t *numEdges);
-typedef CUresult (CUDAAPI *PFN_cuGraphGetEdges_v12030)(CUgraph hGraph, CUgraphNode *from, CUgraphNode *to, CUgraphEdgeData *edgeData, size_t *numEdges);
 typedef CUresult (CUDAAPI *PFN_cuGraphNodeGetDependencies_v10000)(CUgraphNode hNode, CUgraphNode *dependencies, size_t *numDependencies);
-typedef CUresult (CUDAAPI *PFN_cuGraphNodeGetDependencies_v12030)(CUgraphNode hNode, CUgraphNode *dependencies, CUgraphEdgeData *edgeData, size_t *numDependencies);
 typedef CUresult (CUDAAPI *PFN_cuGraphNodeGetDependentNodes_v10000)(CUgraphNode hNode, CUgraphNode *dependentNodes, size_t *numDependentNodes);
-typedef CUresult (CUDAAPI *PFN_cuGraphNodeGetDependentNodes_v12030)(CUgraphNode hNode, CUgraphNode *dependentNodes, CUgraphEdgeData *edgeData, size_t *numDependentNodes);
 typedef CUresult (CUDAAPI *PFN_cuGraphAddDependencies_v10000)(CUgraph hGraph, const CUgraphNode *from, const CUgraphNode *to, size_t numDependencies);
-typedef CUresult (CUDAAPI *PFN_cuGraphAddDependencies_v12030)(CUgraph hGraph, const CUgraphNode *from, const CUgraphNode *to, const CUgraphEdgeData *edgeData, size_t numDependencies);
 typedef CUresult (CUDAAPI *PFN_cuGraphRemoveDependencies_v10000)(CUgraph hGraph, const CUgraphNode *from, const CUgraphNode *to, size_t numDependencies);
-typedef CUresult (CUDAAPI *PFN_cuGraphRemoveDependencies_v12030)(CUgraph hGraph, const CUgraphNode *from, const CUgraphNode *to, const CUgraphEdgeData *edgeData, size_t numDependencies);
 typedef CUresult (CUDAAPI *PFN_cuGraphDestroyNode_v10000)(CUgraphNode hNode);
 typedef CUresult (CUDAAPI *PFN_cuGraphInstantiateWithFlags_v11040)(CUgraphExec *phGraphExec, CUgraph hGraph, unsigned long long flags);
 typedef CUresult (CUDAAPI *PFN_cuGraphInstantiateWithParams_v12000_ptsz)(CUgraphExec *phGraphExec, CUgraph hGraph, CUDA_GRAPH_INSTANTIATE_PARAMS *instantiateParams);
@@ -832,11 +785,6 @@ typedef CUresult (CUDAAPI *PFN_cuGraphAddMemFreeNode_v11040)(CUgraphNode *phGrap
 typedef CUresult (CUDAAPI *PFN_cuGraphMemFreeNodeGetParams_v11040)(CUgraphNode hNode, CUdeviceptr *dptr_out);
 typedef CUresult (CUDAAPI *PFN_cuGraphNodeSetEnabled_v11060)(CUgraphExec hGraphExec, CUgraphNode hNode, unsigned int isEnabled);
 typedef CUresult (CUDAAPI *PFN_cuGraphNodeGetEnabled_v11060)(CUgraphExec hGraphExec, CUgraphNode hNode, unsigned int *isEnabled);
-typedef CUresult (CUDAAPI *PFN_cuGraphAddNode_v12020)(CUgraphNode *phGraphNode, CUgraph hGraph, const CUgraphNode *dependencies, size_t numDependencies, CUgraphNodeParams *nodeParams);
-typedef CUresult (CUDAAPI *PFN_cuGraphAddNode_v12030)(CUgraphNode *phGraphNode, CUgraph hGraph, const CUgraphNode *dependencies, const CUgraphEdgeData *dependencyData, size_t numDependencies, CUgraphNodeParams *nodeParams);
-typedef CUresult (CUDAAPI *PFN_cuGraphNodeSetParams_v12020)(CUgraphNode hNode, CUgraphNodeParams *nodeParams);
-typedef CUresult (CUDAAPI *PFN_cuGraphExecNodeSetParams_v12020)(CUgraphExec hGraphExec, CUgraphNode hNode, CUgraphNodeParams *nodeParams);
-typedef CUresult (CUDAAPI *PFN_cuGraphConditionalHandleCreate_v12030)(CUgraphConditionalHandle *pHandle_out, CUgraph hGraph, CUcontext ctx, unsigned int defaultLaunchValue, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuDeviceGraphMemTrim_v11040)(CUdevice device);
 typedef CUresult (CUDAAPI *PFN_cuDeviceGetGraphMemAttribute_v11040)(CUdevice device, CUgraphMem_attribute attr, void* value);
 typedef CUresult (CUDAAPI *PFN_cuDeviceSetGraphMemAttribute_v11040)(CUdevice device, CUgraphMem_attribute attr, void* value);
@@ -964,19 +912,15 @@ typedef CUresult (CUDAAPI *PFN_cuStreamWriteValue64_v11070)(CUstream stream, CUd
 typedef CUresult (CUDAAPI *PFN_cuStreamWaitValue64_v11070)(CUstream stream, CUdeviceptr_v2 addr, cuuint64_t value, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuStreamBatchMemOp_v11070)(CUstream stream, unsigned int count, CUstreamBatchMemOpParams *paramArray, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuMemPrefetchAsync_v8000)(CUdeviceptr_v2 devPtr, size_t count, CUdevice_v1 dstDevice, CUstream hStream);
-typedef CUresult (CUDAAPI *PFN_cuMemPrefetchAsync_v12020)(CUdeviceptr_v2 devPtr, size_t count, CUmemLocation_v1 location, unsigned int flags, CUstream hStream);
 typedef CUresult (CUDAAPI *PFN_cuLaunchCooperativeKernel_v9000)(CUfunction f, unsigned int gridDimX, unsigned int gridDimY, unsigned int gridDimZ, unsigned int blockDimX, unsigned int blockDimY, unsigned int blockDimZ, unsigned int sharedMemBytes, CUstream hStream, void **kernelParams);
 typedef CUresult (CUDAAPI *PFN_cuSignalExternalSemaphoresAsync_v10000)(const CUexternalSemaphore *extSemArray, const CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS_v1 *paramsArray, unsigned int numExtSems, CUstream stream);
 typedef CUresult (CUDAAPI *PFN_cuWaitExternalSemaphoresAsync_v10000)(const CUexternalSemaphore *extSemArray, const CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS_v1 *paramsArray, unsigned int numExtSems, CUstream stream);
 typedef CUresult (CUDAAPI *PFN_cuStreamBeginCapture_v10010)(CUstream hStream, CUstreamCaptureMode mode);
-typedef CUresult (CUDAAPI *PFN_cuStreamBeginCaptureToGraph_v12030)(CUstream hStream, CUgraph hGraph, const CUgraphNode *dependencies, const CUgraphEdgeData *dependencyData, size_t numDependencies, CUstreamCaptureMode mode);
 typedef CUresult (CUDAAPI *PFN_cuStreamEndCapture_v10000)(CUstream hStream, CUgraph *phGraph);
 typedef CUresult (CUDAAPI *PFN_cuStreamIsCapturing_v10000)(CUstream hStream, CUstreamCaptureStatus *captureStatus);
 typedef CUresult (CUDAAPI *PFN_cuStreamGetCaptureInfo_v10010)(CUstream hStream, CUstreamCaptureStatus *captureStatus_out, cuuint64_t *id_out);
 typedef CUresult (CUDAAPI *PFN_cuStreamGetCaptureInfo_v11030)(CUstream hStream, CUstreamCaptureStatus *captureStatus_out, cuuint64_t *id_out, CUgraph *graph_out, const CUgraphNode **dependencies_out, size_t *numDependencies_out);
-typedef CUresult (CUDAAPI *PFN_cuStreamGetCaptureInfo_v12030)(CUstream hStream, CUstreamCaptureStatus *captureStatus_out, cuuint64_t *id_out, CUgraph *graph_out, const CUgraphNode **dependencies_out, const CUgraphEdgeData **edgeData_out, size_t *numDependencies_out);
 typedef CUresult (CUDAAPI *PFN_cuStreamUpdateCaptureDependencies_v11030)(CUstream hStream, CUgraphNode *dependencies, size_t numDependencies, unsigned int flags);
-typedef CUresult (CUDAAPI *PFN_cuStreamUpdateCaptureDependencies_v12030)(CUstream hStream, CUgraphNode *dependencies, const CUgraphEdgeData *dependencyData, size_t numDependencies, unsigned int flags);
 typedef CUresult (CUDAAPI *PFN_cuGraphInstantiateWithParams_v12000)(CUgraphExec *phGraphExec, CUgraph hGraph, CUDA_GRAPH_INSTANTIATE_PARAMS *instantiateParams);
 typedef CUresult (CUDAAPI *PFN_cuGraphUpload_v11010)(CUgraphExec hGraph, CUstream hStream);
 typedef CUresult (CUDAAPI *PFN_cuGraphLaunch_v10000)(CUgraphExec hGraph, CUstream hStream);
@@ -1000,34 +944,17 @@ typedef CUresult (CUDAAPI *PFN_cuLibraryLoadFromFile_v12000)(CUlibrary *library,
 typedef CUresult (CUDAAPI *PFN_cuLibraryUnload_v12000)(CUlibrary library);
 typedef CUresult (CUDAAPI *PFN_cuLibraryGetKernel_v12000)(CUkernel *pKernel, CUlibrary library, const char *name);
 typedef CUresult (CUDAAPI *PFN_cuLibraryGetModule_v12000)(CUmodule *pMod, CUlibrary library);
-typedef CUresult (CUDAAPI *PFN_cuLibraryGetKernelCount)(unsigned int *count, CUlibrary lib);
-typedef CUresult (CUDAAPI *PFN_cuLibraryEnumerateKernels)(CUkernel *kernels, unsigned int numKernels, CUlibrary lib);
 typedef CUresult (CUDAAPI *PFN_cuKernelGetFunction_v12000)(CUfunction *pFunc, CUkernel kernel);
 typedef CUresult (CUDAAPI *PFN_cuLibraryGetGlobal_v12000)(CUdeviceptr *dptr, size_t *bytes, CUlibrary library, const char *name);
 typedef CUresult (CUDAAPI *PFN_cuLibraryGetManaged_v12000)(CUdeviceptr *dptr, size_t *bytes, CUlibrary library, const char *name);
 typedef CUresult (CUDAAPI *PFN_cuKernelGetAttribute_v12000)(int *pi, CUfunction_attribute attrib, CUkernel kernel, CUdevice dev);
 typedef CUresult (CUDAAPI *PFN_cuKernelSetAttribute_v12000)(CUfunction_attribute attrib, int val, CUkernel kernel, CUdevice dev);
 typedef CUresult (CUDAAPI *PFN_cuKernelSetCacheConfig_v12000)(CUkernel kernel, CUfunc_cache config, CUdevice dev);
-typedef CUresult (CUDAAPI *PFN_cuKernelGetName_v12030)(const char **name, CUkernel hfunc);
-typedef CUresult (CUDAAPI *PFN_cuKernelGetParamInfo_v12040)(CUkernel kernel, size_t paramIndex, size_t *paramOffset, size_t *paramSize);
 typedef CUresult (CUDAAPI *PFN_cuLibraryGetUnifiedFunction_v12000)(void **fptr, CUlibrary library, const char *symbol);
 typedef CUresult(CUDAAPI *PFN_cuCoredumpGetAttribute_v12010)(CUcoredumpSettings get, void *value, size_t *size);
 typedef CUresult(CUDAAPI *PFN_cuCoredumpGetAttributeGlobal_v12010)(CUcoredumpSettings get, void *value, size_t *size);
 typedef CUresult(CUDAAPI *PFN_cuCoredumpSetAttribute_v12010)(CUcoredumpSettings set, void *value, size_t *size);
 typedef CUresult(CUDAAPI *PFN_cuCoredumpSetAttributeGlobal_v12010)(CUcoredumpSettings set, void *value, size_t *size);
-typedef CUresult(CUDAAPI *PFN_cuDeviceRegisterAsyncNotification_v12040)(CUdevice device, CUasyncCallback callbackFunc, void *userData, CUasyncCallbackHandle *callback);
-typedef CUresult(CUDAAPI *PFN_cuDeviceUnregisterAsyncNotification_v12040)(CUdevice device, CUasyncCallbackHandle callback);
-typedef CUresult(CUDAAPI *PFN_cuGreenCtxCreate_v12040)(CUgreenCtx* phCtx, CUdevResourceDesc desc, CUdevice dev, unsigned int flags);
-typedef CUresult(CUDAAPI *PFN_cuGreenCtxDestroy_v12040)(CUgreenCtx hCtx);
-typedef CUresult(CUDAAPI *PFN_cuDeviceGetDevResource_v12040)(CUdevice dev, CUdevResource* result, CUdevResourceType type);
-typedef CUresult(CUDAAPI *PFN_cuCtxGetDevResource_v12040)(CUcontext hCtx, CUdevResource* result, CUdevResourceType type);
-typedef CUresult(CUDAAPI *PFN_cuGreenCtxGetDevResource_v12040)(CUgreenCtx hCtx, CUdevResource* result, CUdevResourceType type);
-typedef CUresult(CUDAAPI *PFN_cuGreenCtxRecordEvent_v12040)(CUgreenCtx hCtx, CUevent hEvent);
-typedef CUresult(CUDAAPI *PFN_cuGreenCtxWaitEvent_v12040)(CUgreenCtx hCtx, CUevent hEvent);
-typedef CUresult(CUDAAPI *PFN_cuDevResourceGenerateDesc_v12040)(CUdevResourceDesc* phDesc, CUdevResource* resources, unsigned int nbResources);
-typedef CUresult(CUDAAPI *PFN_cuDevSmResourceSplitByCount_v12040)(CUdevResource* result, unsigned int* nbGroups, const CUdevResource* input, CUdevResource* remaining, unsigned int useFlags, unsigned int minCount);
-typedef CUresult(CUDAAPI *PFN_cuStreamGetGreenCtx_v12040)(CUstream hStream, CUgreenCtx *phCtx);
-typedef CUresult(CUDAAPI *PFN_cuCtxFromGreenCtx_v12040)(CUcontext *pContext, CUgreenCtx hCtx);
 /*
  * Type definitions for older versioned functions in cuda.h
  */

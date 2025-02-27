@@ -5,7 +5,9 @@
 #include <torch/nn/modules/utils.h>
 #include <torch/nn/options/pooling.h>
 
-namespace torch::nn::functional {
+namespace torch {
+namespace nn {
+namespace functional {
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 namespace detail {
@@ -818,15 +820,15 @@ inline std::tuple<Tensor, Tensor> fractional_max_pool2d_with_indices(
     const std::optional<ExpandingArray<2>>& output_size,
     const std::optional<ExpandingArray<2, double>>& output_ratio,
     const Tensor& _random_samples) {
-  if (output_size == std::nullopt && output_ratio == std::nullopt) {
+  if (output_size == c10::nullopt && output_ratio == c10::nullopt) {
     TORCH_CHECK(
         false,
         "fractional_max_pool2d requires specifying either ",
         "an output_size or an output_ratio");
   }
   std::optional<ExpandingArray<2>> output_size_ = output_size;
-  if (output_size_ == std::nullopt) {
-    TORCH_INTERNAL_ASSERT(output_ratio != std::nullopt);
+  if (output_size_ == c10::nullopt) {
+    TORCH_INTERNAL_ASSERT(output_ratio != c10::nullopt);
     output_size_ = {
         (int64_t)(static_cast<double>(input.size(-2)) *
                   (*output_ratio.value())[0]),
@@ -911,7 +913,7 @@ inline std::tuple<Tensor, Tensor> fractional_max_pool3d_with_indices(
     const std::optional<ExpandingArray<3>>& output_size,
     const std::optional<ExpandingArray<3, double>>& output_ratio,
     const Tensor& _random_samples) {
-  if (output_size == std::nullopt && output_ratio == std::nullopt) {
+  if (output_size == c10::nullopt && output_ratio == c10::nullopt) {
     TORCH_CHECK(
         false,
         "fractional_max_pool3d requires specifying either ",
@@ -919,8 +921,8 @@ inline std::tuple<Tensor, Tensor> fractional_max_pool3d_with_indices(
   }
 
   std::optional<ExpandingArray<3>> output_size_ = output_size;
-  if (output_size_ == std::nullopt) {
-    TORCH_INTERNAL_ASSERT(output_ratio != std::nullopt);
+  if (output_size_ == c10::nullopt) {
+    TORCH_INTERNAL_ASSERT(output_ratio != c10::nullopt);
     output_size_ = {
         (int64_t)(static_cast<double>(input.size(-3)) *
                   (*output_ratio.value())[0]),
@@ -1055,8 +1057,8 @@ inline Tensor lp_pool2d(
     ExpandingArray<2> kernel_size,
     ExpandingArray<2> stride,
     bool ceil_mode) {
-  auto kw = (*kernel_size)[0];
-  auto kh = (*kernel_size)[1];
+  int kw = (*kernel_size)[0];
+  int kh = (*kernel_size)[1];
   Tensor out = detail::avg_pool2d(
       input.pow(norm_type),
       kernel_size,
@@ -1064,7 +1066,7 @@ inline Tensor lp_pool2d(
       /*padding=*/0,
       ceil_mode,
       /*count_include_pad=*/true,
-      /*divisor_override=*/std::nullopt);
+      /*divisor_override=*/c10::nullopt);
 
   return (torch::sign(out) * relu(torch::abs(out)))
       .mul(kw * kh)
@@ -1104,9 +1106,9 @@ inline Tensor lp_pool3d(
     ExpandingArray<3> kernel_size,
     ExpandingArray<3> stride,
     bool ceil_mode) {
-  auto kd = (*kernel_size)[0];
-  auto kw = (*kernel_size)[1];
-  auto kh = (*kernel_size)[2];
+  int kd = (*kernel_size)[0];
+  int kw = (*kernel_size)[1];
+  int kh = (*kernel_size)[2];
   Tensor out = detail::avg_pool3d(
       input.pow(norm_type),
       kernel_size,
@@ -1114,7 +1116,7 @@ inline Tensor lp_pool3d(
       /*padding=*/0,
       ceil_mode,
       /*count_include_pad=*/true,
-      /*divisor_override=*/std::nullopt);
+      /*divisor_override=*/c10::nullopt);
 
   return (torch::sign(out) * relu(torch::abs(out)))
       .mul(kd * kw * kh)
@@ -1146,4 +1148,6 @@ inline Tensor lp_pool3d(
       options.ceil_mode());
 }
 
-} // namespace torch::nn::functional
+} // namespace functional
+} // namespace nn
+} // namespace torch

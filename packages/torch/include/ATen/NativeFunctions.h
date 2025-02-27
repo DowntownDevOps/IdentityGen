@@ -21,7 +21,7 @@
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
 #include <c10/util/Deprecated.h>
-#include <optional>
+#include <c10/util/Optional.h>
 #include <c10/core/QScheme.h>
 #include <ATen/core/Reduction.h>
 #include <ATen/core/Tensor.h>
@@ -71,7 +71,6 @@
 #include <ATen/ops/_convert_indices_from_coo_to_csr_native.h>
 #include <ATen/ops/_convert_indices_from_csr_to_coo_native.h>
 #include <ATen/ops/_convert_weight_to_int4pack_native.h>
-#include <ATen/ops/_convert_weight_to_int4pack_for_cpu_native.h>
 #include <ATen/ops/_convolution_native.h>
 #include <ATen/ops/_convolution_double_backward_native.h>
 #include <ATen/ops/_convolution_mode_native.h>
@@ -157,7 +156,6 @@
 #include <ATen/ops/_foreach_pow_native.h>
 #include <ATen/ops/_foreach_reciprocal_native.h>
 #include <ATen/ops/_foreach_round_native.h>
-#include <ATen/ops/_foreach_rsqrt_native.h>
 #include <ATen/ops/_foreach_sigmoid_native.h>
 #include <ATen/ops/_foreach_sign_native.h>
 #include <ATen/ops/_foreach_sin_native.h>
@@ -232,11 +230,8 @@
 #include <ATen/ops/_nested_compute_contiguous_strides_offsets_native.h>
 #include <ATen/ops/_nested_from_padded_native.h>
 #include <ATen/ops/_nested_from_padded_and_nested_example_native.h>
-#include <ATen/ops/_nested_from_padded_tensor_native.h>
 #include <ATen/ops/_nested_get_jagged_dummy_native.h>
 #include <ATen/ops/_nested_get_lengths_native.h>
-#include <ATen/ops/_nested_get_max_seqlen_native.h>
-#include <ATen/ops/_nested_get_min_seqlen_native.h>
 #include <ATen/ops/_nested_get_offsets_native.h>
 #include <ATen/ops/_nested_get_ragged_idx_native.h>
 #include <ATen/ops/_nested_get_values_native.h>
@@ -278,11 +273,9 @@
 #include <ATen/ops/_reshape_from_tensor_native.h>
 #include <ATen/ops/_resize_output_native.h>
 #include <ATen/ops/_rowwise_prune_native.h>
-#include <ATen/ops/_safe_softmax_native.h>
 #include <ATen/ops/_sample_dirichlet_native.h>
 #include <ATen/ops/_saturate_weight_to_fp16_native.h>
 #include <ATen/ops/_scaled_dot_product_attention_math_native.h>
-#include <ATen/ops/_scaled_dot_product_attention_math_for_mps_native.h>
 #include <ATen/ops/_scaled_dot_product_cudnn_attention_native.h>
 #include <ATen/ops/_scaled_dot_product_cudnn_attention_backward_native.h>
 #include <ATen/ops/_scaled_dot_product_efficient_attention_native.h>
@@ -291,8 +284,6 @@
 #include <ATen/ops/_scaled_dot_product_flash_attention_backward_native.h>
 #include <ATen/ops/_scaled_dot_product_flash_attention_for_cpu_native.h>
 #include <ATen/ops/_scaled_dot_product_flash_attention_for_cpu_backward_native.h>
-#include <ATen/ops/_scaled_dot_product_fused_attention_overrideable_native.h>
-#include <ATen/ops/_scaled_dot_product_fused_attention_overrideable_backward_native.h>
 #include <ATen/ops/_scaled_mm_native.h>
 #include <ATen/ops/_segment_reduce_backward_native.h>
 #include <ATen/ops/_shape_as_tensor_native.h>
@@ -336,7 +327,6 @@
 #include <ATen/ops/_sparse_sum_native.h>
 #include <ATen/ops/_sparse_sum_backward_native.h>
 #include <ATen/ops/_spdiags_native.h>
-#include <ATen/ops/_spsolve_native.h>
 #include <ATen/ops/_stack_native.h>
 #include <ATen/ops/_standard_gamma_native.h>
 #include <ATen/ops/_standard_gamma_grad_native.h>
@@ -379,8 +369,6 @@
 #include <ATen/ops/_unpack_dual_native.h>
 #include <ATen/ops/_unsafe_index_native.h>
 #include <ATen/ops/_unsafe_index_put_native.h>
-#include <ATen/ops/_unsafe_masked_index_native.h>
-#include <ATen/ops/_unsafe_masked_index_put_accumulate_native.h>
 #include <ATen/ops/_unsafe_view_native.h>
 #include <ATen/ops/_upsample_bicubic2d_aa_native.h>
 #include <ATen/ops/_upsample_bicubic2d_aa_backward_native.h>
@@ -405,14 +393,11 @@
 #include <ATen/ops/_values_copy_native.h>
 #include <ATen/ops/_version_native.h>
 #include <ATen/ops/_weight_int4pack_mm_native.h>
-#include <ATen/ops/_weight_int4pack_mm_for_cpu_native.h>
 #include <ATen/ops/_weight_int8pack_mm_native.h>
 #include <ATen/ops/_weight_norm_native.h>
 #include <ATen/ops/_weight_norm_differentiable_backward_native.h>
 #include <ATen/ops/_weight_norm_interface_native.h>
 #include <ATen/ops/_weight_norm_interface_backward_native.h>
-#include <ATen/ops/_wrapped_linear_prepack_native.h>
-#include <ATen/ops/_wrapped_quantized_linear_prepacked_native.h>
 #include <ATen/ops/abs_native.h>
 #include <ATen/ops/absolute_native.h>
 #include <ATen/ops/acos_native.h>

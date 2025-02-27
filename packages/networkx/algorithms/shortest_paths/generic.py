@@ -4,7 +4,6 @@ Compute the shortest paths and path lengths between nodes in the graph.
 These algorithms work with undirected and directed graphs.
 
 """
-
 import warnings
 
 import networkx as nx
@@ -225,7 +224,7 @@ def shortest_path_length(G, source=None, target=None, weight=None, method="dijks
 
     Returns
     -------
-    length: number or iterator
+    length: int or iterator
         If the source and target are both specified, return the length of
         the shortest path from the source to the target.
 

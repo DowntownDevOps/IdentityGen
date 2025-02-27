@@ -13,7 +13,7 @@
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
 #include <c10/util/Deprecated.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 
 
@@ -27,7 +27,7 @@ inline at::Tensor nll_loss_nd(const at::Tensor & self, const at::Tensor & target
     return at::_ops::nll_loss_nd::call(self, target, weight, reduction, ignore_index);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor nll_loss_nd(const at::Tensor & self, const at::Tensor & target, const ::std::optional<at::Tensor> & weight={}, int64_t reduction=at::Reduction::Mean, int64_t ignore_index=-100) {
     return at::_ops::nll_loss_nd::call(self, target, weight, reduction, ignore_index);
   }
@@ -38,7 +38,7 @@ inline at::Tensor nll_loss_nd_symint(const at::Tensor & self, const at::Tensor &
     return at::_ops::nll_loss_nd::call(self, target, weight, reduction, ignore_index);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor nll_loss_nd(const at::Tensor & self, const at::Tensor & target, const ::std::optional<at::Tensor> & weight={}, int64_t reduction=at::Reduction::Mean, c10::SymInt ignore_index=-100) {
     return at::_ops::nll_loss_nd::call(self, target, weight, reduction, ignore_index);
   }

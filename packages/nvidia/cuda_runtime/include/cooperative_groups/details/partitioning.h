@@ -78,45 +78,25 @@ namespace details {
         }
     }
 
-#if defined(_CG_HAS_MATCH_COLLECTIVE) && defined(_CG_CPP11_FEATURES)
-    template <typename TyPredicate>
-    struct _labeled_partition_dispatch {
-        template <typename TyGroup>
-        _CG_QUALIFIER coalesced_group operator()(const TyGroup &tile, TyPredicate pred) {
-            unsigned int thisMask = _coalesced_group_data_access::get_mask(tile);
-            unsigned int thisBias = __ffs(thisMask) - 1; // Subtract 1 to index properly from [1-32]
-            unsigned int subMask = __match_any_sync(thisMask, pred);
+#ifdef _CG_HAS_MATCH_COLLECTIVE
+    template <typename TyGroup, typename TyPredicate>
+    _CG_STATIC_QUALIFIER coalesced_group _labeled_partition(const TyGroup &tile, TyPredicate pred) {
+        unsigned int thisMask = _coalesced_group_data_access::get_mask(tile);
+        unsigned int thisBias = __ffs(thisMask) - 1; // Subtract 1 to index properly from [1-32]
+        unsigned int subMask = __match_any_sync(thisMask, pred);
 
-            coalesced_group subTile = _coalesced_group_data_access::construct_from_mask<coalesced_group>(subMask);
+        coalesced_group subTile = _coalesced_group_data_access::construct_from_mask<coalesced_group>(subMask);
 
-            int leaderLaneId = subTile.shfl(details::laneid(), 0);
+        int leaderLaneId = subTile.shfl(details::laneid(), 0);
 
-            bool isLeader = !subTile.thread_rank();
-            unsigned int leaderMask = __ballot_sync(thisMask, isLeader);
-            unsigned int tileRank = __fns(leaderMask, leaderLaneId, 0) - thisBias;
+        bool isLeader = !subTile.thread_rank();
+        unsigned int leaderMask = __ballot_sync(thisMask, isLeader);
+        unsigned int tileRank = __fns(leaderMask, leaderLaneId, 0) - thisBias;
 
-            _coalesced_group_data_access::modify_meta_group(subTile, tileRank, __popc(leaderMask));
+        _coalesced_group_data_access::modify_meta_group(subTile, tileRank, __popc(leaderMask));
 
-            return subTile;
-        }
-    };
-
-    template <>
-    struct _labeled_partition_dispatch<bool> {
-        template <typename TyGroup>
-        _CG_QUALIFIER coalesced_group operator()(const TyGroup &tile, bool pred) {
-            return _binary_partition(tile, pred);
-        }
-    };
-
-    template <typename TyPredicate>
-    struct _labeled_partition_dispatch<TyPredicate*> {
-        template <typename TyGroup>
-        _CG_QUALIFIER coalesced_group operator()(const TyGroup &tile, TyPredicate* pred) {
-            auto impl = _labeled_partition_dispatch<unsigned long long>();
-            return impl(tile, reinterpret_cast<unsigned long long>(pred));
-        }
-    };
+        return subTile;
+    }
 #endif
 }; // namespace details
 
@@ -136,21 +116,15 @@ _CG_STATIC_QUALIFIER coalesced_group binary_partition(const thread_block_tile<Si
 #if defined(_CG_HAS_MATCH_COLLECTIVE) && defined(_CG_CPP11_FEATURES)
 template <typename TyPredicate>
 _CG_STATIC_QUALIFIER coalesced_group labeled_partition(const coalesced_group &tile, TyPredicate pred) {
-    static_assert(_CG_STL_NAMESPACE::is_integral<TyPredicate>::value ||
-                  _CG_STL_NAMESPACE::is_pointer<TyPredicate>::value,
-                  "labeled_partition predicate must be an integral or pointer type");
-    auto dispatch = details::_labeled_partition_dispatch<details::remove_qual<TyPredicate>>();
-    return dispatch(tile, pred);
+    static_assert(_CG_STL_NAMESPACE::is_integral<TyPredicate>::value, "labeled_partition predicate must be an integral type");
+    return details::_labeled_partition(tile, pred);
 }
 
 template <typename TyPredicate, unsigned int Size, typename ParentT>
 _CG_STATIC_QUALIFIER coalesced_group labeled_partition(const thread_block_tile<Size, ParentT> &tile, TyPredicate pred) {
-    static_assert(_CG_STL_NAMESPACE::is_integral<TyPredicate>::value ||
-                  _CG_STL_NAMESPACE::is_pointer<TyPredicate>::value,
-                  "labeled_partition predicate must be an integral or pointer type");
+    static_assert(_CG_STL_NAMESPACE::is_integral<TyPredicate>::value, "labeled_partition predicate must be an integral type");
     static_assert(Size <= 32, "Labeled partition is available only for tiles of size smaller or equal to 32");
-    auto dispatch = details::_labeled_partition_dispatch<details::remove_qual<TyPredicate>>();
-    return dispatch(tile, pred);
+    return details::_labeled_partition(tile, pred);
 }
 #endif
 

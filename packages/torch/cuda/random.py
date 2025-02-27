@@ -2,10 +2,8 @@
 from typing import Iterable, List, Union
 
 import torch
-from torch import Tensor
-
+from .. import Tensor
 from . import _lazy_call, _lazy_init, current_device, device_count
-
 
 __all__ = [
     "get_rng_state",
@@ -44,7 +42,9 @@ def get_rng_state(device: Union[int, str, torch.device] = "cuda") -> Tensor:
 
 def get_rng_state_all() -> List[Tensor]:
     r"""Return a list of ByteTensor representing the random number states of all devices."""
-    results = [get_rng_state(i) for i in range(device_count())]
+    results = []
+    for i in range(device_count()):
+        results.append(get_rng_state(i))
     return results
 
 

@@ -13,7 +13,7 @@
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
 #include <c10/util/Deprecated.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 
 
@@ -27,7 +27,7 @@ inline at::Tensor _nnpack_spatial_convolution(const at::Tensor & input, const at
     return at::_ops::_nnpack_spatial_convolution::call(input, weight, bias, c10::fromIntArrayRefSlow(padding), c10::fromIntArrayRefSlow(stride));
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor _nnpack_spatial_convolution(const at::Tensor & input, const at::Tensor & weight, const ::std::optional<at::Tensor> & bias, at::IntArrayRef padding, at::IntArrayRef stride=1) {
     return at::_ops::_nnpack_spatial_convolution::call(input, weight, bias, c10::fromIntArrayRefSlow(padding), c10::fromIntArrayRefSlow(stride));
   }
@@ -38,7 +38,7 @@ inline at::Tensor _nnpack_spatial_convolution_symint(const at::Tensor & input, c
     return at::_ops::_nnpack_spatial_convolution::call(input, weight, bias, padding, stride);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor _nnpack_spatial_convolution(const at::Tensor & input, const at::Tensor & weight, const ::std::optional<at::Tensor> & bias, c10::SymIntArrayRef padding, c10::SymIntArrayRef stride=c10::SymInt(1)) {
     return at::_ops::_nnpack_spatial_convolution::call(input, weight, bias, padding, stride);
   }
@@ -49,7 +49,7 @@ inline at::Tensor & _nnpack_spatial_convolution_out(at::Tensor & out, const at::
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, c10::fromIntArrayRefSlow(padding), c10::fromIntArrayRefSlow(stride), out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor & _nnpack_spatial_convolution_out(at::Tensor & out, const at::Tensor & input, const at::Tensor & weight, const ::std::optional<at::Tensor> & bias, at::IntArrayRef padding, at::IntArrayRef stride=1) {
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, c10::fromIntArrayRefSlow(padding), c10::fromIntArrayRefSlow(stride), out);
   }
@@ -60,7 +60,7 @@ inline at::Tensor & _nnpack_spatial_convolution_outf(const at::Tensor & input, c
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, c10::fromIntArrayRefSlow(padding), c10::fromIntArrayRefSlow(stride), out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor & _nnpack_spatial_convolution_outf(const at::Tensor & input, const at::Tensor & weight, const ::std::optional<at::Tensor> & bias, at::IntArrayRef padding, at::IntArrayRef stride, at::Tensor & out) {
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, c10::fromIntArrayRefSlow(padding), c10::fromIntArrayRefSlow(stride), out);
   }
@@ -71,7 +71,7 @@ inline at::Tensor & _nnpack_spatial_convolution_symint_out(at::Tensor & out, con
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, padding, stride, out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor & _nnpack_spatial_convolution_out(at::Tensor & out, const at::Tensor & input, const at::Tensor & weight, const ::std::optional<at::Tensor> & bias, c10::SymIntArrayRef padding, c10::SymIntArrayRef stride=c10::SymInt(1)) {
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, padding, stride, out);
   }
@@ -82,7 +82,7 @@ inline at::Tensor & _nnpack_spatial_convolution_symint_outf(const at::Tensor & i
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, padding, stride, out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor & _nnpack_spatial_convolution_outf(const at::Tensor & input, const at::Tensor & weight, const ::std::optional<at::Tensor> & bias, c10::SymIntArrayRef padding, c10::SymIntArrayRef stride, at::Tensor & out) {
     return at::_ops::_nnpack_spatial_convolution_out::call(input, weight, bias, padding, stride, out);
   }

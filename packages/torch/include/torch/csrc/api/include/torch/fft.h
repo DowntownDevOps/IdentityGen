@@ -1,11 +1,9 @@
 #pragma once
 
 #include <ATen/ATen.h>
-#include <torch/types.h>
 
-#include <utility>
-
-namespace torch::fft {
+namespace torch {
+namespace fft {
 
 /// Computes the 1 dimensional fast Fourier transform over a given dimension.
 /// See https://pytorch.org/docs/main/fft.html#torch.fft.fft.
@@ -17,10 +15,10 @@ namespace torch::fft {
 /// ```
 inline Tensor fft(
     const Tensor& self,
-    std::optional<SymInt> n = std::nullopt,
+    std::optional<SymInt> n = c10::nullopt,
     int64_t dim = -1,
-    std::optional<c10::string_view> norm = std::nullopt) {
-  return torch::fft_fft_symint(self, std::move(n), dim, norm);
+    std::optional<c10::string_view> norm = c10::nullopt) {
+  return torch::fft_fft_symint(self, n, dim, norm);
 }
 
 /// Computes the 1 dimensional inverse Fourier transform over a given dimension.
@@ -33,10 +31,10 @@ inline Tensor fft(
 /// ```
 inline Tensor ifft(
     const Tensor& self,
-    std::optional<SymInt> n = std::nullopt,
+    std::optional<SymInt> n = c10::nullopt,
     int64_t dim = -1,
-    std::optional<c10::string_view> norm = std::nullopt) {
-  return torch::fft_ifft_symint(self, std::move(n), dim, norm);
+    std::optional<c10::string_view> norm = c10::nullopt) {
+  return torch::fft_ifft_symint(self, n, dim, norm);
 }
 
 /// Computes the 2-dimensional fast Fourier transform over the given dimensions.
@@ -49,9 +47,9 @@ inline Tensor ifft(
 /// ```
 inline Tensor fft2(
     const Tensor& self,
-    OptionalIntArrayRef s = std::nullopt,
+    OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_fft2(self, s, dim, norm);
 }
 
@@ -65,9 +63,9 @@ inline Tensor fft2(
 /// ```
 inline Tensor ifft2(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_ifft2(self, s, dim, norm);
 }
 
@@ -81,9 +79,9 @@ inline Tensor ifft2(
 /// ```
 inline Tensor fftn(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
-    at::OptionalIntArrayRef dim = std::nullopt,
-    std::optional<c10::string_view> norm = std::nullopt) {
+    at::OptionalIntArrayRef s = c10::nullopt,
+    at::OptionalIntArrayRef dim = c10::nullopt,
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_fftn(self, s, dim, norm);
 }
 
@@ -97,9 +95,9 @@ inline Tensor fftn(
 /// ```
 inline Tensor ifftn(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
-    at::OptionalIntArrayRef dim = std::nullopt,
-    std::optional<c10::string_view> norm = std::nullopt) {
+    at::OptionalIntArrayRef s = c10::nullopt,
+    at::OptionalIntArrayRef dim = c10::nullopt,
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_ifftn(self, s, dim, norm);
 }
 
@@ -114,10 +112,10 @@ inline Tensor ifftn(
 /// ```
 inline Tensor rfft(
     const Tensor& self,
-    std::optional<SymInt> n = std::nullopt,
+    std::optional<SymInt> n = c10::nullopt,
     int64_t dim = -1,
-    std::optional<c10::string_view> norm = std::nullopt) {
-  return torch::fft_rfft_symint(self, std::move(n), dim, norm);
+    std::optional<c10::string_view> norm = c10::nullopt) {
+  return torch::fft_rfft_symint(self, n, dim, norm);
 }
 
 /// Computes the inverse of torch.fft.rfft
@@ -133,10 +131,10 @@ inline Tensor rfft(
 /// ```
 inline Tensor irfft(
     const Tensor& self,
-    std::optional<SymInt> n = std::nullopt,
+    std::optional<SymInt> n = c10::nullopt,
     int64_t dim = -1,
-    std::optional<c10::string_view> norm = std::nullopt) {
-  return torch::fft_irfft_symint(self, std::move(n), dim, norm);
+    std::optional<c10::string_view> norm = c10::nullopt) {
+  return torch::fft_irfft_symint(self, n, dim, norm);
 }
 
 /// Computes the 2-dimensional FFT of real input. Returns a onesided Hermitian
@@ -149,9 +147,9 @@ inline Tensor irfft(
 /// ```
 inline Tensor rfft2(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_rfft2(self, s, dim, norm);
 }
 
@@ -165,9 +163,9 @@ inline Tensor rfft2(
 /// ```
 inline Tensor irfft2(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_irfft2(self, s, dim, norm);
 }
 
@@ -181,9 +179,9 @@ inline Tensor irfft2(
 /// ```
 inline Tensor rfftn(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
-    at::OptionalIntArrayRef dim = std::nullopt,
-    std::optional<c10::string_view> norm = std::nullopt) {
+    at::OptionalIntArrayRef s = c10::nullopt,
+    at::OptionalIntArrayRef dim = c10::nullopt,
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_rfftn(self, s, dim, norm);
 }
 
@@ -197,9 +195,9 @@ inline Tensor rfftn(
 /// ```
 inline Tensor irfftn(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
-    at::OptionalIntArrayRef dim = std::nullopt,
-    std::optional<c10::string_view> norm = std::nullopt) {
+    at::OptionalIntArrayRef s = c10::nullopt,
+    at::OptionalIntArrayRef dim = c10::nullopt,
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_irfftn(self, s, dim, norm);
 }
 
@@ -217,10 +215,10 @@ inline Tensor irfftn(
 /// ```
 inline Tensor hfft(
     const Tensor& self,
-    std::optional<SymInt> n = std::nullopt,
+    std::optional<SymInt> n = c10::nullopt,
     int64_t dim = -1,
-    std::optional<c10::string_view> norm = std::nullopt) {
-  return torch::fft_hfft_symint(self, std::move(n), dim, norm);
+    std::optional<c10::string_view> norm = c10::nullopt) {
+  return torch::fft_hfft_symint(self, n, dim, norm);
 }
 
 /// Computes the inverse FFT of a real-valued Fourier domain signal.
@@ -236,10 +234,10 @@ inline Tensor hfft(
 /// ```
 inline Tensor ihfft(
     const Tensor& self,
-    std::optional<SymInt> n = std::nullopt,
+    std::optional<SymInt> n = c10::nullopt,
     int64_t dim = -1,
-    std::optional<c10::string_view> norm = std::nullopt) {
-  return torch::fft_ihfft_symint(self, std::move(n), dim, norm);
+    std::optional<c10::string_view> norm = c10::nullopt) {
+  return torch::fft_ihfft_symint(self, n, dim, norm);
 }
 
 /// Computes the 2-dimensional FFT of a Hermitian symmetric input signal.
@@ -255,9 +253,9 @@ inline Tensor ihfft(
 /// ```
 inline Tensor hfft2(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_hfft2(self, s, dim, norm);
 }
 
@@ -275,9 +273,9 @@ inline Tensor hfft2(
 /// ```
 inline Tensor ihfft2(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_ihfft2(self, s, dim, norm);
 }
 
@@ -294,9 +292,9 @@ inline Tensor ihfft2(
 /// ```
 inline Tensor hfftn(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_hfftn(self, s, dim, norm);
 }
 
@@ -314,9 +312,9 @@ inline Tensor hfftn(
 /// ```
 inline Tensor ihfftn(
     const Tensor& self,
-    at::OptionalIntArrayRef s = std::nullopt,
+    at::OptionalIntArrayRef s = c10::nullopt,
     IntArrayRef dim = {-2, -1},
-    std::optional<c10::string_view> norm = std::nullopt) {
+    std::optional<c10::string_view> norm = c10::nullopt) {
   return torch::fft_ihfftn(self, s, dim, norm);
 }
 
@@ -366,7 +364,7 @@ inline Tensor rfftfreq(int64_t n, const TensorOptions& options) {
 /// ```
 inline Tensor fftshift(
     const Tensor& x,
-    at::OptionalIntArrayRef dim = std::nullopt) {
+    at::OptionalIntArrayRef dim = c10::nullopt) {
   return torch::fft_fftshift(x, dim);
 }
 
@@ -383,8 +381,9 @@ inline Tensor fftshift(
 /// ```
 inline Tensor ifftshift(
     const Tensor& x,
-    at::OptionalIntArrayRef dim = std::nullopt) {
+    at::OptionalIntArrayRef dim = c10::nullopt) {
   return torch::fft_ifftshift(x, dim);
 }
 
-} // namespace torch::fft
+} // namespace fft
+} // namespace torch

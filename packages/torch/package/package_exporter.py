@@ -39,7 +39,6 @@ from .find_file_dependencies import find_files_source_depends_on
 from .glob_group import GlobGroup, GlobPattern
 from .importer import Importer, OrderedImporter, sys_importer
 
-
 __all__ = [
     "PackagingErrorReason",
     "EmptyMatchError",
@@ -123,6 +122,8 @@ class EmptyMatchError(Exception):
     """This is an exception that is thrown when a mock or extern is marked as
     ``allow_empty=False``, and is not matched with any module during packaging.
     """
+
+    pass
 
 
 class PackagingError(Exception):
@@ -427,7 +428,7 @@ class PackageExporter:
     def _import_module(self, module_name: str):
         try:
             return self.importer.import_module(module_name)
-        except ModuleNotFoundError:
+        except ModuleNotFoundError as e:
             if not is_mangled(module_name):
                 raise
             msg = (
@@ -662,7 +663,7 @@ class PackageExporter:
             memo: DefaultDict[int, str] = defaultdict(None)
             memo_count = 0
             # pickletools.dis(data_value)
-            for opcode, arg, _pos in pickletools.genops(data_value):
+            for opcode, arg, pos in pickletools.genops(data_value):
                 if pickle_protocol == 4:
                     if (
                         opcode.name == "SHORT_BINUNICODE"

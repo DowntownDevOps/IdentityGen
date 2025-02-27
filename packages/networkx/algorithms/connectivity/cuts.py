@@ -1,7 +1,6 @@
 """
 Flow based cut algorithms
 """
-
 import itertools
 
 import networkx as nx

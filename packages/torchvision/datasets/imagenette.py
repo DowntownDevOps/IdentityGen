@@ -81,7 +81,10 @@ class Imagenette(VisionDataset):
 
     def _download(self):
         if self._check_exists():
-            return
+            raise RuntimeError(
+                f"The directory {self._size_root} already exists. "
+                f"If you want to re-download or re-extract the images, delete the directory."
+            )
 
         download_and_extract_archive(self._url, self.root, md5=self._md5)
 

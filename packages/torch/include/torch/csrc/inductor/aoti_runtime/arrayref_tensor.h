@@ -1,13 +1,13 @@
 #pragma once
 
 #include <torch/csrc/inductor/aoti_runtime/utils.h>
-#include <torch/csrc/inductor/aoti_torch/c/shim.h>
 
-#include <cassert>
+#include <assert.h>
 #include <cstdint>
 #include <cstring>
 
-namespace torch::aot_inductor {
+namespace torch {
+namespace aot_inductor {
 
 // Can't use c10::ArrayRef because it's not truly header-only and
 // pulls in other c10 headers. This is (sadly) copy-pasted and
@@ -48,9 +48,9 @@ class MiniArrayRef final {
 
   template <
       typename Container,
-      typename = std::enable_if_t<std::is_same_v<
+      typename = std::enable_if_t<std::is_same<
           std::remove_const_t<decltype(std::declval<Container>().data())>,
-          T*>>>
+          T*>::value>>
   /* implicit */ MiniArrayRef(Container& container)
       : Data(container.data()), Length(container.size()) {}
 
@@ -62,7 +62,7 @@ class MiniArrayRef final {
   /* implicit */ MiniArrayRef(const std::vector<T, A>& Vec)
       : Data(Vec.data()), Length(Vec.size()) {
     static_assert(
-        !std::is_same_v<T, bool>,
+        !std::is_same<T, bool>::value,
         "MiniArrayRef<bool> cannot be constructed from a std::vector<bool> bitfield.");
   }
 
@@ -73,12 +73,7 @@ class MiniArrayRef final {
 
   /// Construct an MiniArrayRef from a C array.
   template <size_t N>
-  // NOLINTNEXTLINE(*c-array*)
   /* implicit */ constexpr MiniArrayRef(T (&Arr)[N]) : Data(Arr), Length(N) {}
-
-  // /// Construct an MiniArrayRef from an empty C array.
-  /* implicit */ constexpr MiniArrayRef(const volatile void* Arr)
-      : Data(nullptr), Length(0) {}
 
   /// Construct an MiniArrayRef from a std::initializer_list.
   /* implicit */ constexpr MiniArrayRef(const std::initializer_list<T>& Vec)
@@ -145,17 +140,16 @@ class MiniArrayRef final {
   /// The declaration here is extra complicated so that "arrayRef = {}"
   /// continues to select the move assignment operator.
   template <typename U>
-  std::enable_if_t<std::is_same_v<U, T>, MiniArrayRef<T>>& operator=(
-      // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-      U&& Temporary) = delete;
+  typename std::enable_if<std::is_same<U, T>::value, MiniArrayRef<T>>::type&
+  operator=(U&& Temporary) = delete;
 
   /// Disallow accidental assignment from a temporary.
   ///
   /// The declaration here is extra complicated so that "arrayRef = {}"
   /// continues to select the move assignment operator.
   template <typename U>
-  std::enable_if_t<std::is_same_v<U, T>, MiniArrayRef<T>>& operator=(
-      std::initializer_list<U>) = delete;
+  typename std::enable_if<std::is_same<U, T>::value, MiniArrayRef<T>>::type&
+  operator=(std::initializer_list<U>) = delete;
 };
 
 using MiniIntArrayRef = MiniArrayRef<int64_t>;
@@ -206,7 +200,7 @@ class ArrayRefTensor {
   }
 
   AtenTensorHandle expensiveCopyToTensor() const {
-    AtenTensorHandle result = nullptr;
+    AtenTensorHandle result;
     AOTI_TORCH_ERROR_CODE_CHECK(aoti_torch_empty_strided(
         sizes_.size(),
         sizes_.data(),
@@ -215,7 +209,7 @@ class ArrayRefTensor {
         device_type_,
         device_idx_,
         &result));
-    void* dataPtr = nullptr;
+    void* dataPtr;
     AOTI_TORCH_ERROR_CODE_CHECK(aoti_torch_get_data_ptr(result, &dataPtr));
     std::memcpy(dataPtr, data(), numel() * sizeof(T));
     return result;
@@ -225,24 +219,6 @@ class ArrayRefTensor {
   // an owning AtenTensorHandle from release(). So, we allocate one!
   AtenTensorHandle release() {
     return expensiveCopyToTensor();
-  }
-
-  AtenTensorHandle borrowAsTensor() const {
-    AtenTensorHandle result = nullptr;
-    AOTI_TORCH_ERROR_CODE_CHECK(aoti_torch_create_tensor_from_blob_v2(
-        data(),
-        sizes_.size(),
-        sizes_.data(),
-        strides_.data(),
-        0,
-        aoti_torch_dtype<std::remove_const_t<T>>(),
-        device_type_,
-        device_idx_,
-        &result,
-        aoti_torch_layout_strided(),
-        nullptr,
-        0));
-    return result;
   }
 
   // We don't need to free any memory.
@@ -295,6 +271,18 @@ static_assert(
             (alignof(ArrayRefTensor<int>) > 4 ? sizeof(int32_t) : 0),
     "changing the size of ArrayRefTensor breaks ABI compatibility!");
 
+inline AtenTensorHandle reinterpret_tensor_wrapper(
+    AtenTensorHandle self,
+    int64_t ndim,
+    const int64_t* sizes_ptr,
+    const int64_t* strides_ptr,
+    int64_t storage_offset) {
+  AtenTensorHandle result;
+  AOTI_TORCH_ERROR_CODE_CHECK(aoti_torch__reinterpret_tensor(
+      self, ndim, sizes_ptr, strides_ptr, storage_offset, &result));
+  return result;
+}
+
 template <typename T>
 inline ArrayRefTensor<T> reinterpret_tensor_wrapper(
     const ArrayRefTensor<T>& self,
@@ -314,6 +302,12 @@ inline ArrayRefTensor<T> reinterpret_tensor_wrapper(
       self.device_idx());
 }
 
+inline void* get_data_ptr_wrapper(AtenTensorHandle tensor) {
+  void* result;
+  AOTI_TORCH_ERROR_CODE_CHECK(aoti_torch_get_data_ptr(tensor, &result));
+  return result;
+}
+
 template <typename T>
 inline T* get_data_ptr_wrapper(ArrayRefTensor<T>& tensor) {
   return tensor.data();
@@ -322,6 +316,11 @@ inline T* get_data_ptr_wrapper(ArrayRefTensor<T>& tensor) {
 template <typename T>
 inline T* get_data_ptr_wrapper(const MiniArrayRef<T>& arr) {
   return arr.data();
+}
+
+inline AtenTensorHandle unwrap_raii_handle_if_needed(
+    const RAIIAtenTensorHandle& handle) {
+  return handle.get();
 }
 
 template <typename T>
@@ -334,6 +333,11 @@ template <typename T>
 inline ArrayRefTensor<T>& unwrap_raii_handle_if_needed(
     ArrayRefTensor<T>& tensor) {
   return tensor;
+}
+
+inline RAIIAtenTensorHandle wrap_with_raii_handle_if_needed(
+    AtenTensorHandle handle) {
+  return RAIIAtenTensorHandle(handle);
 }
 
 template <typename T>
@@ -360,25 +364,15 @@ inline AtenTensorHandle expensive_copy_to_tensor_if_needed(
 }
 
 template <typename T>
-const T& copy_arrayref_tensor_to_tensor(const T& t) {
+const T& convert_arrayref_tensor_to_tensor(const T& t) {
   return t;
 }
 
 template <typename T>
-RAIIAtenTensorHandle copy_arrayref_tensor_to_tensor(
+RAIIAtenTensorHandle convert_arrayref_tensor_to_tensor(
     const ArrayRefTensor<T>& art) {
   return art.expensiveCopyToTensor();
 }
 
-template <typename T>
-const T& borrow_arrayref_tensor_as_tensor(const T& t) {
-  return t;
-}
-
-template <typename T>
-RAIIAtenTensorHandle borrow_arrayref_tensor_as_tensor(
-    const ArrayRefTensor<T>& art) {
-  return art.borrowAsTensor();
-}
-
-} // namespace torch::aot_inductor
+} // namespace aot_inductor
+} // namespace torch

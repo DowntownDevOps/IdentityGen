@@ -1,5 +1,4 @@
 """Unit tests for PyGraphviz interface."""
-
 import warnings
 
 import pytest

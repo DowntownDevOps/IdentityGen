@@ -13,15 +13,15 @@
 # limitations under the License.
 
 import collections
+import os
 import platform
 import re
 import socket
-from codecs import encode
+from contextlib import contextmanager
 from functools import partial, reduce
 from types import MethodType
 from typing import OrderedDict
 
-import numpy as np
 import torch
 from packaging.version import Version
 from safetensors.torch import save_file as safe_save_file
@@ -31,13 +31,7 @@ from ..logging import get_logger
 from ..state import PartialState
 from .constants import FSDP_PYTORCH_VERSION
 from .dataclasses import DistributedType
-from .imports import (
-    is_deepspeed_available,
-    is_numpy_available,
-    is_torch_distributed_available,
-    is_torch_xla_available,
-    is_weights_only_available,
-)
+from .imports import is_deepspeed_available, is_torch_distributed_available, is_torch_xla_available
 from .modeling import id_tensor_storage
 from .transformer_engine import convert_model
 from .versions import is_torch_version
@@ -54,14 +48,12 @@ def is_compiled_module(module):
     """
     Check whether the module was compiled with torch.compile()
     """
-    if not hasattr(torch, "_dynamo"):
+    if is_torch_version("<", "2.0.0") or not hasattr(torch, "_dynamo"):
         return False
     return isinstance(module, torch._dynamo.eval_frame.OptimizedModule)
 
 
-def extract_model_from_parallel(
-    model, keep_fp32_wrapper: bool = True, keep_torch_compile: bool = True, recursive: bool = False
-):
+def extract_model_from_parallel(model, keep_fp32_wrapper: bool = True, recursive: bool = False):
     """
     Extract a model from its distributed containers.
 
@@ -70,8 +62,6 @@ def extract_model_from_parallel(
             The model to extract.
         keep_fp32_wrapper (`bool`, *optional*):
             Whether to remove mixed precision hooks from the model.
-        keep_torch_compile (`bool`, *optional*):
-            Whether to unwrap compiled model.
         recursive (`bool`, *optional*, defaults to `False`):
             Whether to recursively extract all cases of `module.module` from `model` as well as unwrap child sublayers
             recursively, not just the top-level distributed containers.
@@ -128,7 +118,7 @@ def extract_model_from_parallel(
         if getattr(model, "_converted_to_transformer_engine", False):
             convert_model(model, to_transformer_engine=False)
 
-    if keep_torch_compile and is_compiled:
+    if is_compiled:
         compiled_model._orig_mod = model
         model = compiled_model
 
@@ -217,52 +207,76 @@ def save(obj, f, save_on_each_node: bool = False, safe_serialization: bool = Fal
         save_func(obj, f)
 
 
-# The following are considered "safe" globals to reconstruct various types of objects when using `weights_only=True`
-# These should be added and then removed after loading in the file
-np_core = np._core if is_numpy_available("2.0.0") else np.core
-TORCH_SAFE_GLOBALS = [
-    # numpy arrays are just numbers, not objects, so we can reconstruct them safely
-    np_core.multiarray._reconstruct,
-    np.ndarray,
-    # The following are needed for the RNG states
-    encode,
-    np.dtype,
-]
-
-if is_numpy_available("1.25.0"):
-    TORCH_SAFE_GLOBALS.append(np.dtypes.UInt32DType)
-
-
-def load(f, map_location=None, **kwargs):
+@contextmanager
+def clear_environment():
     """
-    Compatible drop-in replacement of `torch.load()` which allows for `weights_only` to be used if `torch` version is
-    2.4.0 or higher. Otherwise will ignore the kwarg.
+    A context manager that will temporarily clear environment variables.
 
-    Will also add (and then remove) an exception for numpy arrays
+    When this context exits, the previous environment variables will be back.
 
-    Args:
-        f:
-            The file (or file-like object) to use to load the data
-        map_location:
-            a function, `torch.device`, string or a dict specifying how to remap storage locations
-        **kwargs:
-            Additional keyword arguments to pass to `torch.load()`.
+    Example:
+
+    ```python
+    >>> import os
+    >>> from accelerate.utils import clear_environment
+
+    >>> os.environ["FOO"] = "bar"
+    >>> with clear_environment():
+    ...     print(os.environ)
+    ...     os.environ["FOO"] = "new_bar"
+    ...     print(os.environ["FOO"])
+    {}
+    new_bar
+
+    >>> print(os.environ["FOO"])
+    bar
+    ```
     """
+    _old_os_environ = os.environ.copy()
+    os.environ.clear()
+
     try:
-        if is_weights_only_available():
-            old_safe_globals = torch.serialization.get_safe_globals()
-            if "weights_only" not in kwargs:
-                kwargs["weights_only"] = True
-            torch.serialization.add_safe_globals(TORCH_SAFE_GLOBALS)
-        else:
-            kwargs.pop("weights_only", None)
-        loaded_obj = torch.load(f, map_location=map_location, **kwargs)
+        yield
     finally:
-        if is_weights_only_available():
-            torch.serialization.clear_safe_globals()
-            if old_safe_globals:
-                torch.serialization.add_safe_globals(old_safe_globals)
-    return loaded_obj
+        os.environ.clear()  # clear any added keys,
+        os.environ.update(_old_os_environ)  # then restore previous environment
+
+
+@contextmanager
+def patch_environment(**kwargs):
+    """
+    A context manager that will add each keyword argument passed to `os.environ` and remove them when exiting.
+
+    Will convert the values in `kwargs` to strings and upper-case all the keys.
+
+    Example:
+
+    ```python
+    >>> import os
+    >>> from accelerate.utils import patch_environment
+
+    >>> with patch_environment(FOO="bar"):
+    ...     print(os.environ["FOO"])  # prints "bar"
+    >>> print(os.environ["FOO"])  # raises KeyError
+    ```
+    """
+    existing_vars = {}
+    for key, value in kwargs.items():
+        key = key.upper()
+        if key in os.environ:
+            existing_vars[key] = os.environ[key]
+        os.environ[key] = str(value)
+
+    try:
+        yield
+    finally:
+        for key in kwargs:
+            key = key.upper()
+            if key in existing_vars:
+                # restore previous value
+                os.environ[key] = existing_vars[key]
+            else:
+                os.environ.pop(key, None)
 
 
 def get_pretty_name(obj):

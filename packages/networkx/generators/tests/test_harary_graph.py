@@ -1,4 +1,5 @@
-"""Unit tests for the :mod:`networkx.generators.harary_graph` module."""
+"""Unit tests for the :mod:`networkx.generators.harary_graph` module.
+"""
 
 import pytest
 

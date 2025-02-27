@@ -2,8 +2,6 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates
 
 import warnings
-from typing import Any
-from typing_extensions import TypeIs
 
 import torch
 from torch.overrides import get_default_nowrap_functions
@@ -15,7 +13,7 @@ __all__ = [
 ]
 
 
-def is_masked_tensor(obj: Any, /) -> TypeIs["MaskedTensor"]:
+def is_masked_tensor(a):
     r"""Returns True if the input is a MaskedTensor, else False
 
     Args:
@@ -31,7 +29,7 @@ def is_masked_tensor(obj: Any, /) -> TypeIs["MaskedTensor"]:
         >>> is_masked_tensor(mt)
         True
     """
-    return isinstance(obj, MaskedTensor)
+    return isinstance(a, MaskedTensor)
 
 
 def _tensors_match(a, b, exact=True, rtol=1e-05, atol=1e-08):
@@ -149,14 +147,13 @@ class MaskedTensor(torch.Tensor):
         if is_masked_tensor(mask) or not torch.is_tensor(mask):
             raise TypeError("mask must be a Tensor")
         # Use a Tensor that of the give size for the wrapper.
-        kwargs = {
-            "device": data.device,
-            "dtype": data.dtype,
-            "layout": data.layout,
-            "requires_grad": requires_grad,
-            "dispatch_sizes_strides_policy": "strides",
-            "dispatch_layout": True,
-        }
+        kwargs = {}
+        kwargs["device"] = data.device
+        kwargs["dtype"] = data.dtype
+        kwargs["layout"] = data.layout
+        kwargs["requires_grad"] = requires_grad
+        kwargs["dispatch_sizes_strides_policy"] = "strides"
+        kwargs["dispatch_layout"] = True
         warnings.warn(
             (
                 "The PyTorch API of MaskedTensors is in prototype stage "
@@ -165,14 +162,12 @@ class MaskedTensor(torch.Tensor):
                 "module for further information about the project."
             ),
             UserWarning,
-            stacklevel=2,
         )
         if data.requires_grad:
             warnings.warn(
                 "It is not recommended to create a MaskedTensor with a tensor that requires_grad. "
                 "To avoid this, you can use data.clone().detach()",
                 UserWarning,
-                stacklevel=2,
             )
         return torch.Tensor._make_wrapper_subclass(cls, data.size(), **kwargs)  # type: ignore[attr-defined]
 
@@ -258,7 +253,7 @@ class MaskedTensor(torch.Tensor):
         self._masked_mask = mask
         self._validate_members()
 
-    def __repr__(self):  # type: ignore[override]
+    def __repr__(self):
         formatter = "{0:8.4f}"
         if self.dim() == 0:
             scalar_data = self.get_data().item()
@@ -334,7 +329,7 @@ class MaskedTensor(torch.Tensor):
         class GetData(torch.autograd.Function):
             @staticmethod
             def forward(ctx, self):
-                return self._masked_data.detach()
+                return self._masked_data
 
             @staticmethod
             def backward(ctx, grad_output):
@@ -350,7 +345,7 @@ class MaskedTensor(torch.Tensor):
     def is_sparse_coo(self):
         return self.layout == torch.sparse_coo
 
-    def is_sparse_csr(self):  # type: ignore[override]
+    def is_sparse_csr(self):
         return self.layout == torch.sparse_csr
 
     # Update later to support more sparse layouts

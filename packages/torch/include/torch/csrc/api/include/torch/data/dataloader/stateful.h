@@ -7,7 +7,8 @@
 #include <thread>
 #include <utility>
 
-namespace torch::data {
+namespace torch {
+namespace data {
 
 /// A dataloader for stateful datasets.
 ///
@@ -54,8 +55,9 @@ class StatefulDataLoader : public DataLoaderBase<
 
   /// For stateful datasets, the batch request is always the batch size. The
   /// dataset is responsible for determining what goes into the batch next.
-  std::optional<BatchRequestType> get_batch_request() override {
+  optional<BatchRequestType> get_batch_request() override {
     return this->options_.batch_size;
   }
 };
-} // namespace torch::data
+} // namespace data
+} // namespace torch

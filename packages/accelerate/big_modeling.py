@@ -37,10 +37,9 @@ from .utils import (
     find_tied_parameters,
     get_balanced_memory,
     infer_auto_device_map,
-    is_bnb_available,
     is_mlu_available,
-    is_musa_available,
     is_npu_available,
+    is_torch_version,
     is_xpu_available,
     load_checkpoint_in_model,
     offload_state_dict,
@@ -107,13 +106,14 @@ def init_on_device(device: torch.device, include_buffers: bool = None):
     from accelerate import init_on_device
 
     with init_on_device(device=torch.device("cuda")):
-        tst = nn.Linear(100, 100)  # on `cuda` device
+        tst = nn.Liner(100, 100)  # on `cuda` device
     ```
     """
     if include_buffers is None:
         include_buffers = parse_flag_from_env("ACCELERATE_INIT_INCLUDE_BUFFERS", False)
 
-    if include_buffers:
+    # TODO(shingjan): remove the torch version check once older versions are deprecated
+    if is_torch_version(">=", "2.0") and include_buffers:
         with device:
             yield
         return
@@ -350,19 +350,16 @@ def dispatch_model(
     # Error early if the device map is incomplete.
     check_device_map(model, device_map)
 
-    # We need to force hook for quantized model that can't be moved with to()
-    if getattr(model, "quantization_method", "bitsandbytes") == "bitsandbytes":
-        # since bnb 0.43.2, we can move 4-bit model
-        if getattr(model, "is_loaded_in_8bit", False) or (
-            getattr(model, "is_loaded_in_4bit", False) and not is_bnb_available(min_version="0.43.2")
-        ):
-            force_hooks = True
+    # for backward compatibility
+    is_bnb_quantized = (
+        getattr(model, "is_quantized", False) or getattr(model, "is_loaded_in_8bit", False)
+    ) and getattr(model, "quantization_method", "bitsandbytes") == "bitsandbytes"
 
     # We attach hooks if the device_map has at least 2 different devices or if
     # force_hooks is set to `True`. Otherwise, the model in already loaded
     # in the unique device and the user can decide where to dispatch the model.
     # If the model is quantized, we always force-dispatch the model
-    if (len(set(device_map.values())) > 1) or force_hooks:
+    if (len(set(device_map.values())) > 1) or is_bnb_quantized or force_hooks:
         if main_device is None:
             if set(device_map.values()) == {"cpu"} or set(device_map.values()) == {"cpu", "disk"}:
                 main_device = "cpu"
@@ -435,8 +432,8 @@ def dispatch_model(
             [device for device in set(device_map.values()) if device in ("cpu", "disk")]
         )
         if len(offloaded_devices_str) > 0:
-            logger.warning(
-                f"Some parameters are on the meta device because they were offloaded to the {offloaded_devices_str}."
+            logging.warning(
+                f"Some parameters are on the meta device device because they were offloaded to the {offloaded_devices_str}."
             )
 
         # Attaching the hook may break tied weights, so we retie them
@@ -460,14 +457,11 @@ def dispatch_model(
 
             return wrapper
 
-        # Make sure to update _accelerate_added_attributes in hooks.py if you add any hook
         model.to = add_warning(model.to, model)
         if is_npu_available():
             model.npu = add_warning(model.npu, model)
         elif is_mlu_available():
             model.mlu = add_warning(model.mlu, model)
-        elif is_musa_available():
-            model.musa = add_warning(model.musa, model)
         elif is_xpu_available():
             model.xpu = add_warning(model.xpu, model)
         else:
@@ -488,8 +482,6 @@ def dispatch_model(
             device = f"npu:{device}"
         elif is_mlu_available() and isinstance(device, int):
             device = f"mlu:{device}"
-        elif is_musa_available() and isinstance(device, int):
-            device = f"musa:{device}"
         elif is_xpu_available() and isinstance(device, int):
             device = f"xpu:{device}"
         if device != "disk":
@@ -516,7 +508,6 @@ def load_checkpoint_and_dispatch(
     skip_keys: Optional[Union[str, List[str]]] = None,
     preload_module_classes: Optional[List[str]] = None,
     force_hooks: bool = False,
-    strict: bool = False,
 ):
     """
     Loads a (potentially sharded) checkpoint inside a model, potentially sending weights to a given device as they are
@@ -563,9 +554,6 @@ def load_checkpoint_and_dispatch(
         force_hooks (`bool`, *optional*, defaults to `False`):
             Whether or not to force device hooks to be attached to the model even if all layers are dispatched to a
             single device.
-        strict (`bool`, *optional*, defaults to `False`):
-            Whether to strictly enforce that the keys in the checkpoint state_dict match the keys of the model's
-            state_dict.
 
     Example:
 
@@ -620,7 +608,6 @@ def load_checkpoint_and_dispatch(
         dtype=dtype,
         offload_state_dict=offload_state_dict,
         offload_buffers=offload_buffers,
-        strict=strict,
     )
     if device_map is None:
         return model

@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import warnings
 from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
@@ -68,7 +67,8 @@ def chunk_iter(inputs, feature_extractor, chunk_len, stride_left, stride_right, 
         if dtype is not None:
             processed = processed.to(dtype=dtype)
         _stride_left = 0 if chunk_start_idx == 0 else stride_left
-        is_last = chunk_end_idx >= inputs_len
+        # all right strides must be full, otherwise it is the last item
+        is_last = chunk_end_idx > inputs_len if stride_right > 0 else chunk_end_idx >= inputs_len
         _stride_right = 0 if is_last else stride_right
 
         chunk_len = chunk.shape[0]
@@ -270,6 +270,8 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                 The dictionary of ad-hoc parametrization of `generate_config` to be used for the generation call. For a
                 complete overview of generate, check the [following
                 guide](https://huggingface.co/docs/transformers/en/main_classes/text_generation).
+            max_new_tokens (`int`, *optional*):
+                The maximum numbers of tokens to generate, ignoring the number of tokens in the prompt.
 
         Return:
             `Dict`: A dictionary with the following keys:
@@ -309,10 +311,6 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
 
         forward_params = defaultdict(dict)
         if max_new_tokens is not None:
-            warnings.warn(
-                "`max_new_tokens` is deprecated and will be removed in version 4.49 of Transformers. To remove this warning, pass `max_new_tokens` as a key inside `generate_kwargs` instead.",
-                FutureWarning,
-            )
             forward_params["max_new_tokens"] = max_new_tokens
         if generate_kwargs is not None:
             if max_new_tokens is not None and "max_new_tokens" in generate_kwargs:
@@ -347,12 +345,6 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             if self.type != "seq2seq_whisper":
                 raise ValueError("Only Whisper can return language for now.")
             postprocess_params["return_language"] = return_language
-
-        if self.assistant_model is not None:
-            forward_params["assistant_model"] = self.assistant_model
-        if self.assistant_tokenizer is not None:
-            forward_params["tokenizer"] = self.tokenizer
-            forward_params["assistant_tokenizer"] = self.assistant_tokenizer
 
         return preprocess_params, forward_params, postprocess_params
 
@@ -415,7 +407,7 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                 # of the original length in the stride so we can cut properly.
                 stride = (inputs.shape[0], int(round(stride[0] * ratio)), int(round(stride[1] * ratio)))
         if not isinstance(inputs, np.ndarray):
-            raise TypeError(f"We expect a numpy ndarray as input, got `{type(inputs)}`")
+            raise ValueError(f"We expect a numpy ndarray as input, got `{type(inputs)}`")
         if len(inputs.shape) != 1:
             raise ValueError("We expect a single channel audio input for AutomaticSpeechRecognitionPipeline")
 
@@ -440,7 +432,7 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
             for item in chunk_iter(
                 inputs, self.feature_extractor, chunk_len, stride_left, stride_right, self.torch_dtype
             ):
-                yield {**item, **extra}
+                yield item
         else:
             if self.type == "seq2seq_whisper" and inputs.shape[0] > self.feature_extractor.n_samples:
                 processed = self.feature_extractor(
@@ -449,25 +441,12 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                     truncation=False,
                     padding="longest",
                     return_tensors="pt",
-                    return_attention_mask=True,
                 )
             else:
-                if self.type == "seq2seq_whisper" and stride is None:
-                    processed = self.feature_extractor(
-                        inputs,
-                        sampling_rate=self.feature_extractor.sampling_rate,
-                        return_tensors="pt",
-                        return_token_timestamps=True,
-                        return_attention_mask=True,
-                    )
-                    extra["num_frames"] = processed.pop("num_frames")
-                else:
-                    processed = self.feature_extractor(
-                        inputs,
-                        sampling_rate=self.feature_extractor.sampling_rate,
-                        return_tensors="pt",
-                        return_attention_mask=True,
-                    )
+                processed = self.feature_extractor(
+                    inputs, sampling_rate=self.feature_extractor.sampling_rate, return_tensors="pt"
+                )
+
             if self.torch_dtype is not None:
                 processed = processed.to(dtype=self.torch_dtype)
             if stride is not None:
@@ -480,13 +459,10 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
     def _forward(self, model_inputs, return_timestamps=False, **generate_kwargs):
         attention_mask = model_inputs.pop("attention_mask", None)
         stride = model_inputs.pop("stride", None)
-        num_frames = model_inputs.pop("num_frames", None)
         is_last = model_inputs.pop("is_last")
 
-        if stride is not None and num_frames is not None:
-            raise ValueError("num_frames must be used only when stride is None")
-
         if self.type in {"seq2seq", "seq2seq_whisper"}:
+            encoder = self.model.get_encoder()
             # Consume values so we can let extra information flow freely through
             # the pipeline (important for `partial` in microphone)
             if "input_features" in model_inputs:
@@ -511,15 +487,13 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
                             generate_kwargs["num_frames"] = stride[0] // self.feature_extractor.hop_length
                         else:
                             generate_kwargs["num_frames"] = [s[0] // self.feature_extractor.hop_length for s in stride]
-                    else:
-                        generate_kwargs["num_frames"] = num_frames
 
-            # User-defined `generation_config` passed to the pipeline call take precedence
-            if "generation_config" not in generate_kwargs:
-                generate_kwargs["generation_config"] = self.generation_config
+            if self.type == "seq2seq_whisper" and inputs.shape[-1] > self.feature_extractor.nb_max_frames:
+                generate_kwargs["input_features"] = inputs
+            else:
+                generate_kwargs["encoder_outputs"] = encoder(inputs, attention_mask=attention_mask)
 
             tokens = self.model.generate(
-                inputs=inputs,
                 attention_mask=attention_mask,
                 **generate_kwargs,
             )
@@ -574,10 +548,7 @@ class AutomaticSpeechRecognitionPipeline(ChunkPipeline):
         key = "logits" if self.type == "ctc_with_lm" else "tokens"
         stride = None
         for outputs in model_outputs:
-            if self.framework == "pt" and outputs[key].dtype in (torch.bfloat16, torch.float16):
-                items = outputs[key].to(torch.float32).numpy()
-            else:
-                items = outputs[key].numpy()
+            items = outputs[key].numpy()
             stride = outputs.get("stride", None)
             if stride is not None and self.type in {"ctc", "ctc_with_lm"}:
                 total_n, left, right = stride

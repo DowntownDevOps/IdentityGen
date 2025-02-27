@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import operator
-import typing
 import warnings
+import weakref
+
 from contextlib import nullcontext
 from enum import Enum
-from functools import reduce
+from functools import cmp_to_key, reduce
 from typing import (
     Any,
     Callable,
@@ -19,13 +20,9 @@ from typing import (
     Tuple,
     Type,
     TYPE_CHECKING,
-    TypeVar,
     Union,
 )
 from typing_extensions import deprecated, TypeAlias
-
-import torch
-from torch import sym_float, sym_int, sym_max
 
 
 if TYPE_CHECKING:
@@ -35,20 +32,8 @@ if TYPE_CHECKING:
 
     import sympy
 
-    class _WorksWithInt(typing.Protocol):
-        def __add__(self, other: Any) -> typing.Self:
-            ...
-
-        def __radd__(self, other: Any) -> typing.Self:
-            ...
-
-        def __mul__(self, other: Any) -> typing.Self:
-            ...
-
-        def __rmul__(self, other: Any) -> typing.Self:
-            ...
-
-    _IntLikeT = TypeVar("_IntLikeT", bound=_WorksWithInt)
+import torch
+from torch import sym_float, sym_int, sym_max
 
 
 ShapeType: TypeAlias = Union[torch.Size, List[int], Tuple[int, ...]]
@@ -153,7 +138,6 @@ def _maybe_get_pytype(t):
 def compare_tensor_meta(
     a: TensorLikeType,
     b: TensorLikeType,
-    check_sizes=True,
     check_strides=False,
     *,
     allow_rhs_unbacked=False,
@@ -166,20 +150,16 @@ def compare_tensor_meta(
     In the future this will validate additional metadata, like
     strides.
     """
-    from torch._subclasses.fake_tensor import MetadataMismatchError
-
     assert isinstance(a, TensorLike)
     assert isinstance(b, TensorLike)
 
-    if check_sizes and not same_shape(
-        a.shape, b.shape, allow_rhs_unbacked=allow_rhs_unbacked
-    ):
+    if not same_shape(a.shape, b.shape, allow_rhs_unbacked=allow_rhs_unbacked):
         msg = f"Shapes {a.shape} and {b.shape} are not equal!"
-        raise MetadataMismatchError(msg)
+        raise AssertionError(msg)
 
     if a.dtype != b.dtype:
         msg = f"Dtypes {a.dtype} and {b.dtype} are not equal!"
-        raise MetadataMismatchError(msg)
+        raise AssertionError(msg)
 
     if a.device != b.device:
         # Handles special cuda:0 vs cuda case
@@ -190,27 +170,27 @@ def compare_tensor_meta(
             pass
         else:
             msg = f"Devices {a.device} and {b.device} are not equal!"
-            raise MetadataMismatchError(msg)
+            raise AssertionError(msg)
 
     # Stride checking is currently disabled, see https://github.com/pytorch/pytorch/issues/78050
     if check_strides:
         same_strides, idx = check_significant_strides(a, b)
         if not same_strides:
             msg = f"Stride mismatch! Strides are {a.stride()} and {b.stride()} (mismatched at {idx})!"
-            raise MetadataMismatchError(msg)
+            raise RuntimeError(msg)
 
         if a.storage_offset() != b.storage_offset():
             msg = f"Storage offset mismatch! Storage offsets are {a.storage_offset()} and {b.storage_offset()}!"
-            raise MetadataMismatchError(msg)
+            raise RuntimeError(msg)
 
     if check_conj:
         if a.is_conj() != b.is_conj():
-            raise MetadataMismatchError(
+            raise RuntimeError(
                 f"Conj mismatch! is_conj is set to {a.is_conj()} and {b.is_conj()}"
             )
 
     if a.is_neg() != b.is_neg():
-        raise MetadataMismatchError(
+        raise RuntimeError(
             f"Neg mismatch! is_neg is set to {a.is_neg()} and {b.is_neg()}"
         )
 
@@ -277,16 +257,14 @@ def is_channels_last_contiguous_2d(a: Tensor) -> bool:
     if a.ndim != 4:
         return False
 
-    from torch.fx.experimental.symbolic_shapes import guard_size_oblivious
-
     expected_stride = 1
     for idx in (1, 3, 2, 0):
         length = a.shape[idx]
-        if guard_size_oblivious(length == 1):
+        if length == 1:
             continue
 
         stride = a.stride()[idx]
-        if guard_size_oblivious(stride != expected_stride):
+        if stride != expected_stride:
             return False
 
         expected_stride *= length
@@ -468,23 +446,17 @@ def compute_elementwise_output_logical_to_physical_perm(
     if ndim == 1:
         return [0]
 
-    # Short-circuits if contiguous or channels last, following the fake fast path.
+    # Short-circuits if contiguous, following the fake fast path.
     # This reduces the number of guards we end up making
+    # TODO: do channels last too
     is_contiguous = True
-    is_channels_last = True
     for t in tensors:
         is_contiguous = is_contiguous and t.is_contiguous(
             memory_format=torch.contiguous_format
         )
-        is_channels_last = is_channels_last and t.is_contiguous(
-            memory_format=torch.channels_last
-        )
 
-    if is_contiguous and not is_channels_last:
+    if is_contiguous:
         return list(range(ndim))
-
-    if is_channels_last and not is_contiguous:
-        return [0, *list(range(2, ndim)), 1]
 
     shape = tensors[0].shape
 
@@ -713,7 +685,13 @@ def is_valid_permutation(rank: int, perm: DimsSequenceType) -> bool:
     Validates that perm is a permutation of length rank.
     """
 
-    return isinstance(perm, Sequence) and sorted(perm) == list(range(rank))
+    if not isinstance(perm, Sequence):
+        return False
+
+    if not (tuple(sorted(perm)) == tuple(range(0, rank))):
+        return False
+
+    return True
 
 
 def is_same_shape(a: Sequence, b: Sequence) -> bool:
@@ -1068,17 +1046,17 @@ def type_to_dtype(typ: type) -> torch.dtype:
 
     assert isinstance(typ, type)
 
-    if typ in (bool, torch.SymBool):
+    if typ is bool:
         return torch.bool
-    if typ in (int, torch.SymInt):
+    if typ in [int, torch.SymInt]:
         return torch.long
-    if typ in (float, torch.SymFloat):
+    if typ in [float, torch.SymFloat]:
         return torch.get_default_dtype()
     # TODO: sym_complex_float?
     if typ is complex:
         return corresponding_complex_dtype(torch.get_default_dtype())
 
-    raise ValueError(f"Invalid type {typ}!")
+    raise ValueError("Invalid type!")
 
 
 def get_dtype(x: Union[torch.Tensor, NumberType]):
@@ -1385,12 +1363,8 @@ def number_type(
         return type(x)
 
 
-def expr_type(x: sympy.Basic) -> Type:
-    import sympy
-
-    if x.kind is sympy.core.kind.BooleanKind:
-        return bool
-    elif x.is_integer:  # type: ignore[attr-defined]
+def expr_type(x: sympy.Expr) -> Type:
+    if x.is_integer:  # type: ignore[attr-defined]
         return int
     else:
         # NB: Not strictly correct, but we don't support SymPy complex or bool.
@@ -1497,13 +1471,13 @@ def elementwise_dtypes(
     import sympy
 
     for x in args:
-        if not isinstance(x, (Number, TensorLike, sympy.Basic)):
+        if not isinstance(x, (Number, TensorLike, sympy.Expr)):
             msg = f"Unexpected type {str(type(x))} when computing elementwise type promotion!"
             raise ValueError(msg)
 
         if isinstance(x, Number):
             highest_type = get_higher_type(highest_type, number_type(x))
-        elif isinstance(x, sympy.Basic):
+        elif isinstance(x, sympy.Expr):
             highest_type = get_higher_type(highest_type, expr_type(x))
         else:
             # x is a TensorLike
@@ -1612,7 +1586,7 @@ def reduction_dtypes(
 # batched_matrix_contiguous_strides and contiguous_strides
 def make_contiguous_strides_for(
     shape: ShapeType, row_major: bool = True
-) -> Tuple[Union[_IntLikeT, int], ...]:
+) -> Tuple[int, ...]:
     """
     Returns the strides of a contiguous tensor if row_major
     If row_major=True, it returns the strides of a contiguous batch of Fortran-contiguous matrices
@@ -1625,13 +1599,11 @@ def make_contiguous_strides_for(
 
     from torch.fx.experimental.symbolic_shapes import is_nested_int
 
-    multiplier: Union[_IntLikeT, int] = 1
+    multiplier = 1
     strides = []
     for l in reversed(shape):
         strides.append(multiplier)
-        multiplier *= (
-            l if is_nested_int(l) else sym_max(l, 1)
-        )  # type:ignore[assignment]
+        multiplier *= l if is_nested_int(l) else sym_max(l, 1)
 
     result = tuple(reversed(strides))
 
@@ -1644,16 +1616,14 @@ def make_contiguous_strides_for(
         return result[:-2] + (1, max(shape[-2], 1))
 
 
-def make_channels_last_1d_strides_for(
-    shape: Sequence[_IntLikeT],
-) -> Tuple[Union[_IntLikeT, int], ...]:
+def make_channels_last_1d_strides_for(shape: ShapeType) -> Tuple[int, ...]:
     torch._check(
         len(shape) == 3,
         lambda: "Only tensors of rank 3 can use the channels_last_1d memory format",
     )
 
-    multiplier: Union[_IntLikeT, int] = 1
-    strides: List[Union[_IntLikeT, int]] = [0] * 3
+    multiplier = 1
+    strides = [0] * 3
     for idx in (1, -1, 0):
         # NOTE: intentionally divergence from make_contiguous_strides_for
         # This is consistent with eager
@@ -1663,17 +1633,15 @@ def make_channels_last_1d_strides_for(
     return tuple(strides)
 
 
-def make_channels_last_2d_strides_for(
-    shape: Sequence[_IntLikeT],
-) -> Tuple[Union[_IntLikeT, int], ...]:
+def make_channels_last_2d_strides_for(shape: ShapeType) -> Tuple[int, ...]:
     # TODO: maybe inform the user of channels_last_3d if rank of the tensor is 5?
     torch._check(
         len(shape) == 4,
         lambda: "Only tensors of rank 4 can use the channels_last memory format",
     )
 
-    multiplier: Union[_IntLikeT, int] = 1
-    strides: List[Union[_IntLikeT, int]] = [0] * 4
+    multiplier = 1
+    strides = [0] * 4
     for idx in (1, -1, -2, 0):
         # NOTE: intentionally divergence from make_contiguous_strides_for
         # This is consistent with eager
@@ -1683,16 +1651,14 @@ def make_channels_last_2d_strides_for(
     return tuple(strides)
 
 
-def make_channels_last_3d_strides_for(
-    shape: Sequence[_IntLikeT],
-) -> Tuple[Union[_IntLikeT, int], ...]:
+def make_channels_last_3d_strides_for(shape: ShapeType) -> Tuple[int, ...]:
     torch._check(
         len(shape) == 5,
         lambda: "Only tensors of rank 5 can use the channels_last_3d memory format",
     )
 
-    multiplier: Union[_IntLikeT, int] = 1
-    strides: List[Union[_IntLikeT, int]] = [0] * 5
+    multiplier = 1
+    strides = [0] * 5
     for idx in (1, -1, -2, -3, 0):
         # NOTE: intentionally divergence from make_contiguous_strides_for
         # This is consistent with eager
@@ -1702,9 +1668,7 @@ def make_channels_last_3d_strides_for(
     return tuple(strides)
 
 
-def make_channels_last_strides_for(
-    shape: Sequence[_IntLikeT],
-) -> Tuple[Union[_IntLikeT, int], ...]:
+def make_channels_last_strides_for(shape: ShapeType) -> Tuple[int, ...]:
     ndim = len(shape) if isinstance(shape, Sequence) else 1
     if ndim == 3:
         return make_channels_last_1d_strides_for(shape)
@@ -1851,8 +1815,6 @@ def check(
 def are_strides_like_channels_last(
     shape: Sequence[int], strides: Sequence[int]
 ) -> bool:
-    from torch.fx.experimental.symbolic_shapes import guard_size_oblivious
-
     ndim = len(shape)
 
     if ndim == 4:
@@ -1864,19 +1826,19 @@ def are_strides_like_channels_last(
     else:
         return False
 
-    if guard_size_oblivious(strides[1] == 0):
+    if strides[1] == 0:
         return False
 
     min = 0
     for d in dim_order:
-        if guard_size_oblivious(shape[d] == 0):
+        if shape[d] == 0:
             return False
-        if guard_size_oblivious(strides[d] < min):
+        if strides[d] < min:
             return False
         if d == 0 and min == strides[1]:
             return False
         min = strides[d]
-        if guard_size_oblivious(strides[d] > 1):
+        if strides[d] > 1:
             min *= shape[d]
     return True
 

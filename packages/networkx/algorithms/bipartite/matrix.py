@@ -3,7 +3,6 @@
 Biadjacency matrices
 ====================
 """
-
 import itertools
 
 import networkx as nx

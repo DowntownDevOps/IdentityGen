@@ -34,7 +34,9 @@
 #include <ATen/record_function.h>
 #endif
 
-namespace c10::impl {
+namespace c10 {
+
+namespace impl {
 
 constexpr bool allowlist_contains(string_view allowlist, string_view item);  // Forward Declare
 
@@ -125,7 +127,7 @@ constexpr bool allowlist_contains(string_view allowlist, string_view item) {
 
 // Returns true iff the given op name is on the allowlist
 // and should be registered
-constexpr bool op_allowlist_check(string_view op_name [[maybe_unused]]) {
+constexpr bool op_allowlist_check(string_view op_name) {
   assert(op_name.find("::") != string_view::npos);
   // Use assert() instead of throw() due to a gcc bug. See:
   // https://stackoverflow.com/questions/34280729/throw-in-constexpr-function
@@ -193,4 +195,5 @@ constexpr bool dispatch_key_allowlist_check(DispatchKey /*k*/) {
 #endif
 }
 
-} // namespace c10::impl
+} // namespace impl
+} // namespace c10

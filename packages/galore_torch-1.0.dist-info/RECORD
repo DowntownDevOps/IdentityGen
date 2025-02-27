@@ -1,0 +1,16 @@
+galore_torch-1.0.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+galore_torch-1.0.dist-info/LICENSE,sha256=xx0jnfkXJvxRnG63LTGOxlggYnIysveWIZ6H3PNdCrQ,11357
+galore_torch-1.0.dist-info/METADATA,sha256=sj7ANZlMntdgxy9uz16eNEDBpFKN-ZZM7g6k2Ni6s0c,355
+galore_torch-1.0.dist-info/RECORD,,
+galore_torch-1.0.dist-info/WHEEL,sha256=2wepM1nk4DS4eFpYrW1TTqPcoGNfHhhO_i5m4cOimbo,92
+galore_torch-1.0.dist-info/top_level.txt,sha256=1XE8djbgV92xtTDO91OesFwouGi6CpZxh9LVqgAyyqk,13
+galore_torch/__init__.py,sha256=HLewFe0ZuGrBcJW7YvJ7PuM4HgyBpgagsjIvGEc8-I8,143
+galore_torch/__pycache__/__init__.cpython-310.pyc,,
+galore_torch/__pycache__/adafactor.cpython-310.pyc,,
+galore_torch/__pycache__/adamw.cpython-310.pyc,,
+galore_torch/__pycache__/adamw8bit.cpython-310.pyc,,
+galore_torch/__pycache__/galore_projector.cpython-310.pyc,,
+galore_torch/adafactor.py,sha256=p9TAxQ5QF-0A19A07fwxR9xzSa4WUSqiZ2CNH478fE0,10688
+galore_torch/adamw.py,sha256=LdnRSMS_crmj-BKVxu3oMVdUsb0p6OyHMY7bUgn9wCU,6285
+galore_torch/adamw8bit.py,sha256=gOJNvcMMke83IllXWR5sCAXKOgVMYD79zBoRPhzhCME,3442
+galore_torch/galore_projector.py,sha256=XvepC0oNo9U0p7zxQAkOGVKC2rCjJCpKXA9h8xbDyYo,5207

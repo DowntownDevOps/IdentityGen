@@ -59,6 +59,36 @@ _CG_BEGIN_NAMESPACE
 
 namespace details {
 
+template <typename TyVal, typename TyOp>
+_CG_QUALIFIER auto coalesced_reduce_to_one(const coalesced_group& group, TyVal&& val, TyOp&& op) -> decltype(op(val, val)) {
+    if (group.size() == 32) {
+        auto out = val;
+        for (int offset = group.size() >> 1; offset > 0; offset >>= 1) {
+            out = op(out, group.shfl_up(out, offset));
+        }
+        return out;
+    }
+    else {
+        auto scan_result =
+            inclusive_scan_non_contiguous(group, _CG_STL_NAMESPACE::forward<TyVal>(val), _CG_STL_NAMESPACE::forward<TyOp>(op));
+        return scan_result;
+    }
+}
+
+template <typename TyVal, typename TyOp>
+_CG_QUALIFIER auto coalesced_reduce(const coalesced_group& group, TyVal&& val, TyOp&& op) -> decltype(op(val, val)) {
+    auto out = coalesced_reduce_to_one(group, _CG_STL_NAMESPACE::forward<TyVal>(val), _CG_STL_NAMESPACE::forward<TyOp>(op));
+    if (group.size() == 32) {
+        return group.shfl(out, 31);
+    }
+    else {
+        unsigned int group_mask = _coalesced_group_data_access::get_mask(group);
+        unsigned int last_thread_id = 31 - __clz(group_mask);
+        return details::tile::shuffle_dispatch<TyVal>::shfl(
+            _CG_STL_NAMESPACE::forward<TyVal>(out), group_mask, last_thread_id, 32);
+    }
+}
+
 template <typename TyVal, typename TyOp, unsigned int TySize, typename ParentT>
 _CG_QUALIFIER auto coalesced_reduce(const __single_warp_thread_block_tile<TySize, ParentT>& group, 
                                     TyVal&& val,
@@ -69,23 +99,6 @@ _CG_QUALIFIER auto coalesced_reduce(const __single_warp_thread_block_tile<TySize
     }
 
     return out;
-}
-
-template <typename TyVal, typename TyOp>
-_CG_QUALIFIER auto coalesced_reduce(const coalesced_group& group, TyVal&& val, TyOp&& op) -> decltype(op(val, val)) {
-    if (group.size() == 32) {
-        // Full coalesced group can go through faster path by being treated as a tile of size 32
-        auto tile = details::tiled_partition_internal<32, void>();
-        return coalesced_reduce(tile, _CG_STL_NAMESPACE::forward<TyVal>(val), _CG_STL_NAMESPACE::forward<TyOp>(op));
-    }
-    else {
-        auto scan_result =
-            inclusive_scan_non_contiguous(group, _CG_STL_NAMESPACE::forward<TyVal>(val), _CG_STL_NAMESPACE::forward<TyOp>(op));
-        unsigned int group_mask = _coalesced_group_data_access::get_mask(group);
-        unsigned int last_thread_id = 31 - __clz(group_mask);
-        return details::tile::shuffle_dispatch<TyVal>::shfl(
-            _CG_STL_NAMESPACE::forward<TyVal>(scan_result), group_mask, last_thread_id, 32);
-    }
 }
 
 } // details

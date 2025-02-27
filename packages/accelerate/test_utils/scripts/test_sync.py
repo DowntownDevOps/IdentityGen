@@ -20,7 +20,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 
-from accelerate.accelerator import Accelerator, DataLoaderConfiguration, GradientAccumulationPlugin
+from accelerate.accelerator import Accelerator, GradientAccumulationPlugin
 from accelerate.state import GradientState
 from accelerate.test_utils import RegressionDataset, RegressionModel
 from accelerate.utils import DistributedType, set_seed
@@ -206,9 +206,9 @@ def test_distributed_sync_multiple_fwd(accelerator):
 
 def test_gradient_accumulation(split_batches=False, dispatch_batches=False, sync_each_batch=False):
     gradient_accumulation_plugin = GradientAccumulationPlugin(num_steps=2, sync_each_batch=sync_each_batch)
-    dataloader_config = DataLoaderConfiguration(split_batches=split_batches, dispatch_batches=dispatch_batches)
     accelerator = Accelerator(
-        dataloader_config=dataloader_config,
+        split_batches=split_batches,
+        dispatch_batches=dispatch_batches,
         gradient_accumulation_plugin=gradient_accumulation_plugin,
     )
     # Test that context manager behaves properly
@@ -249,9 +249,9 @@ def test_gradient_accumulation_with_opt_and_scheduler(
     split_batches=False, dispatch_batches=False, sync_each_batch=False
 ):
     gradient_accumulation_plugin = GradientAccumulationPlugin(num_steps=2, sync_each_batch=sync_each_batch)
-    dataloader_config = DataLoaderConfiguration(split_batches=split_batches, dispatch_batches=dispatch_batches)
     accelerator = Accelerator(
-        dataloader_config=dataloader_config,
+        split_batches=split_batches,
+        dispatch_batches=dispatch_batches,
         gradient_accumulation_plugin=gradient_accumulation_plugin,
     )
     # Test that context manager behaves properly
@@ -267,7 +267,7 @@ def test_gradient_accumulation_with_opt_and_scheduler(
         step_model(model, input, target, accelerator, False)
         opt.step()
 
-        if ((iteration + 1) % 2 == 0) or ((iteration + 1) == len(dataloader)):
+        if ((iteration + 1) % 2 == 0) or ((iteration + 1) == len(dataloader)) or sync_each_batch:
             if split_batches:
                 sched.step()
             else:
@@ -284,18 +284,18 @@ def test_gradient_accumulation_with_opt_and_scheduler(
         assert (
             opt.param_groups[0]["lr"] == ddp_opt.param_groups[0]["lr"]
         ), f'Learning rates found in each optimizer did not align\nopt: {opt.param_groups[0]["lr"]}\nDDP opt: {ddp_opt.param_groups[0]["lr"]}\n'
-        did_step = (((iteration + 1) % 2) == 0) or ((iteration + 1) == len(dataloader))
+        did_step = (((iteration + 1) % 2) == 0) or ((iteration + 1) == len(dataloader)) or sync_each_batch
         if accelerator.num_processes > 1:
             check_model_parameters(
                 model,
                 ddp_model,
-                did_step or sync_each_batch,  # syncs at each grad_accum interval of if sync_each_batch==True
+                did_step,
                 iteration,
-                rtol=1e-3,  # needs a relative tolerance due to roundoff errors
+                rtol=1e-3,  # somehow needs a relative tolerance
             )
 
-        if did_step:
-            opt.zero_grad()  # flush gradients every accum step
+        if ((iteration + 1) % 2 == 0) or ((iteration + 1) == len(dataloader)) or sync_each_batch:
+            opt.zero_grad()  # needs to be guarded by logic as to when we should zero grads
         ddp_opt.zero_grad()
 
         # Shuffle ddp_input on each iteration
@@ -305,12 +305,12 @@ def test_gradient_accumulation_with_opt_and_scheduler(
 
 def test_dataloader_break():
     accelerator = Accelerator()
+
     first_dset = RegressionDataset(length=80)
     first_dataloader = DataLoader(first_dset, batch_size=16)
     second_dset = RegressionDataset(length=96)
     second_dataloader = DataLoader(second_dset, batch_size=16)
     first_dataloader, second_dataloader = accelerator.prepare(first_dataloader, second_dataloader)
-
     assert accelerator.gradient_state.active_dataloader is None
     for iteration, _ in enumerate(first_dataloader):
         assert id(accelerator.gradient_state.active_dataloader) == id(first_dataloader)
@@ -343,7 +343,6 @@ def main():
         DistributedType.MULTI_GPU,
         DistributedType.MULTI_NPU,
         DistributedType.MULTI_MLU,
-        DistributedType.MULTI_MUSA,
         DistributedType.MULTI_CPU,
     ):
         if state.local_process_index == 0:
@@ -352,12 +351,7 @@ def main():
         if state.local_process_index == 0:
             print("**Test Distributed `no_sync` context manager with multiple forwards**")
         test_distributed_sync_multiple_fwd(accelerator)
-    if state.distributed_type in (
-        DistributedType.MULTI_GPU,
-        DistributedType.MULTI_NPU,
-        DistributedType.MULTI_MLU,
-        DistributedType.MULTI_MUSA,
-    ):
+    if state.distributed_type in (DistributedType.MULTI_GPU, DistributedType.MULTI_NPU, DistributedType.MULTI_MLU):
         for split_batch in [True, False]:
             for dispatch_batches in [True, False]:
                 for sync_each_batch in [True, False]:
@@ -375,12 +369,7 @@ def main():
             "`split_batches=False`, `dispatch_batches=False`, `sync_each_batch=False`**",
         )
     test_gradient_accumulation_with_opt_and_scheduler()
-    if state.distributed_type in (
-        DistributedType.MULTI_GPU,
-        DistributedType.MULTI_NPU,
-        DistributedType.MULTI_MLU,
-        DistributedType.MULTI_MUSA,
-    ):
+    if state.distributed_type in (DistributedType.MULTI_GPU, DistributedType.MULTI_NPU, DistributedType.MULTI_MLU):
         for split_batch in [True, False]:
             for dispatch_batches in [True, False]:
                 for sync_each_batch in [True, False]:
@@ -392,7 +381,6 @@ def main():
                             f"`split_batches={split_batch}` and `dispatch_batches={dispatch_batches}` and `sync_each_batch={sync_each_batch}`**",
                         )
                     test_gradient_accumulation_with_opt_and_scheduler(split_batch, dispatch_batches, sync_each_batch)
-    state.destroy_process_group()
 
 
 def _mp_fn(index):

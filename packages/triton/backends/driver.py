@@ -1,11 +1,4 @@
 from abc import ABCMeta, abstractmethod, abstractclassmethod
-from typing import Callable, List, Protocol, Sequence
-
-
-class Benchmarker(Protocol):
-
-    def __call__(self, kernel_call: Callable, *, quantiles: List[float], **kwargs) -> Sequence[float]:
-        pass
 
 
 class DriverBase(metaclass=ABCMeta):
@@ -17,13 +10,6 @@ class DriverBase(metaclass=ABCMeta):
     @abstractmethod
     def get_current_target(self):
         pass
-
-    @abstractmethod
-    def get_benchmarker(self) -> Benchmarker:
-        """
-        Return the benchmarking function that this backend should use by default.
-        """
-        raise NotImplementedError
 
     def __init__(self) -> None:
         pass

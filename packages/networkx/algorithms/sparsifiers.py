@@ -1,5 +1,4 @@
 """Functions for computing sparsifiers of graphs."""
-
 import math
 
 import networkx as nx

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2016 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -47,9 +47,6 @@
  * Users Notice.
  */
 
-//NOTE: For NVRTC, these declarations have been moved into the compiler (to reduce compile time)
-#define EXCLUDE_FROM_RTC
-
 #if !defined(__SM_61_INTRINSICS_H__)
 #define __SM_61_INTRINSICS_H__
 
@@ -71,11 +68,11 @@
 
 #include "cuda_runtime_api.h"
 
-#if !defined(__CUDA_ARCH__) && !defined(_NVHPC_CUDA)
+#ifndef __CUDA_ARCH__
 #define __DEF_IF_HOST { }
-#else  /* !__CUDA_ARCH__ && !_NVHPC_CUDA */
+#else  /* !__CUDA_ARCH__ */
 #define __DEF_IF_HOST ;
-#endif /* __CUDA_ARCH__ || _NVHPC_CUDA */
+#endif /* __CUDA_ARCH__ */
 
 /*******************************************************************************
 *                                                                              *
@@ -89,96 +86,16 @@
  *                                   __dp2a                                   *
  ******************************************************************************/
 // Generic [_lo]
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p signed \p int16 by \p int8 dot product with \p int32 accumulate,
- * taking the lower half of the second input.
- *
- * \details Extracts two packed 16-bit integers from \p scrA
- * and two packed 8-bit integers from the lower 16 bits of \p srcB,
- * then creates two pairwise 8x16 products and adds them together
- * to a signed 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ int __dp2a_lo(int srcA, int srcB, int c) __DEF_IF_HOST
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p unsigned \p int16 by \p int8 dot product with
- * \p unsigned \p int32 accumulate, taking the lower half of the second input.
- *
- * \details Extracts two packed 16-bit integers from \p scrA
- * and two packed 8-bit integers from the lower 16 bits of \p srcB,
- * then creates two pairwise 8x16 products and adds them together
- * to an unsigned 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ unsigned int __dp2a_lo(unsigned int srcA, unsigned int srcB, unsigned int c) __DEF_IF_HOST
 // Vector-style [_lo]
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p signed \p int16 by \p int8 dot product with \p int32 accumulate,
- * taking the lower half of the second input.
- *
- * \details Takes two packed 16-bit integers from \p scrA vector
- * and two packed 8-bit integers from the lower 16 bits of \p srcB vector,
- * then creates two pairwise 8x16 products and adds them together
- * to a signed 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ int __dp2a_lo(short2 srcA, char4 srcB, int c) __DEF_IF_HOST
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p unsigned \p int16 by \p int8 dot product with
- * \p unsigned \p int32 accumulate, taking the lower half of the second input.
- *
- * \details Takes two packed 16-bit integers from \p scrA vector
- * and two packed 8-bit integers from the lower 16 bits of \p srcB vector,
- * then creates two pairwise 8x16 products and adds them together
- * to an unsigned 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ unsigned int __dp2a_lo(ushort2 srcA, uchar4 srcB, unsigned int c) __DEF_IF_HOST
 // Generic [_hi]
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p signed \p int16 by \p int8 dot product with \p int32 accumulate,
- * taking the upper half of the second input.
- *
- * \details Extracts two packed 16-bit integers from \p scrA
- * and two packed 8-bit integers from the upper 16 bits of \p srcB,
- * then creates two pairwise 8x16 products and adds them together
- * to a signed 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ int __dp2a_hi(int srcA, int srcB, int c) __DEF_IF_HOST
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p unsigned \p int16 by \p int8 dot product with
- * \p unsigned \p int32 accumulate, taking the upper half of the second input.
- *
- * \details Extracts two packed 16-bit integers from \p scrA
- * and two packed 8-bit integers from the upper 16 bits of \p srcB,
- * then creates two pairwise 8x16 products and adds them together
- * to an unsigned 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ unsigned int __dp2a_hi(unsigned int srcA, unsigned int srcB, unsigned int c) __DEF_IF_HOST
 // Vector-style [_hi]
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p signed \p int16 by \p int8 dot product with \p int32 accumulate,
- * taking the upper half of the second input.
- *
- * \details Takes two packed 16-bit integers from \p scrA vector
- * and two packed 8-bit integers from the upper 16 bits of \p srcB vector,
- * then creates two pairwise 8x16 products and adds them together
- * to a signed 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ int __dp2a_hi(short2 srcA, char4 srcB, int c) __DEF_IF_HOST
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Two-way \p unsigned \p int16 by \p int8 dot product with
- * \p unsigned \p int32 accumulate, taking the upper half of the second input.
- *
- * \details Takes two packed 16-bit integers from \p scrA vector
- * and two packed 8-bit integers from the upper 16 bits of \p srcB vector,
- * then creates two pairwise 8x16 products and adds them together
- * to an unsigned 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ unsigned int __dp2a_hi(ushort2 srcA, uchar4 srcB, unsigned int c) __DEF_IF_HOST
 
 
@@ -186,42 +103,10 @@ __SM_61_INTRINSICS_DECL__ unsigned int __dp2a_hi(ushort2 srcA, uchar4 srcB, unsi
  *                                   __dp4a                                   *
  ******************************************************************************/
 // Generic
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Four-way \p signed \p int8 dot product with \p int32 accumulate.
- *
- * \details Extracts four pairs of packed byte-sized integers from \p scrA
- * and \p srcB, then creates four pairwise products and adds them together
- * to a signed 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ int __dp4a(int srcA, int srcB, int c) __DEF_IF_HOST
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Four-way \p unsigned \p int8 dot product with \p unsigned \p int32 accumulate.
- *
- * \details Extracts four pairs of packed byte-sized integers from \p scrA
- * and \p srcB, then creates four pairwise products and adds them together
- * to an unsigned 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ unsigned int __dp4a(unsigned int srcA, unsigned int srcB, unsigned int c) __DEF_IF_HOST
 // Vector-style
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Four-way \p signed \p int8 dot product with \p int32 accumulate.
- *
- * \details Takes four pairs of packed byte-sized integers from \p scrA
- * and \p srcB vectors, then creates four pairwise products and adds them
- * together to a signed 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ int __dp4a(char4 srcA, char4 srcB, int c) __DEF_IF_HOST
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Four-way \p unsigned \p int8 dot product with \p unsigned \p int32 accumulate.
- *
- * \details Takes four pairs of packed byte-sized integers from \p scrA
- * and \p srcB vectors, then creates four pairwise products and adds them
- * together to an unsigned 32-bit integer \p c.
- */
 __SM_61_INTRINSICS_DECL__ unsigned int __dp4a(uchar4 srcA, uchar4 srcB, unsigned int c) __DEF_IF_HOST
 
 #endif /* _NVHPC_CUDA || !__CUDA_ARCH__ || __CUDA_ARCH__ >= 610 */
@@ -233,7 +118,6 @@ __SM_61_INTRINSICS_DECL__ unsigned int __dp4a(uchar4 srcA, uchar4 srcB, unsigned
 
 #if !defined(__CUDACC_RTC__) && defined(__CUDA_ARCH__)
 #include "sm_61_intrinsics.hpp"
-#endif /* !__CUDACC_RTC__ && __CUDA_ARCH__ */
+#endif /* !__CUDACC_RTC__ && defined(__CUDA_ARCH__) */
 
 #endif /* !__SM_61_INTRINSICS_H__ */
-#undef EXCLUDE_FROM_RTC

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2010-2020 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -129,10 +129,6 @@ typedef enum {
    * Domain containing callback points for NVTX API functions.
    */
   CUPTI_CB_DOMAIN_NVTX              = 5,
-  /**
-   * Domain containing callback points for various states.
-   */
-  CUPTI_CB_DOMAIN_STATE,
   CUPTI_CB_DOMAIN_SIZE,
 
   CUPTI_CB_DOMAIN_FORCE_INT         = 0x7fffffff
@@ -230,10 +226,6 @@ typedef enum {
    * CUDA graph node is cloned.
    */
   CUPTI_CBID_RESOURCE_GRAPHNODE_CLONED                      = 20,
-  /**
-   * CUDA stream attribute is changed.
-   */
-  CUPTI_CBID_RESOURCE_STREAM_ATTRIBUTE_CHANGED              = 21,
 
   CUPTI_CBID_RESOURCE_SIZE,
   CUPTI_CBID_RESOURCE_FORCE_INT                   = 0x7fffffff
@@ -263,40 +255,6 @@ typedef enum {
   CUPTI_CBID_SYNCHRONIZE_FORCE_INT                = 0x7fffffff
 } CUpti_CallbackIdSync;
 
-/**
- * \brief Callback IDs for state domain.
- *
- * Callback IDs for state domain,
- * CUPTI_CB_DOMAIN_STATE. This value is communicated to the
- * callback function via the \p cbid parameter.
- */
-typedef enum {
-  /**
-   * Invalid state callback ID.
-   */
-  CUPTI_CBID_STATE_INVALID                        = 0,
-  /**
-   * Notification of fatal errors - high impact, non-recoverable
-   * When encountered, CUPTI automatically invokes cuptiFinalize()
-   * User can control behavior of the application in future from 
-   * receiving this callback - such as continuing without profiling, or
-   * terminating the whole application.
-   */
-  CUPTI_CBID_STATE_FATAL_ERROR                    = 1,
-  /**
-   * Notification of non fatal errors - high impact, but recoverable
-   * This notification is not issued in the current release.
-   */
-  CUPTI_CBID_STATE_ERROR                          = 2,
-  /**
-   * Notification of warnings - low impact, recoverable
-   * This notification is not issued in the current release.
-   */
-  CUPTI_CBID_STATE_WARNING                        = 3,
-
-  CUPTI_CBID_STATE_SIZE,
-  CUPTI_CBID_STATE_FORCE_INT         = 0x7fffffff
-} CUpti_CallbackIdState;
 
 /**
  * \brief Data passed into a runtime or driver API callback function.
@@ -552,62 +510,6 @@ typedef struct {
 } CUpti_NvtxData;
 
 /**
- * \brief Stream attribute data passed into a resource callback function
- * for CUPTI_CBID_RESOURCE_STREAM_ATTRIBUTE_CHANGED callback
-
- * Data passed into a resource callback function as the \p cbdata
- * argument to \ref CUpti_CallbackFunc. The \p cbdata will be this
- * type for \p domain equal to CUPTI_CB_DOMAIN_RESOURCE. The
- * stream attribute data is valid only within the invocation of the callback
- * function that is passed the data. If you need to retain some data
- * for use outside of the callback, you must make a copy of that data.
- */
-typedef struct {
-  /**
-   * The CUDA stream handle for the attribute
-   */
-  CUstream stream;
-
-  /**
-   * The type of the CUDA stream attribute
-   */
-  CUstreamAttrID attr;
-
-  /**
-   * The value of the CUDA stream attribute
-   */
-  const CUstreamAttrValue *value;
-} CUpti_StreamAttrData;
-
-/**
- * \brief Data passed into a State callback function.
- *
- * Data passed into a State callback function as the \p cbdata argument
- * to \ref CUpti_CallbackFunc. The \p cbdata will be this type for \p
- * domain equal to CUPTI_CB_DOMAIN_STATE and callback Ids belonging to CUpti_CallbackIdState. 
- * Unless otherwise noted, the callback data is valid only within the invocation of the callback
- * function that is passed the data. If you need to retain some data
- * for use outside of the callback, you must make a copy of that data.
- */
-typedef struct {
-  union {
-    /**
-     * Data passed along with the callback Ids 
-     * Enum CUpti_CallbackIdState used to denote callback ids
-     */
-    struct {
-      /**
-       * Error code
-       */
-      CUptiResult result;
-      /**
-       * String containing more details. It can be NULL.
-       */
-      const char *message;
-    } notification;
-  };
-} CUpti_StateData;
-/**
  * \brief An ID for a driver API, runtime API, resource or
  * synchronization callback.
  *
@@ -696,7 +598,7 @@ CUptiResult CUPTIAPI cuptiSupportedDomains(size_t *domainCount,
  * \param subscriber Returns handle to initialize subscriber
  * \param callback The callback function
  * \param userdata A pointer to user data. This data will be passed to
- * the callback function via the \p userdata parameter.
+ * the callback function via the \p userdata paramater.
  *
  * \retval CUPTI_SUCCESS on success
  * \retval CUPTI_ERROR_NOT_INITIALIZED if unable to initialize CUPTI

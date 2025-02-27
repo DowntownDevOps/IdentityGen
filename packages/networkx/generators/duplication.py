@@ -5,18 +5,16 @@ nodes and (partially) duplicate their edges. These functions are
 generally inspired by biological networks.
 
 """
-
 import networkx as nx
 from networkx.exception import NetworkXError
 from networkx.utils import py_random_state
-from networkx.utils.misc import check_create_using
 
 __all__ = ["partial_duplication_graph", "duplication_divergence_graph"]
 
 
 @py_random_state(4)
 @nx._dispatchable(graphs=None, returns_graph=True)
-def partial_duplication_graph(N, n, p, q, seed=None, *, create_using=None):
+def partial_duplication_graph(N, n, p, q, seed=None):
     """Returns a random graph using the partial duplication model.
 
     Parameters
@@ -39,10 +37,6 @@ def partial_duplication_graph(N, n, p, q, seed=None, *, create_using=None):
     seed : integer, random_state, or None (default)
         Indicator of random number generation state.
         See :ref:`Randomness<randomness>`.
-
-    create_using : Graph constructor, optional (default=nx.Graph)
-        Graph type to create. If graph instance, then cleared before populated.
-        Multigraph and directed types are not supported and raise a ``NetworkXError``.
 
     Notes
     -----
@@ -67,14 +61,13 @@ def partial_duplication_graph(N, n, p, q, seed=None, *, create_using=None):
            <https://doi.org/10.1155/2008/190836>
 
     """
-    create_using = check_create_using(create_using, directed=False, multigraph=False)
     if p < 0 or p > 1 or q < 0 or q > 1:
         msg = "partial duplication graph must have 0 <= p, q <= 1."
         raise NetworkXError(msg)
     if n > N:
         raise NetworkXError("partial duplication graph must have n <= N.")
 
-    G = nx.complete_graph(n, create_using)
+    G = nx.complete_graph(n)
     for new_node in range(n, N):
         # Pick a random vertex, u, already in the graph.
         src_node = seed.randint(0, new_node - 1)
@@ -96,7 +89,7 @@ def partial_duplication_graph(N, n, p, q, seed=None, *, create_using=None):
 
 @py_random_state(2)
 @nx._dispatchable(graphs=None, returns_graph=True)
-def duplication_divergence_graph(n, p, seed=None, *, create_using=None):
+def duplication_divergence_graph(n, p, seed=None):
     """Returns an undirected graph using the duplication-divergence model.
 
     A graph of `n` nodes is created by duplicating the initial nodes
@@ -112,9 +105,6 @@ def duplication_divergence_graph(n, p, seed=None, *, create_using=None):
     seed : integer, random_state, or None (default)
         Indicator of random number generation state.
         See :ref:`Randomness<randomness>`.
-    create_using : Graph constructor, optional (default=nx.Graph)
-        Graph type to create. If graph instance, then cleared before populated.
-        Multigraph and directed types are not supported and raise a ``NetworkXError``.
 
     Returns
     -------
@@ -147,8 +137,7 @@ def duplication_divergence_graph(n, p, seed=None, *, create_using=None):
         msg = "n must be greater than or equal to 2"
         raise nx.NetworkXError(msg)
 
-    create_using = check_create_using(create_using, directed=False, multigraph=False)
-    G = nx.empty_graph(create_using=create_using)
+    G = nx.Graph()
 
     # Initialize the graph with two connected nodes.
     G.add_edge(0, 1)

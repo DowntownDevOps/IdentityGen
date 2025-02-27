@@ -25,25 +25,16 @@ from torch.fx.experimental.symbolic_shapes import (
     is_symbol_binding_fx_node,
 )
 from torch.fx.passes import graph_drawer
-from torch.utils.checkpoint import CheckpointPolicy
-
 from . import config
-from ._activation_checkpointing.knapsack import (
-    dp_knapsack,
-    greedy_knapsack,
-    ilp_knapsack,
-)
 from ._aot_autograd.logging_utils import get_aot_graph_name
-from ._aot_autograd.utils import is_with_effects
 from .compile_utils import fx_graph_cse, get_aten_target
-
 
 if TYPE_CHECKING:
     import sympy
 
 
-AOT_PARTITIONER_DEBUG: bool = config.debug_partitioner
-log: logging.Logger = logging.getLogger(__name__)
+AOT_PARTITIONER_DEBUG = config.debug_partitioner
+log = logging.getLogger(__name__)
 
 aten = torch.ops.aten
 prims = torch.ops.prims
@@ -115,10 +106,7 @@ class MinCutOptions:
 
 
 def must_recompute(node: fx.Node) -> bool:
-    return node.meta.get("recompute", None) in [
-        CheckpointPolicy.MUST_RECOMPUTE,
-        CheckpointPolicy.PREFER_RECOMPUTE,
-    ]
+    return node.meta.get("recompute", False)
 
 
 def has_recomputable_ops(fx_g: fx.GraphModule) -> bool:
@@ -156,10 +144,7 @@ InvalidNode = InvalidNodeBase()
 
 
 def _extract_graph_with_inputs_outputs(
-    joint_graph: fx.Graph,
-    inputs: List[fx.Node],
-    outputs: List[fx.Node],
-    subgraph: Optional[str] = None,
+    joint_graph: fx.Graph, inputs: List[fx.Node], outputs: List[fx.Node]
 ) -> fx.Graph:
     """
     Given a graph, extracts out a subgraph that takes the specified nodes as
@@ -182,17 +167,13 @@ def _extract_graph_with_inputs_outputs(
         env[node] = new_node
 
     for node in joint_graph.nodes:
-        if _must_be_in_backward(node) and subgraph != "backward":
-            env[node] = InvalidNode  # type: ignore[assignment]
-            continue
-
         if node in env:
             # Node must be one of our inputs. (Any member of env which wasn't an
             # input to start must have been created by this loop and won't be in
             # joint_graph.nodes).
             continue
         elif node.op == "placeholder":
-            env[node] = InvalidNode  # type: ignore[assignment]
+            env[node] = InvalidNode
         elif node.op == "call_function":
             all_args = pytree.arg_tree_leaves(*node.args, **node.kwargs)
             all_args = [
@@ -201,7 +182,7 @@ def _extract_graph_with_inputs_outputs(
                 if isinstance(x, fx.Node)
             ]
             if any(all_args):
-                env[node] = InvalidNode  # type: ignore[assignment]
+                env[node] = InvalidNode
                 continue
             env[node] = new_graph.node_copy(node, lambda x: env[x])
         elif node.op == "get_attr":
@@ -219,7 +200,7 @@ def _extract_graph_with_inputs_outputs(
             output_values.append(env[x])
         else:
             output_values.append(x)
-    new_graph.output(tuple(output_values))
+    new_graph.output(output_values)
 
     new_graph.eliminate_dead_code()
     new_graph.lint()
@@ -253,20 +234,6 @@ def _is_fwd_seed_offset(node: fx.Node) -> bool:
 
 def _is_backward_state(node: fx.Node) -> bool:
     return node.op == "placeholder" and isinstance(node.meta.get("val"), BackwardState)
-
-
-def _has_tag_is_backward(node: fx.Node) -> bool:
-    return node.meta.get("partitioner_tag", None) == "is_backward"
-
-
-def _has_tag_must_be_in_backward(node: fx.Node) -> bool:
-    return node.meta.get("partitioner_tag", None) == "must_be_in_backward"
-
-
-def _must_be_in_backward(node: fx.Node) -> bool:
-    return _has_tag_must_be_in_backward(node) or (
-        _has_tag_is_backward(node) and is_with_effects(node)
-    )
 
 
 def _extract_fwd_bwd_outputs(
@@ -308,7 +275,6 @@ def _extract_fwd_bwd_modules(
         joint_module.graph,
         saved_sym_nodes + saved_values + tangent_inputs + bwd_seed_offset_inputs,
         bwd_outputs,
-        "backward",
     )
 
     for node in bwd_graph.find_nodes(op="placeholder"):
@@ -368,7 +334,6 @@ def _extract_fwd_bwd_modules(
         joint_module.graph,
         primal_inputs + fwd_seed_offset_inputs,
         fwd_outputs + saved_values + saved_sym_nodes,
-        "forward",
     )
     bwd_graph = _extract_graph_with_inputs_outputs(
         joint_module.graph,
@@ -378,7 +343,6 @@ def _extract_fwd_bwd_modules(
         + bwd_seed_offset_inputs
         + backward_state_inputs,
         bwd_outputs,
-        "backward",
     )
 
     fwd_module = fx._lazy_graph_module._make_graph_module(joint_module, fwd_graph)
@@ -423,7 +387,7 @@ def default_partition(
         joint_module, num_fwd_outputs=num_fwd_outputs
     )
     forward_only_graph = _extract_graph_with_inputs_outputs(
-        joint_module.graph, inputs, fwd_outputs, "forward"
+        joint_module.graph, inputs, fwd_outputs
     )
     forward_node_names = {
         node.name for node in forward_only_graph.nodes if node.op != "output"
@@ -480,11 +444,6 @@ def _tensor_nbytes(numel: int, dtype) -> int:
 
 
 def _size_of(node: fx.Node) -> int:
-    def object_nbytes(x) -> int:
-        if not isinstance(x, torch.Tensor):
-            return 0
-        return _tensor_nbytes(hint_int(x.numel(), fallback=4096), x.dtype)
-
     if "val" in node.meta:
         val = node.meta["val"]
         if isinstance(val, py_sym_types):
@@ -493,18 +452,18 @@ def _size_of(node: fx.Node) -> int:
         # torch._inductor.config.unbacked_symint_fallback (but this is a
         # layering violation)
         elif isinstance(val, (list, tuple)):
-            return sum(object_nbytes(n) for n in val)
-        elif isinstance(val, dict):
-            return sum(object_nbytes(n) for _, n in val.items())
+            return sum(
+                _tensor_nbytes(hint_int(n.numel(), fallback=4096), n.dtype)
+                for n in val
+                if isinstance(n, torch.Tensor)
+            )
         elif isinstance(val, torch.Tensor):
-            return object_nbytes(val)
+            return _tensor_nbytes(hint_int(val.numel(), fallback=4096), val.dtype)
 
-        raise RuntimeError(f"Unknown metadata type {type(val)} on node {node}")
+        raise RuntimeError(f"Unknown metadata type {type(val)}")
     if node.op == "get_attr":
         return 0
-    raise RuntimeError(
-        f"Node {node} didn't have `val` metadata; we should always have `val` metadata on the nodes."
-    )
+    raise RuntimeError("We should always have `val` metadata on the nodes")
 
 
 # Used for some investigative purposes
@@ -515,7 +474,7 @@ def _count_ops(graph: fx.Graph):
     for node in graph.nodes:
         if node.op == "call_function":
             cnt[node.target.__name__] += 1
-    log.info("%s", sorted(cnt.items(), key=lambda x: x[1], reverse=True))
+    print(sorted(cnt.items(), key=lambda x: x[1], reverse=True))
 
 
 @functools.lru_cache(None)
@@ -682,7 +641,7 @@ def functionalize_rng_ops(
     joint_graph_rng_ops = get_rng_ops(joint_module)
     fw_graph_rng_ops = get_rng_ops(fw_module)
     bw_graph_rng_ops = get_rng_ops(bw_module)
-    recomputable_rng_ops_map = {}
+    recomputable_rng_ops_map = dict()
     for node in joint_module.graph.nodes:
         if (
             must_recompute(node)
@@ -764,7 +723,7 @@ def functionalize_rng_ops(
     sym_node_start_idx = len(fw_outputs) - num_sym_nodes
     outputs = (
         fw_outputs[:sym_node_start_idx]
-        + tuple(fw_rng_state_outputs)
+        + fw_rng_state_outputs
         + fw_outputs[sym_node_start_idx:]
     )
     fw_module.graph.output(outputs)
@@ -786,29 +745,9 @@ def cleanup_recompute_tags(joint_module: fx.GraphModule) -> fx.GraphModule:
             for user in node.users:
                 if (
                     must_recompute(user)
-                    and user.meta["ac_graph_id"] > node.meta["ac_graph_id"]
+                    and user.meta["recompute"] > node.meta["recompute"]
                 ):
-                    node.meta["recompute"] = CheckpointPolicy.MUST_SAVE
-            if node.meta.get("has_backward_hook", False) and not any(
-                must_recompute(user) for user in node.users
-            ):
-                # If node is AC region output and has a backward hook on it, we intentionally choose to save it.
-                # This is to work around circular dependencies in Traceable FSDP2+AC.
-                # Example:
-                # ```
-                # out = fully_shard(utils.checkpoint(module))(x)
-                # norm_out = layer_norm(out)
-                # ```
-                # Here there is a circular dependency:
-                # 1. In backward, grad_input of layer_norm aka. `out_grad` is actually dependent on `out`.
-                # 2. `out` depends on `out`'s backward hook created by FSDP2 (which does all-gather for `module` weights)
-                #    in order to be recomputed.
-                # 3. `out`'s backward hook, as is the case for all eager backward hooks, depends on `out_grad`
-                #    -> circular dependency with (1)!
-                #
-                # Solution: check whether `out` has a backward hook, and if so, intentionally save `out`
-                # in forward graph outputs. With this, we can break the above circular dependency.
-                node.meta["recompute"] = CheckpointPolicy.MUST_SAVE
+                    node.meta["recompute"] = 0
     return joint_module
 
 
@@ -829,52 +768,14 @@ def solve_min_cut(
             if node.op == "call_function" and hasattr(node.target, "_overloadpacket")
         }
         ops_ignored = joint_module_ops - {str(i) for i in op_types.recomputable_ops}
-        log.info("Ops banned from re-materialization: %s", ops_ignored)
-
-    def can_fuse_into_auto_functionalized(a, b):
-        if b.target != torch.ops.higher_order.auto_functionalized:
-            return False
-        mutable_op = b.args[0]
-        (
-            mutable_arg_names,
-            _,
-        ) = torch._higher_order_ops.auto_functionalize.get_mutable_args(mutable_op)
-        for name in mutable_arg_names:
-            arg = b.kwargs[name]
-            if a is arg:
-                return True
-            if isinstance(arg, list):
-                if a in arg:
-                    return True
-        return False
-
-    def can_fuse_into_triton_kernel_wrapper_functional(a, b):
-        if b.target != torch.ops.higher_order.triton_kernel_wrapper_functional:
-            return False
-        mutable_arg_names = b.kwargs["tensors_to_clone"]
-        for name in mutable_arg_names:
-            arg = b.kwargs["kwargs"][name]
-            if a is arg:
-                return True
-        return False
+        print("Ops banned from rematerialization: ", ops_ignored)
+        print()
 
     def is_fusible(a, b):
         # We can perform "memory fusion" into a cat, but cat cannot be a
         # producer to a fusion
         if get_aten_target(b) == aten.cat:
             return True
-        if can_fuse_into_auto_functionalized(a, b):
-            return True
-        if can_fuse_into_triton_kernel_wrapper_functional(a, b):
-            return True
-        if (
-            a.target is operator.getitem
-            and a.args[0].target
-            is torch.ops.higher_order.triton_kernel_wrapper_functional
-        ):
-            # if a is the output of a user triton kernel,
-            # then (by default) we will not be able to fuse b into it
-            return False
         return op_types.is_fusible(a) and op_types.is_fusible(b)
 
     try:
@@ -903,12 +804,11 @@ def solve_min_cut(
             return False
         if node.target == operator.getitem:
             return False
-        if node.meta.get("recompute", None) == CheckpointPolicy.MUST_SAVE:
-            return True
-        if config.recompute_views and op_types.is_view(node):
-            return False
         if node.target in [aten.lift_fresh_copy.default, aten.lift_fresh.default]:
             return False
+        # NB: "recompute" == 0 means that must save this node.
+        if node.meta.get("recompute", None) == 0:
+            return True
 
         if min_cut_options.ban_if_not_in_allowlist:
             if not op_types.is_recomputable(node):
@@ -925,7 +825,7 @@ def solve_min_cut(
         if min_cut_options.ban_if_materialized_backward and is_materialized_backwards(
             node
         ):
-            log.debug("materialized backwards: %s %s", node, tuple(node.users))
+            log.info("materialized backwards: %s %s", node, tuple(node.users))
             return True
 
         # Arbitrary hack that sometimes seems to help things. The above
@@ -956,15 +856,6 @@ def solve_min_cut(
 
     def get_node_weight(node) -> float:
         mem_sz = _size_of(node)
-        if config.recompute_views and op_types.is_view(node):
-            # If `config.recompute_views=True`, we don't save views. This is generally
-            # a good idea since views are free to recompute, and it makes it a bit simpler
-            # to analyze.
-            # NB: If they're not free to recompute (e.g. nested tensors)... I
-            # think we should modify checks for view_ops to `is_view` and check
-            # that. Basically, with nested tensors, `aten.view` is not a "view
-            # op".
-            return math.inf
 
         if isinstance(node.meta["val"], py_sym_types):
             # We never want to save symfloats
@@ -989,7 +880,9 @@ def solve_min_cut(
             return False
         # This bans recomputation of the node unless we've been forced not to by
         # user annotation
-        if must_recompute(node):
+        # NB: "recompute" > 0 means that user annotation has asked us to
+        # recompute it
+        if node.meta.get("recompute", 0) > 0:
             return False
 
         if "val" in node.meta and isinstance(node.meta["val"], torch.SymFloat):
@@ -1020,14 +913,6 @@ def solve_min_cut(
             # NestedTensor saves a offset tensor as part of the singleton int
             # in sizes.
             nx_graph.add_edge(node.name + "_out", "sink", capacity=math.inf)
-
-        if must_recompute(node):
-            # If user explicitly says they want to recompute a node, we honor it
-            # by adding an inf-capacity edge from X_in to the sink.
-            # This way, X_in node is guaranteed to be part of the subgraph that contains "sink"
-            # after the cut, thus guaranteeing that X op will be recomputed.
-            nx_graph.add_edge(node.name + "_in", "sink", capacity=math.inf)
-            continue
 
         if _is_primal(node) or _is_fwd_seed_offset(node):
             ban_recomputation_if_allowed(node)
@@ -1175,8 +1060,8 @@ def solve_min_cut(
     try:
         cut_value, partition = nx.minimum_cut(nx_graph, "source", "sink")
     except Exception:
-        log.info("Failed to compute min-cut on following graph:")
-        log.info("\n".join(nx.readwrite.edgelist.generate_edgelist(nx_graph)))
+        print("Failed to compute min-cut on following graph:")
+        print("\n".join(nx.readwrite.edgelist.generate_edgelist(nx_graph)))
         visualize_min_cut_graph(nx_graph)
         raise
 
@@ -1213,7 +1098,7 @@ def visualize_min_cut_graph(nx_graph):
         # Color edges with weight 'inf' as red
         if weight == float("inf"):
             edge.set_color("red")
-    log.info("Visualizing the failed graph to min_cut_failed.svg")
+    print("Visualizing the failed graph to min_cut_failed.svg")
     dot_graph.write_svg("min_cut_failed.svg")
 
 
@@ -1304,7 +1189,6 @@ def get_default_op_list() -> OpTypes:
         aten.expand,
         aten.as_strided,
         aten.permute,
-        aten.select,
     ]
     view_ops = recomputable_view_ops
     default_recomputable_ops += [
@@ -1337,8 +1221,6 @@ def get_default_op_list() -> OpTypes:
         aten.full,
         aten.as_strided,
         aten.zeros,
-        aten.empty,
-        aten.empty_like,
         aten.argmax,
         aten.maximum,
         prims.iota,
@@ -1366,10 +1248,7 @@ def get_default_op_list() -> OpTypes:
         aten.addmm,
         aten._scaled_dot_product_flash_attention,
         aten._scaled_dot_product_efficient_attention,
-        aten._flash_attention_forward,
-        aten._efficient_attention_forward,
         aten.upsample_bilinear2d,
-        aten._scaled_mm,
     ]  # noqa: E501,B950
 
     fusible_ops = recomputable_ops | set(random_ops)
@@ -1389,13 +1268,130 @@ def get_name_to_node(graph: fx.Graph):
     return name_to_node
 
 
+def greedy_knapsack(
+    memory: List[float], runtimes: List[float], max_memory: float
+) -> Tuple[float, List[int], List[int]]:
+    n = len(runtimes)
+    items = list(range(n))
+
+    # Sort items based on the ratio of runtime to memory in descending order
+    items = sorted(items, key=lambda i: runtimes[i] / memory[i], reverse=True)
+
+    total_memory = 0.0
+    total_runtime = 0.0
+    items_to_save = []
+    items_to_allow_recomputing = []
+
+    for i in items:
+        if total_memory + memory[i] <= max_memory:
+            total_memory += memory[i]
+            total_runtime += runtimes[i]
+            items_to_save.append(i)
+        else:
+            items_to_allow_recomputing.append(i)
+    return total_runtime, items_to_save, items_to_allow_recomputing
+
+
+def ilp_knapsack(
+    memory: List[float], runtimes: List[float], max_memory: float
+) -> Tuple[float, List[int], List[int]]:
+    import numpy as np
+
+    try:
+        from scipy.optimize import Bounds, LinearConstraint, milp
+    except ImportError:
+        raise RuntimeError(
+            "To use the ILP for memory budget checkpointing you need to install scipy"
+        ) from None
+
+    np_memory = np.array(memory)
+    np_runtimes = np.array(runtimes)
+    c = -np_runtimes  # type: ignore[operator]
+
+    memory_constraint = LinearConstraint(A=np_memory, ub=np.array(max_memory))
+    constraints = [memory_constraint]
+
+    integrality = np.ones_like(c)
+    res = milp(
+        c=c, constraints=constraints, integrality=integrality, bounds=Bounds(0, 1)
+    )
+    if not res.success:
+        raise RuntimeError("Somehow scipy solving failed")
+
+    items_to_save = []
+    items_to_allow_recomputing = []
+    for idx, i in enumerate(res.x):
+        if i == 1:
+            items_to_save.append(idx)
+        else:
+            items_to_allow_recomputing.append(idx)
+    return -res.fun, items_to_save, items_to_allow_recomputing
+
+
+def dp_knapsack(
+    memory: List[float], runtimes: List[float], max_memory: float
+) -> Tuple[float, List[int], List[int]]:
+    # Scaling factor to convert floating point weights to integers
+    S = 10000
+
+    # Quantize the memory weights
+    quantized_memory = torch.tensor(
+        [int(round(m * S)) for m in memory], dtype=torch.long, device="cpu"
+    )
+    runtimes = torch.tensor(runtimes, dtype=torch.float32, device="cpu")
+
+    # Quantized pseudopolynomial DP for 0-1 Knapsack
+    quantized_max_memory = int(round(max_memory * S))
+
+    n = len(memory)
+
+    # Initialize the DP table
+    # TODO(chilli): I think if needed, this memory can be optimized with sliding
+    # window trick + Hirschberg trick:
+    # https://codeforces.com/blog/entry/47247?#comment-316200
+    dp = torch.zeros(
+        (n + 1, quantized_max_memory + 1), dtype=torch.float32, device="cpu"
+    )
+
+    for i in range(1, n + 1):
+        current_memory = quantized_memory[i - 1]
+        current_runtime = runtimes[i - 1]
+
+        # Copy the previous row
+        dp[i, :] = dp[i - 1, :]
+
+        # Update dp[i, j] for all j >= current_memory
+        if current_memory == 0:
+            dp[i, :] = dp[i - 1, :] + current_runtime
+        else:
+            dp[i, current_memory:] = torch.maximum(
+                dp[i - 1, current_memory:],
+                dp[i - 1, :-current_memory] + current_runtime,
+            )
+
+    # Backtrack to find the items included in the knapsack
+    saved_items = []
+    recomputable_items = []
+    j: int = quantized_max_memory
+    for i in range(n, 0, -1):
+        if dp[i][j] != dp[i - 1][j]:
+            saved_items.append(i - 1)  # Include this item (indexing from 0)
+            j -= int(quantized_memory[i - 1].item())
+        else:
+            recomputable_items.append(i - 1)
+
+    saved_items.reverse()  # To get items in the order they were added
+
+    # The maximum runtime that can be achieved within the max_memory constraint
+    max_runtime = dp[n][quantized_max_memory].item()
+
+    return max_runtime, saved_items, recomputable_items
+
+
 def _optimize_runtime_with_given_memory(
-    joint_graph: fx.Graph,
     memory: List[float],
     runtimes: List[float],
     max_memory: float,
-    node_info: NodeInfo,
-    all_recomputable_banned_nodes: List[fx.Node],
 ) -> Tuple[float, List[int], List[int]]:
     SOLVER = config.activation_memory_budget_solver
     if SOLVER == "greedy":
@@ -1404,11 +1400,6 @@ def _optimize_runtime_with_given_memory(
         return ilp_knapsack(memory, runtimes, max_memory)
     elif SOLVER == "dp":
         return dp_knapsack(memory, runtimes, max_memory)
-    elif callable(SOLVER):
-        saved_node_idx, recomp_node_idx = SOLVER(
-            memory, joint_graph, max_memory, node_info, all_recomputable_banned_nodes
-        )
-        return (0.0, saved_node_idx, recomp_node_idx)
     else:
         raise RuntimeError(f"Not aware of memory budget knapsack solver: {SOLVER}")
 
@@ -1427,9 +1418,7 @@ def estimate_runtime(node):
                 return hint_int(d, fallback=4096)
 
             shape = [realize_symbol(s) for s in shape]
-            return x.meta["val"].new_empty_strided(
-                shape, stride=x.meta["tensor_meta"].stride
-            )
+            return x.meta["val"].new_zeros(shape)
         elif isinstance(x, fx.Node) and isinstance(x.meta["val"], torch.SymInt):
             return hint_int(x.meta["val"], fallback=4096)
         elif isinstance(x, fx.Node) and isinstance(x.meta["val"], torch.SymFloat):
@@ -1443,11 +1432,11 @@ def estimate_runtime(node):
         return 1
 
     elif RUNTIME_MODE == "profile":
-        with no_dispatch():
-            from torch._inductor.runtime.benchmarking import benchmarker
+        from triton.testing import do_bench
 
+        with no_dispatch():
             args, kwargs = pytree.tree_map(materialize_arg, (node.args, node.kwargs))
-            ms = benchmarker.benchmark_gpu(lambda: node.target(*args, **kwargs))
+            ms = do_bench(lambda: node.target(*args, **kwargs))
             return ms
 
     elif RUNTIME_MODE == "flops":
@@ -1464,9 +1453,7 @@ def estimate_runtime(node):
 
 
 def choose_saved_values_set(
-    joint_graph: fx.Graph,
-    node_info: NodeInfo,
-    memory_budget=1,
+    joint_graph: fx.Graph, node_info: NodeInfo, memory_budget=1
 ) -> List[fx.Node]:
     if memory_budget > 1 or memory_budget < 0:
         raise RuntimeError(
@@ -1501,7 +1488,7 @@ def choose_saved_values_set(
         return runtime_optimized_saved_values
 
     def estimate_activations_size(saved_values: List[fx.Node]) -> float:
-        return sum(map(_size_of, saved_values)) / 1e9
+        return sum([_size_of(i) for i in saved_values]) / 1e9
 
     min_act_size = estimate_activations_size(node_info.inputs)
     max_act_size = estimate_activations_size(runtime_optimized_saved_values)
@@ -1544,7 +1531,7 @@ def choose_saved_values_set(
 
     input_storages = {get_node_storage(node) for node in node_info.inputs}
 
-    def get_recomputable_banned_nodes(banned_nodes: Set[fx.Node]) -> List[fx.Node]:
+    def get_recomputable_banned_nodes(banned_nodes: List[fx.Node]) -> List[fx.Node]:
         return [
             i
             for i in banned_nodes
@@ -1556,8 +1543,6 @@ def choose_saved_values_set(
         ]
 
     recomputable_banned_nodes = get_recomputable_banned_nodes(banned_nodes)
-    # sort first by name, to ensure determinism when multiple nodes have same size
-    recomputable_banned_nodes = sorted(recomputable_banned_nodes, key=lambda x: x.name)
 
     # default: runtime_optimized_saved_values
     # more aggressive: more_aggressive_saved_values
@@ -1576,66 +1561,18 @@ def choose_saved_values_set(
     ]
     from torch.utils._mode_utils import no_dispatch
 
-    def get_saved_values_knapsack(memory_budget, node_info, joint_graph):
+    def get_saved_values_knapsack(memory_budget):
         with no_dispatch():
             (
                 expected_runtime,
                 saved_node_idxs,
                 recomputable_node_idxs,
             ) = _optimize_runtime_with_given_memory(
-                joint_graph,
-                memories_banned_nodes,
-                runtimes_banned_nodes,
-                max(memory_budget, 0),
-                node_info,
-                all_recomputable_banned_nodes,
+                memories_banned_nodes, runtimes_banned_nodes, max(memory_budget, 0)
             )
-            if AOT_PARTITIONER_DEBUG:
-                max_runtime = max(
-                    runtimes_banned_nodes
-                )  # For normalizing runtimes in logs
-                input_summary = [
-                    f"\n\t\t\t{index}, {memory}, {runtime / max_runtime}, {node.op}, {node.target}, {node.meta}, {node.args}"
-                    for index, (memory, runtime, node) in enumerate(
-                        zip(
-                            memories_banned_nodes,
-                            runtimes_banned_nodes,
-                            all_recomputable_banned_nodes,
-                        )
-                    )
-                ]
-                joint_graph_nodes = [node.name for node in joint_graph.nodes]
-                joint_graph_edges = [
-                    (inp.name, node.name)
-                    for node in joint_graph.nodes
-                    for inp in node.all_input_nodes
-                ]
-                knapsack_summary = f"""
-Activation Checkpointing - Knapsack Problem Summary:
-    Input:
-        Solver: {config.activation_memory_budget_solver}
-        Max Memory: {max(config.activation_memory_budget, 0)}
-        Graph Nodes: {joint_graph_nodes}
-        Graph Edges: {joint_graph_edges}
-        (Index, Memory, Runtime, Node.Op, Node.Target, Metadata): {"".join(input_summary)}
-    Output:
-        Expected Runtime: {expected_runtime}
-        Saved Nodes: {saved_node_idxs}
-        Recomputable Nodes: {recomputable_node_idxs}
-            """
-                torch._logging.trace_structured(
-                    name="artifact",
-                    payload_fn=lambda: knapsack_summary,
-                )
-                log.info(knapsack_summary)
         dont_ban = set()
         for idx in recomputable_node_idxs:
-            # if idx in all_recomputable_banned_nodes:
-            try:
-                dont_ban.add(all_recomputable_banned_nodes[idx])
-            except BaseException:
-                pass
-
+            dont_ban.add(all_recomputable_banned_nodes[idx])
         assert dont_ban.issubset(all_recomputable_banned_nodes)
 
         saved_values, _ = solve_min_cut(
@@ -1650,7 +1587,7 @@ Activation Checkpointing - Knapsack Problem Summary:
         options = []
         for sweep_memory_budget in range(100, -1, -5):
             saved_values, expected_runtime = get_saved_values_knapsack(
-                sweep_memory_budget / 100, node_info=node_info, joint_graph=joint_graph
+                sweep_memory_budget / 100
             )
             options.append(
                 (
@@ -1673,7 +1610,7 @@ Activation Checkpointing - Knapsack Problem Summary:
         for i, txt in enumerate(x_values):
             plt.annotate(
                 f"{txt:.2f}",
-                (txt, y_values[i]),
+                (x_values[i], y_values[i]),
                 textcoords="offset points",
                 xytext=(0, 10),
                 ha="center",
@@ -1695,9 +1632,7 @@ Activation Checkpointing - Knapsack Problem Summary:
     # tensors we actually banned from recompute, but there may be other
     # tensors that we choose to save.
 
-    return get_saved_values_knapsack(
-        memory_budget=memory_budget, node_info=node_info, joint_graph=joint_graph
-    )[0]
+    return get_saved_values_knapsack(memory_budget=memory_budget)[0]
 
 
 def min_cut_rematerialization_partition(
@@ -1755,9 +1690,6 @@ def min_cut_rematerialization_partition(
         for node in joint_module.graph.nodes:
             if node.op == "placeholder" and "tangents" in node.target:
                 required_bw_nodes.add(node)
-            elif _must_be_in_backward(node):
-                required_bw_nodes.add(node)
-
             if node in required_bw_nodes:
                 for user in node.users:
                     required_bw_nodes.add(user)
@@ -1774,7 +1706,7 @@ def min_cut_rematerialization_partition(
             o for o in bwd_outputs if o is not None and o.op != "output"
         )
         forward_only_graph = _extract_graph_with_inputs_outputs(
-            joint_module.graph, inputs, fwd_outputs, "forward"
+            joint_module.graph, inputs, fwd_outputs
         )
         required_fw_nodes: Set[fx.Node] = {
             name_to_node[node.name]
@@ -1821,10 +1753,9 @@ def min_cut_rematerialization_partition(
         if isinstance(node.meta.get("memory_budget", None), float):
             memory_budget = node.meta["memory_budget"]
             break
+    # print("Memory Budget: ", memory_budget)
     saved_values = choose_saved_values_set(
-        joint_graph,
-        node_info,
-        memory_budget=memory_budget,
+        joint_graph, node_info, memory_budget=memory_budget
     )
     # save_for_backward on tensors and stashes symints in autograd .ctx
     saved_sym_nodes = list(filter(is_sym_node, saved_values))
@@ -1846,15 +1777,14 @@ def min_cut_rematerialization_partition(
     bw_module = reordering_to_mimic_autograd_engine(bw_module)
 
     if AOT_PARTITIONER_DEBUG:
-        # Calculate sorted sizes of saved values
+        from torch._inductor.fx_utils import get_node_storage
+
+        storages = {get_node_storage(node) for node in saved_values}
+        print(
+            "Theoretical Activations Stored: ",
+            sum(_size_of(i) for i in saved_values) / 1e9,
+        )
         sorted_sizes = sorted([(_size_of(i), str(i)) for i in saved_values])
-
-        # Log total theoretical activations stored
-        total_activations_size_gb = sum(_size_of(i) for i in saved_values) / 1e9
-        log.debug("Theoretical Activations Stored: %.2f GB", total_activations_size_gb)
-
-        # Log theoretical per activation storage sizes
-        log.debug("Theoretical Per Activation Storage Sizes: %s", sorted_sizes)
         fw_module_nodes = {
             node.name for node in fw_module.graph.nodes if node.op == "call_function"
         }
@@ -1867,14 +1797,13 @@ def min_cut_rematerialization_partition(
         for node in fw_module.graph.nodes:
             if node.name in remat_nodes and hasattr(node.target, "_overloadpacket"):
                 counts[str(node.target._overloadpacket)] += 1
-        log.debug(
-            "# remat/fw/bw: %d/%d/%d",
-            len(remat_nodes),
-            len(fw_module_nodes),
-            len(bw_module_nodes),
+        print(
+            f"# remat/fw/bw: {len(remat_nodes)}/{len(fw_module_nodes)}/{len(bw_module_nodes)}"
         )
-        rematerialized_ops = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-        log.debug("Count of Ops Rematerialized: %s", rematerialized_ops)
+        print(
+            "Count of Ops Rematerialized: ",
+            sorted(counts.items(), key=lambda x: x[1], reverse=True),
+        )
     return fw_module, bw_module
 
 
@@ -1895,7 +1824,7 @@ def draw_graph(
     base, ext = os.path.splitext(fname)
     if not ext:
         ext = "." + config.torch_compile_graph_format
-    log.info("Writing FX graph to file: %s%s", base, ext)
+    print(f"Writing FX graph to file: {base}{ext}")
     g = graph_drawer.FxGraphDrawer(
         traced,
         figname,

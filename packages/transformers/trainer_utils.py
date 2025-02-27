@@ -35,9 +35,7 @@ from .utils import (
     is_tf_available,
     is_torch_available,
     is_torch_cuda_available,
-    is_torch_mlu_available,
     is_torch_mps_available,
-    is_torch_musa_available,
     is_torch_npu_available,
     is_torch_xla_available,
     is_torch_xpu_available,
@@ -72,11 +70,6 @@ def enable_full_determinism(seed: int, warn_only: bool = False):
         # depending on the CUDA version, so we set them both here
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
         os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
-        # The environment variable required to enable deterministic mode on Ascend NPUs.
-        os.environ["ASCEND_LAUNCH_BLOCKING"] = "1"
-        os.environ["HCCL_DETERMINISTIC"] = "1"
-
-        os.environ["FLASH_ATTENTION_DETERMINISTIC"] = "1"
         torch.use_deterministic_algorithms(True, warn_only=warn_only)
 
         # Enable CUDNN deterministic mode
@@ -89,15 +82,12 @@ def enable_full_determinism(seed: int, warn_only: bool = False):
         tf.config.experimental.enable_op_determinism()
 
 
-def set_seed(seed: int, deterministic: bool = False):
+def set_seed(seed: int):
     """
     Helper function for reproducible behavior to set the seed in `random`, `numpy`, `torch` and/or `tf` (if installed).
 
     Args:
-        seed (`int`):
-            The seed to set.
-        deterministic (`bool`, *optional*, defaults to `False`):
-            Whether to use deterministic algorithms where available. Can slow down training.
+        seed (`int`): The seed to set.
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -105,12 +95,6 @@ def set_seed(seed: int, deterministic: bool = False):
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         # ^^ safe to call this function even if cuda is not available
-        if deterministic:
-            torch.use_deterministic_algorithms(True)
-    if is_torch_mlu_available():
-        torch.mlu.manual_seed_all(seed)
-    if is_torch_musa_available():
-        torch.musa.manual_seed_all(seed)
     if is_torch_npu_available():
         torch.npu.manual_seed_all(seed)
     if is_torch_xpu_available():
@@ -119,8 +103,6 @@ def set_seed(seed: int, deterministic: bool = False):
         import tensorflow as tf
 
         tf.random.set_seed(seed)
-        if deterministic:
-            tf.config.experimental.enable_op_determinism()
 
 
 def neftune_post_forward_hook(module, input, output):
@@ -156,8 +138,7 @@ class EvalPrediction:
     Parameters:
         predictions (`np.ndarray`): Predictions of the model.
         label_ids (`np.ndarray`): Targets to be matched.
-        inputs (`np.ndarray`, *optional*): Input data passed to the model.
-        losses (`np.ndarray`, *optional*): Loss values computed during evaluation.
+        inputs (`np.ndarray`, *optional*):
     """
 
     def __init__(
@@ -165,25 +146,28 @@ class EvalPrediction:
         predictions: Union[np.ndarray, Tuple[np.ndarray]],
         label_ids: Union[np.ndarray, Tuple[np.ndarray]],
         inputs: Optional[Union[np.ndarray, Tuple[np.ndarray]]] = None,
-        losses: Optional[Union[np.ndarray, Tuple[np.ndarray]]] = None,
     ):
         self.predictions = predictions
         self.label_ids = label_ids
         self.inputs = inputs
-        self.losses = losses
-        self.elements = (self.predictions, self.label_ids)
-        if self.inputs is not None:
-            self.elements += (self.inputs,)
-        if self.losses is not None:
-            self.elements += (self.losses,)
 
     def __iter__(self):
-        return iter(self.elements)
+        if self.inputs is not None:
+            return iter((self.predictions, self.label_ids, self.inputs))
+        else:
+            return iter((self.predictions, self.label_ids))
 
     def __getitem__(self, idx):
-        if idx < 0 or idx >= len(self.elements):
+        if idx < 0 or idx > 2:
             raise IndexError("tuple index out of range")
-        return self.elements[idx]
+        if idx == 2 and self.inputs is None:
+            raise IndexError("tuple index out of range")
+        if idx == 0:
+            return self.predictions
+        elif idx == 1:
+            return self.label_ids
+        elif idx == 2:
+            return self.inputs
 
 
 class EvalLoopOutput(NamedTuple):
@@ -225,13 +209,6 @@ class IntervalStrategy(ExplicitEnum):
     NO = "no"
     STEPS = "steps"
     EPOCH = "epoch"
-
-
-class SaveStrategy(ExplicitEnum):
-    NO = "no"
-    STEPS = "steps"
-    EPOCH = "epoch"
-    BEST = "best"
 
 
 class EvaluationStrategy(ExplicitEnum):
@@ -416,22 +393,6 @@ def speed_metrics(split, start_time, num_samples=None, num_steps=None, num_token
 
 
 class SchedulerType(ExplicitEnum):
-    """
-    Scheduler names for the parameter `lr_scheduler_type` in [`TrainingArguments`].
-    By default, it uses "linear". Internally, this retrieves `get_linear_schedule_with_warmup` scheduler from [`Trainer`].
-    Scheduler types:
-       - "linear" = get_linear_schedule_with_warmup
-       - "cosine" = get_cosine_schedule_with_warmup
-       - "cosine_with_restarts" = get_cosine_with_hard_restarts_schedule_with_warmup
-       - "polynomial" = get_polynomial_decay_schedule_with_warmup
-       - "constant" =  get_constant_schedule
-       - "constant_with_warmup" = get_constant_schedule_with_warmup
-       - "inverse_sqrt" = get_inverse_sqrt_schedule
-       - "reduce_lr_on_plateau" = get_reduce_on_plateau_schedule
-       - "cosine_with_min_lr" = get_cosine_with_min_lr_schedule_with_warmup
-       - "warmup_stable_decay" = get_wsd_schedule
-    """
-
     LINEAR = "linear"
     COSINE = "cosine"
     COSINE_WITH_RESTARTS = "cosine_with_restarts"
@@ -440,8 +401,6 @@ class SchedulerType(ExplicitEnum):
     CONSTANT_WITH_WARMUP = "constant_with_warmup"
     INVERSE_SQRT = "inverse_sqrt"
     REDUCE_ON_PLATEAU = "reduce_lr_on_plateau"
-    COSINE_WITH_MIN_LR = "cosine_with_min_lr"
-    WARMUP_STABLE_DECAY = "warmup_stable_decay"
 
 
 class TrainerMemoryTracker:
@@ -488,7 +447,7 @@ class TrainerMemoryTracker:
 
         import psutil  # noqa
 
-        if is_torch_cuda_available() or is_torch_mlu_available() or is_torch_musa_available():
+        if is_torch_cuda_available():
             import torch
 
             self.torch = torch
@@ -561,12 +520,6 @@ class TrainerMemoryTracker:
             if torch.cuda.is_available():
                 self.torch.cuda.reset_peak_memory_stats()
                 self.torch.cuda.empty_cache()
-            elif is_torch_mlu_available():
-                self.torch.mlu.reset_peak_memory_stats()
-                self.torch.mlu.empty_cache()
-            elif is_torch_musa_available():
-                self.torch.musa.reset_peak_memory_stats()
-                self.torch.musa.empty_cache()
             elif is_torch_xpu_available():
                 self.torch.xpu.reset_peak_memory_stats()
                 self.torch.xpu.empty_cache()
@@ -580,10 +533,6 @@ class TrainerMemoryTracker:
         if self.torch is not None:
             if torch.cuda.is_available():
                 self.gpu_mem_used_at_start = self.torch.cuda.memory_allocated()
-            elif is_torch_mlu_available():
-                self.gpu_mem_used_at_start = self.torch.mlu.memory_allocated()
-            elif is_torch_musa_available():
-                self.gpu_mem_used_at_start = self.torch.musa.memory_allocated()
             elif is_torch_xpu_available():
                 self.gpu_mem_used_at_start = self.torch.xpu.memory_allocated()
             elif is_torch_npu_available():
@@ -615,10 +564,6 @@ class TrainerMemoryTracker:
         if self.torch is not None:
             if torch.cuda.is_available():
                 self.torch.cuda.empty_cache()
-            elif is_torch_mlu_available():
-                self.torch.mlu.empty_cache()
-            elif is_torch_musa_available():
-                self.torch.musa.empty_cache()
             elif is_torch_xpu_available():
                 self.torch.xpu.empty_cache()
             elif is_torch_npu_available():
@@ -636,12 +581,6 @@ class TrainerMemoryTracker:
             if torch.cuda.is_available():
                 self.gpu_mem_used_now = self.torch.cuda.memory_allocated()
                 self.gpu_mem_used_peak = self.torch.cuda.max_memory_allocated()
-            elif is_torch_mlu_available():
-                self.gpu_mem_used_now = self.torch.mlu.memory_allocated()
-                self.gpu_mem_used_peak = self.torch.mlu.max_memory_allocated()
-            elif is_torch_musa_available():
-                self.gpu_mem_used_now = self.torch.musa.memory_allocated()
-                self.gpu_mem_used_peak = self.torch.musa.max_memory_allocated()
             elif is_torch_xpu_available():
                 self.gpu_mem_used_now = self.torch.xpu.memory_allocated()
                 self.gpu_mem_used_peak = self.torch.xpu.max_memory_allocated()

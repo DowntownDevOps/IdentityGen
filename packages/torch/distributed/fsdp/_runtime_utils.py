@@ -39,7 +39,6 @@ from torch.distributed.utils import (
 )
 from torch.utils import _pytree as pytree
 
-
 logger = logging.getLogger(__name__)
 
 # Do not include "process_group" to enable hybrid shard and MoE cases
@@ -568,11 +567,10 @@ def _root_pre_forward(
             state._needs_buffer_dtype_restore_check = False
 
         if state.forward_prefetch:
-            handles = [
-                fsdp_state._handle
-                for fsdp_state in state._all_fsdp_states
-                if fsdp_state._handle
-            ]
+            handles = []
+            for fsdp_state in state._all_fsdp_states:
+                if fsdp_state._handle:
+                    handles.append(fsdp_state._handle)
             for handle in handles:
                 handle._needs_pre_forward_unshard = True
                 handle._prefetched = False
@@ -638,6 +636,7 @@ def _pre_backward_hook(
         and hasattr(handle, "_ran_pre_backward_hook")
         and handle._ran_pre_backward_hook
     ):
+        logger.debug("%s %s", id(state), "Not Running pre backward! Already Ran!")
         return grad
 
     with torch.profiler.record_function("FullyShardedDataParallel._pre_backward_hook"):

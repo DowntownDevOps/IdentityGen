@@ -8,7 +8,7 @@
 #include <c10/util/TypeList.h>
 #include <c10/util/intrusive_ptr.h>
 #include <c10/util/ArrayRef.h>
-#include <optional>
+#include <c10/util/Optional.h>
 #include <vector>
 
 namespace at {
@@ -88,7 +88,6 @@ public:
 
   ListElementReference(const ListElementReference&) = delete;
   ListElementReference& operator=(const ListElementReference&) = delete;
-  ~ListElementReference() = default;
 
 private:
   ListElementReference(Iterator iter)
@@ -235,7 +234,6 @@ const IValue* ptr_to_first_element(const List<IValue>& list);
  * breaking backwards compatibility for the kernel API.
  */
 template<class T>
-// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class List final {
 private:
   // This is an intrusive_ptr because List is a pointer type.
@@ -275,7 +273,6 @@ public:
 
   List(const List&) = default;
   List& operator=(const List&) = default;
-  ~List() = default;
 
   /**
    * Create a new List pointing to a deep copy of the same data.
@@ -480,6 +477,8 @@ namespace impl {
 // public API. Kernels should use Lists with concrete types instead
 // (maybe except for some internal prim ops).
 using GenericList = List<IValue>;
+
+const IValue* ptr_to_first_element(const GenericList& list);
 
 }
 }

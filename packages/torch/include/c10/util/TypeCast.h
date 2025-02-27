@@ -7,7 +7,6 @@
 #include <c10/util/Float8_e5m2fnuz.h>
 #include <c10/util/Half.h>
 #include <c10/util/complex.h>
-#include <c10/util/overflows.h>
 
 #include <type_traits>
 
@@ -178,7 +177,7 @@ C10_HOST_DEVICE To convert(From f) {
 }
 
 // Define separately to avoid being inlined and prevent code-size bloat
-[[noreturn]] C10_API void report_overflow(const char* name);
+C10_API void report_overflow(const char* name);
 
 template <typename To, typename From>
 To checked_convert(From f, const char* name) {

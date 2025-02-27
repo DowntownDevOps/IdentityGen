@@ -69,13 +69,11 @@ def register_fake_operators():
     )(meta_takes_foo_tuple_return)
 
     torch.ops._TorchScriptTesting.takes_foo.default.py_impl(torch._C.DispatchKey.Meta)(
-        # make signature match original cpp implementation to support kwargs
-        lambda foo, x: foo.add_tensor(x)
+        lambda cc, x: cc.add_tensor(x)
     )
 
 
 def register_fake_classes():
-    # noqa: F841
     @torch._library.register_fake_class("_TorchScriptTesting::_Foo")
     class FakeFoo:
         def __init__(self, x: int, y: int):

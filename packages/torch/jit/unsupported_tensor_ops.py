@@ -1,5 +1,6 @@
 # mypy: allow-untyped-defs
 from textwrap import dedent
+
 from typing import Any, Dict
 
 import torch.jit
@@ -40,7 +41,7 @@ def _gen_unsupported_methods_properties():
         scope: Dict[str, Any] = {}
         execWrapper(funcs_str, globals(), scope)
         try:
-            torch.jit.CompilationUnit(funcs_str)
+            cu = torch.jit.CompilationUnit(funcs_str)
         except Exception as e:
             if "nonexistent attribute" not in repr(e):
                 continue

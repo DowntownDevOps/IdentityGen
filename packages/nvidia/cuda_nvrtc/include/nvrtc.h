@@ -454,8 +454,6 @@ nvrtcResult nvrtcGetProgramLog(nvrtcProgram prog, char *log);
  *               a __global__ function or __device__/__constant__ variable.
  * \return
  *   - \link #nvrtcResult NVRTC_SUCCESS \endlink
- *   - \link #nvrtcResult NVRTC_ERROR_INVALID_PROGRAM \endlink
- *   - \link #nvrtcResult NVRTC_ERROR_INVALID_INPUT \endlink
  *   - \link #nvrtcResult NVRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION \endlink
  *
  * \see     ::nvrtcGetLoweredName
@@ -482,8 +480,6 @@ nvrtcResult nvrtcAddNameExpression(nvrtcProgram prog,
  * \return
  *   - \link #nvrtcResult NVRTC_SUCCESS \endlink
  *   - \link #nvrtcResult NVRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION \endlink
- *   - \link #nvrtcResult NVRTC_ERROR_INVALID_PROGRAM \endlink
- *   - \link #nvrtcResult NVRTC_ERROR_INVALID_INPUT \endlink
  *   - \link #nvrtcResult NVRTC_ERROR_NAME_EXPRESSION_NOT_VALID \endlink
  *
  * \see     ::nvrtcAddNameExpression
@@ -634,11 +630,6 @@ nvrtcResult nvrtcGetLoweredName(nvrtcProgram prog,
  *       link-time-optimization (\c -dlto)\n.
  *       Note: when this option is used the nvrtcGetOptiX API should be used, 
  *       as PTX or Cubin will not be generated.
- *     - \c --jump-table-density=[0-101] (\c -jtd)\n
- *       Specify the case density percentage in switch statements, and use it as
- *       a minimal threshold to determine whether jump table(brx.idx instruction)
- *       will be used to implement a switch statement. Default value is 101. The
- *       percentage ranges from 0 to 101 inclusively.
  *   - Preprocessing
  *     - \c --define-macro=\<def\> (\c -D)\n
  *       \c \<def\> can be either \c \<name\> or \c \<name=definitions\>.
@@ -692,6 +683,9 @@ nvrtcResult nvrtcGetLoweredName(nvrtcProgram prog,
  *       Provide optimization reports for the specified kind of optimization.
  *       The following kind tags are supported:
  *         - \c inline : emit a remark when a function is inlined.
+ *     - \c --version-ident={true|false} (\c -dQ)\n
+ *       Embed used compiler's version info into generated PTX/CUBIN 
+ *       - Default: \c false
  *     - \c --display-error-number (\c -err-no)\n
  *       Display diagnostic number for warning messages. (Default)
  *     - \c --no-display-error-number (\c -no-err-no)\n
@@ -712,27 +706,9 @@ nvrtcResult nvrtcGetLoweredName(nvrtcProgram prog,
  *        phase, and append it at the end of the file given as the option argument.
  *       If the file does not exist, the column headings are generated in the first row
  *       of the table. If the file name is '-', the timing data is written to the compilation log.
- *     - \c --split-compile=<number of threads> (\c -split-compile=<number of threads>)\n
- *       Perform compiler optimizations in parallel.
- *       Split compilation attempts to reduce compile time by enabling the compiler to run certain
- *       optimization passes concurrently. This option accepts a numerical value that specifies the
- *       maximum number of threads the compiler can use. One can also allow the compiler to use the maximum
- *       threads available on the system by setting --split-compile=0.
- *       Setting --split-compile=1 will cause this option to be ignored.
- *     - \c --fdevice-syntax-only (\c -fdevice-syntax-only)\n
- *       Ends device compilation after front-end syntax checking. This option does not generate valid
- *       device code.
- *     - \c --minimal  (\c -minimal)\n
- *        Omit certain language features to reduce compile time for small programs. 
- *        In particular, the following are omitted: 
- *            - Texture and surface functions and associated types, e.g., \c cudaTextureObject_t.
- *            - CUDA Runtime Functions that are provided by the cudadevrt device code library, 
- *              typically named with prefix "cuda", e.g., \c cudaMalloc.
- *            - Kernel launch from device code.
- *            - Types and macros associated with CUDA Runtime and Driver APIs, 
- *              provided by cuda/tools/cudart/driver_types.h, typically named with prefix "cuda", e.g., \c cudaError_t.
  *
  */
+
 
 #ifdef __cplusplus
 }

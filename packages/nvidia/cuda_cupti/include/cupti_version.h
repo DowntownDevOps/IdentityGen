@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2010-2018 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -102,11 +102,8 @@ extern "C" {
  * v17 : CUDA Toolkit 11.6
  * v18 : CUDA Toolkit 11.8
  * v19 : CUDA Toolkit 12.0
- * v20 : CUDA Toolkit 12.2
- * v21 : CUDA Toolkit 12.3
- * v22 : CUDA Toolkit 12.4
  */
-#define CUPTI_API_VERSION 22
+#define CUPTI_API_VERSION 18
 
 /**
  * \brief Get the CUPTI API version.

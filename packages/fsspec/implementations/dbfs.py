@@ -77,9 +77,9 @@ class DatabricksFileSystem(AbstractFileSystem):
                 )
             except DatabricksException as e:
                 if e.error_code == "RESOURCE_DOES_NOT_EXIST":
-                    raise FileNotFoundError(e.message) from e
+                    raise FileNotFoundError(e.message)
 
-                raise
+                raise e
             files = r["files"]
             out = [
                 {
@@ -123,9 +123,9 @@ class DatabricksFileSystem(AbstractFileSystem):
             self._send_to_api(method="post", endpoint="mkdirs", json={"path": path})
         except DatabricksException as e:
             if e.error_code == "RESOURCE_ALREADY_EXISTS":
-                raise FileExistsError(e.message) from e
+                raise FileExistsError(e.message)
 
-            raise
+            raise e
         self.invalidate_cache(self._parent(path))
 
     def mkdir(self, path, create_parents=True, **kwargs):
@@ -169,9 +169,9 @@ class DatabricksFileSystem(AbstractFileSystem):
                 self.rm(path=path, recursive=recursive)
             elif e.error_code == "IO_ERROR":
                 # Using the same exception as the os module would use here
-                raise OSError(e.message) from e
+                raise OSError(e.message)
 
-            raise
+            raise e
         self.invalidate_cache(self._parent(path))
 
     def mv(
@@ -212,11 +212,11 @@ class DatabricksFileSystem(AbstractFileSystem):
             )
         except DatabricksException as e:
             if e.error_code == "RESOURCE_DOES_NOT_EXIST":
-                raise FileNotFoundError(e.message) from e
+                raise FileNotFoundError(e.message)
             elif e.error_code == "RESOURCE_ALREADY_EXISTS":
-                raise FileExistsError(e.message) from e
+                raise FileExistsError(e.message)
 
-            raise
+            raise e
         self.invalidate_cache(self._parent(source_path))
         self.invalidate_cache(self._parent(destination_path))
 
@@ -264,9 +264,9 @@ class DatabricksFileSystem(AbstractFileSystem):
             try:
                 exception_json = e.response.json()
             except Exception:
-                raise e from None
+                raise e
 
-            raise DatabricksException(**exception_json) from e
+            raise DatabricksException(**exception_json)
 
         return r.json()
 
@@ -297,9 +297,9 @@ class DatabricksFileSystem(AbstractFileSystem):
             return r["handle"]
         except DatabricksException as e:
             if e.error_code == "RESOURCE_ALREADY_EXISTS":
-                raise FileExistsError(e.message) from e
+                raise FileExistsError(e.message)
 
-            raise
+            raise e
 
     def _close_handle(self, handle):
         """
@@ -314,9 +314,9 @@ class DatabricksFileSystem(AbstractFileSystem):
             self._send_to_api(method="post", endpoint="close", json={"handle": handle})
         except DatabricksException as e:
             if e.error_code == "RESOURCE_DOES_NOT_EXIST":
-                raise FileNotFoundError(e.message) from e
+                raise FileNotFoundError(e.message)
 
-            raise
+            raise e
 
     def _add_data(self, handle, data):
         """
@@ -342,11 +342,11 @@ class DatabricksFileSystem(AbstractFileSystem):
             )
         except DatabricksException as e:
             if e.error_code == "RESOURCE_DOES_NOT_EXIST":
-                raise FileNotFoundError(e.message) from e
+                raise FileNotFoundError(e.message)
             elif e.error_code == "MAX_BLOCK_SIZE_EXCEEDED":
-                raise ValueError(e.message) from e
+                raise ValueError(e.message)
 
-            raise
+            raise e
 
     def _get_data(self, path, start, end):
         """
@@ -372,11 +372,11 @@ class DatabricksFileSystem(AbstractFileSystem):
             return base64.b64decode(r["data"])
         except DatabricksException as e:
             if e.error_code == "RESOURCE_DOES_NOT_EXIST":
-                raise FileNotFoundError(e.message) from e
+                raise FileNotFoundError(e.message)
             elif e.error_code in ["INVALID_PARAMETER_VALUE", "MAX_READ_SIZE_EXCEEDED"]:
-                raise ValueError(e.message) from e
+                raise ValueError(e.message)
 
-            raise
+            raise e
 
     def invalidate_cache(self, path=None):
         if path is None:
@@ -412,9 +412,9 @@ class DatabricksFile(AbstractBufferedFile):
         if block_size is None or block_size == "default":
             block_size = self.DEFAULT_BLOCK_SIZE
 
-        assert block_size == self.DEFAULT_BLOCK_SIZE, (
-            f"Only the default block size is allowed, not {block_size}"
-        )
+        assert (
+            block_size == self.DEFAULT_BLOCK_SIZE
+        ), f"Only the default block size is allowed, not {block_size}"
 
         super().__init__(
             fs,

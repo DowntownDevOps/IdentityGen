@@ -6,7 +6,7 @@
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
 #include <c10/util/Deprecated.h>
-#include <optional>
+#include <c10/util/Optional.h>
 #include <c10/core/QScheme.h>
 #include <ATen/core/Reduction.h>
 #include <ATen/core/Tensor.h>
@@ -20,8 +20,8 @@ TORCH_API at::Tensor resize_symint(const at::Tensor & self, c10::SymIntArrayRef 
 TORCH_API const at::Tensor & resize_out_symint(const at::Tensor & self, c10::SymIntArrayRef size, ::std::optional<at::MemoryFormat> memory_format, const at::Tensor & out);
 TORCH_API const at::Tensor & resize_(const at::Tensor & self, at::IntArrayRef size, ::std::optional<at::MemoryFormat> memory_format=::std::nullopt);
 TORCH_API const at::Tensor & resize_cuda_(const at::Tensor & self, at::IntArrayRef size, ::std::optional<at::MemoryFormat> memory_format=::std::nullopt);
-TORCH_API const at::Tensor & resize__symint(const at::Tensor & self, c10::SymIntArrayRef size, ::std::optional<at::MemoryFormat> memory_format=::std::nullopt);
 TORCH_API const at::Tensor & resize_sparse_csr_(const at::Tensor & self, at::IntArrayRef size, ::std::optional<at::MemoryFormat> memory_format=::std::nullopt);
+TORCH_API const at::Tensor & resize__symint(const at::Tensor & self, c10::SymIntArrayRef size, ::std::optional<at::MemoryFormat> memory_format=::std::nullopt);
 TORCH_API const at::Tensor & quantized_resize_cpu_(const at::Tensor & self, at::IntArrayRef size, ::std::optional<at::MemoryFormat> memory_format=::std::nullopt);
 } // namespace native
 } // namespace at

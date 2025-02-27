@@ -23,13 +23,23 @@ DOWNLOADS = [
     ),
 ]
 
-def download_file(url: str, dest_path: Path, desc: str = None) -> bool:
-    """
-    Download a file with progress bar
-    Returns True if successful, False otherwise
-    """
+def get_huggingface_token():
+    """Get token from environment or prompt user"""
+    token = os.getenv('HUGGINGFACE_TOKEN')
+    if not token:
+        print("\n⚠️  Hugging Face token not found in environment")
+        print("Please enter your Hugging Face token (from https://huggingface.co/settings/tokens):")
+        token = input("> ").strip()
+        if not token:
+            print("❌ No token provided")
+            sys.exit(1)
+    return token
+
+def download_file(url: str, dest_path: Path, desc: str = None, token: str = None) -> bool:
+    """Download a file with progress bar"""
     try:
-        response = requests.get(url, stream=True)
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = requests.get(url, stream=True, headers=headers)
         response.raise_for_status()
         
         total_size = int(response.headers.get('content-length', 0))
@@ -38,24 +48,12 @@ def download_file(url: str, dest_path: Path, desc: str = None) -> bool:
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         
         desc = desc or dest_path.name
-        with tqdm(
-            total=total_size,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024,
-            desc=desc
-        ) as pbar:
+        with tqdm(total=total_size, unit='iB', unit_scale=True, desc=desc) as pbar:
             with open(dest_path, 'wb') as f:
                 for data in response.iter_content(block_size):
                     size = f.write(data)
                     pbar.update(size)
-                    
-        if total_size != 0 and pbar.n != total_size:
-            print(f"❌ Downloaded size does not match expected size for {dest_path.name}")
-            return False
-            
         return True
-        
     except Exception as e:
         print(f"❌ Error downloading {url}: {str(e)}")
         if dest_path.exists():
@@ -64,21 +62,19 @@ def download_file(url: str, dest_path: Path, desc: str = None) -> bool:
 
 def main():
     models_dir = Path("./models")
-    
     print("=== Character Generator Model Download ===")
-    print(f"📥 Downloading {len(DOWNLOADS)} files...")
     
+    token = get_huggingface_token()
     failed_downloads = []
     
     for url, rel_path in DOWNLOADS:
         dest_path = models_dir / rel_path
-        
         if dest_path.exists():
             print(f"✅ Skipping {dest_path.name} - already exists")
             continue
-            
+        
         print(f"\nDownloading {dest_path.name}...")
-        if not download_file(url, dest_path):
+        if not download_file(url, dest_path, token=token):
             failed_downloads.append(dest_path.name)
     
     if failed_downloads:

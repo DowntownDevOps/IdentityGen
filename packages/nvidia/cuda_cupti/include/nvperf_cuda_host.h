@@ -2,7 +2,7 @@
 #define NVPERF_CUDA_HOST_H
 
 /*
- * Copyright 2014-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2014-2022  NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *

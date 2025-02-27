@@ -26,12 +26,8 @@ from .utils import (
     send_to_device,
     set_module_tensor_to_device,
 )
-from .utils.memory import clear_device_cache
 from .utils.modeling import get_non_persistent_buffers
 from .utils.other import recursive_getattr
-
-
-_accelerate_added_attributes = ["to", "cuda", "npu", "xpu", "mlu", "musa"]
 
 
 class ModelHook:
@@ -205,10 +201,6 @@ def remove_hook_from_module(module: nn.Module, recurse=False):
         else:
             module.forward = module._old_forward
         delattr(module, "_old_forward")
-
-    # Remove accelerate added warning hooks from dispatch_model
-    for attr in _accelerate_added_attributes:
-        module.__dict__.pop(attr, None)
 
     if recurse:
         for child in module.children():
@@ -436,13 +428,7 @@ def attach_execution_device_hook(
         return
 
     for child in module.children():
-        attach_execution_device_hook(
-            child,
-            execution_device,
-            skip_keys=skip_keys,
-            preload_module_classes=preload_module_classes,
-            tied_params_map=tied_params_map,
-        )
+        attach_execution_device_hook(child, execution_device, tied_params_map=tied_params_map)
 
 
 def attach_align_device_hook(
@@ -620,9 +606,7 @@ def attach_align_device_hook_on_blocks(
             tied_params_map=tied_params_map,
         )
         add_hook_to_module(module, hook)
-        attach_execution_device_hook(
-            module, execution_device[module_name], skip_keys=skip_keys, tied_params_map=tied_params_map
-        )
+        attach_execution_device_hook(module, execution_device[module_name], tied_params_map=tied_params_map)
     elif module_name in execution_device and module_name in offload:
         attach_align_device_hook(
             module,
@@ -704,7 +688,6 @@ class CpuOffload(ModelHook):
     def pre_forward(self, module, *args, **kwargs):
         if self.prev_module_hook is not None:
             self.prev_module_hook.offload()
-            clear_device_cache()
         module.to(self.execution_device)
         return send_to_device(args, self.execution_device), send_to_device(kwargs, self.execution_device)
 

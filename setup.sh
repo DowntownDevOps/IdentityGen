@@ -1,35 +1,37 @@
 #!/bin/bash
 
-# Function to check if command succeeded
-check_status() {
-    if [ $? -ne 0 ]; then
-        echo "❌ Error: $1"
-        exit 1
-    fi
-}
-
 echo "=== Character Generator Setup ==="
+
+# Load environment variables from .env file
+if [ -f .env ]; then
+    echo "📝 Loading environment variables from .env..."
+    set -a  # Automatically export all variables
+    source .env
+    set +a
+else
+    echo "⚠️ No .env file found, proceeding without it..."
+fi
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
-mkdir -p models storage
-check_status "Failed to create directories"
+mkdir -p models/{checkpoints,clip}
+mkdir -p storage/{base_characters,lora_models,outputs,db}
+mkdir -p packages
 
-# Download Python packages for Docker
-echo "📦 Downloading Python packages for Docker..."
-bash scripts/download_packages.sh
-check_status "Failed to download Python packages"
+# Download models if they don't exist
+if [ ! -f "models/checkpoints/sd_xl_base_1.0.safetensors" ]; then
+    echo "📥 Downloading required models..."
+    python3 scripts/download_models_prereq.py
+fi
 
-# Download models if needed
-echo "📥 Downloading required models..."
-bash scripts/download_models.sh
-check_status "Failed to download models"
+# Download packages if they don't exist
+if [ ! -d "packages/torch" ]; then
+    echo "📥 Downloading required packages..."
+    bash scripts/download_packages.sh
+fi
 
 # Build and start Docker container
 echo "🐳 Building and starting Docker container..."
 docker compose up --build -d
-check_status "Failed to start Docker container"
 
-echo "✅ Setup completed successfully!"
-echo "💡 The application should now be running in Docker"
-echo "📝 Check docker compose logs for application status" 
+echo "✅ Setup complete!"

@@ -9,7 +9,8 @@ namespace at {
 class Tensor;
 } // namespace at
 
-namespace torch::tensors {
+namespace torch {
+namespace tensors {
 
 // Initializes the Python tensor type objects: torch.FloatTensor,
 // torch.DoubleTensor, etc. and binds them in their containing modules.
@@ -31,4 +32,5 @@ at::Device get_default_device();
 
 // Gets the ScalarType for the default tensor type.
 at::ScalarType get_default_scalar_type();
-} // namespace torch::tensors
+} // namespace tensors
+} // namespace torch

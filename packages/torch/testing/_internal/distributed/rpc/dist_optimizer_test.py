@@ -1,4 +1,4 @@
-# mypy: allow-untyped-defs
+# mypy: ignore-errors
 
 
 import threading
@@ -135,7 +135,7 @@ class DistOptimizerTest(RpcAgentTestFixture):
         remote_param2 = remote_method(MyModule.get_w, remote_module2)
 
         with self.assertRaisesRegex(Exception, "Error creating optimizer."):
-            DistributedOptimizer(
+            dist_optim = DistributedOptimizer(
                 OptimizerFailingOnConstructor, [remote_param1, remote_param2]
             )
 
@@ -146,8 +146,8 @@ class DistOptimizerTest(RpcAgentTestFixture):
         params = [module1.get_w(), module2.get_w()]
         local_optim = optim_cls(params, *args, **kwargs)
 
-        old_w1 = module1.w.detach().clone()
-        old_w2 = module2.w.detach().clone()
+        old_w1 = module1.w.clone().detach()
+        old_w2 = module2.w.clone().detach()
 
         g_cpu = torch.Generator()
         g_cpu.manual_seed(0)
@@ -168,6 +168,8 @@ class DistOptimizerTest(RpcAgentTestFixture):
         remote_module2 = rpc.remote(owner2, MyModule)
         remote_param1 = remote_method(MyModule.get_w, remote_module1)
         remote_param2 = remote_method(MyModule.get_w, remote_module2)
+
+        old_w1_remote = remote_param1.to_here()
 
         # sanity check: local and remote initial weights should match
         self.assertEqual(old_w1, remote_param1.to_here())
@@ -217,8 +219,8 @@ class DistOptimizerTest(RpcAgentTestFixture):
         params = [module1.get_w(), module2.get_w()]
         local_optim = optim_cls(params, *args, **kwargs)
 
-        old_w1 = module1.w.detach().clone()
-        old_w2 = module2.w.detach().clone()
+        old_w1 = module1.w.clone().detach()
+        old_w2 = module2.w.clone().detach()
 
         g_cpu = torch.Generator()
         g_cpu.manual_seed(0)

@@ -17,18 +17,18 @@ A set of basic tensor ops compatible with tpu, gpu, and multigpu
 
 import pickle
 import warnings
-from contextlib import contextmanager, nullcontext
 from functools import update_wrapper, wraps
 from typing import Any, Mapping
 
 import torch
 
-from ..state import AcceleratorState, PartialState
+from ..state import PartialState
 from .constants import TORCH_DISTRIBUTED_OPERATION_TYPES
 from .dataclasses import DistributedType, TensorInformation
 from .imports import (
     is_npu_available,
     is_torch_distributed_available,
+    is_torch_version,
     is_torch_xla_available,
     is_xpu_available,
 )
@@ -151,6 +151,9 @@ def send_to_device(tensor, device, non_blocking=False, skip_keys=None):
             device = "npu:0"
         if device == "xpu":
             device = "xpu:0"
+        # TODO: torch_mlu LongTensor.to(<int num>) has bugs, we will fix this later.
+        if is_torch_tensor(tensor) and tensor.device.type in ["mlu"] and tensor.dtype in [torch.int64]:
+            tensor = tensor.cpu()
         try:
             return tensor.to(device, non_blocking=non_blocking)
         except TypeError:  # .to() doesn't accept non_blocking as kwarg
@@ -161,7 +164,10 @@ def send_to_device(tensor, device, non_blocking=False, skip_keys=None):
             if is_npu_available():
                 if isinstance(device, int):
                     device = f"npu:{device}"
-            elif is_xpu_available():
+            else:
+                raise error
+        except Exception as error:
+            if is_xpu_available():
                 if isinstance(device, int):
                     device = f"xpu:{device}"
             else:
@@ -319,7 +325,10 @@ def _tpu_gather(tensor):
 
 def _gpu_gather(tensor):
     state = PartialState()
-    gather_op = torch.distributed.all_gather_into_tensor
+    if is_torch_version(">=", "1.13"):
+        gather_op = torch.distributed.all_gather_into_tensor
+    else:
+        gather_op = torch.distributed._all_gather_base
 
     def _gpu_gather_one(tensor):
         if tensor.ndim == 0:
@@ -648,11 +657,8 @@ def pad_across_processes(tensor, dim=0, pad_index=0, pad_first=False):
                 CannotPadNestedTensorWarning,
             )
             return tensor
-        if dim >= len(tensor.shape) or dim < -len(tensor.shape):
+        if dim >= len(tensor.shape):
             return tensor
-        # Convert negative dimensions to non-negative
-        if dim < 0:
-            dim += len(tensor.shape)
 
         # Gather all sizes
         size = torch.tensor(tensor.shape, device=tensor.device)[None]
@@ -843,25 +849,3 @@ def find_device(data):
                 return device
     elif isinstance(data, torch.Tensor):
         return data.device
-
-
-@contextmanager
-def GatheredParameters(params, modifier_rank=None, fwd_module=None, enabled=True):
-    """
-    Wrapper around `deepspeed.runtime.zero.GatheredParameters`, but if Zero-3 is not enabled, will be a no-op context
-    manager.
-    """
-    # We need to use the `AcceleratorState` here since it has access to the deepspeed plugin
-    if AcceleratorState().distributed_type != DistributedType.DEEPSPEED or (
-        AcceleratorState().deepspeed_plugin is not None
-        and not AcceleratorState().deepspeed_plugin.is_zero3_init_enabled()
-    ):
-        gather_param_context = nullcontext()
-    else:
-        import deepspeed
-
-        gather_param_context = deepspeed.zero.GatheredParameters(
-            params, modifier_rank=modifier_rank, fwd_module=fwd_module, enabled=enabled
-        )
-    with gather_param_context:
-        yield

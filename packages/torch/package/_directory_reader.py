@@ -6,7 +6,6 @@ from typing import cast
 import torch
 from torch.types import Storage
 
-
 __serialization_id_record_name__ = ".data/serialization_id"
 
 
@@ -50,11 +49,10 @@ class DirectoryReader:
     def get_all_records(
         self,
     ):
-        files = [
-            filename[len(self.directory) + 1 :]
-            for filename in glob(f"{self.directory}/**", recursive=True)
-            if not os.path.isdir(filename)
-        ]
+        files = []
+        for filename in glob(f"{self.directory}/**", recursive=True):
+            if not os.path.isdir(filename):
+                files.append(filename[len(self.directory) + 1 :])
         return files
 
     def serialization_id(

@@ -10,7 +10,6 @@ from torch.fx.passes.utils import HolderModule, lift_subgraph_as_module
 
 from .tools_common import NodeList
 
-
 __all__ = ["getattr_recursive", "setattr_recursive", "Component", "split_by_tags"]
 
 
@@ -83,7 +82,7 @@ def split_by_tags(
     Given the following module def:
 
     class SimpleModule(torch.nn.Module):
-        def __init__(self) -> None:
+        def __init__(self):
             super().__init__()
             self.linear1 = torch.nn.Linear(...)
             self.linear2 = torch.nn.Linear(...)

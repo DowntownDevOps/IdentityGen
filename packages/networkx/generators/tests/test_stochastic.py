@@ -1,5 +1,4 @@
 """Unit tests for the :mod:`networkx.generators.stochastic` module."""
-
 import pytest
 
 import networkx as nx

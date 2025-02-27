@@ -2,50 +2,34 @@
 
 import collections
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List
 
 from .. import variables
 from ..current_scope_id import current_scope_id
 from ..exc import unimplemented
-from ..guards import GuardBuilder, install_guard
 from ..source import AttrSource, Source
 from ..utils import istype
 
 
-if TYPE_CHECKING:
-    from .symbolic_convert import InstructionTranslator, InstructionTranslatorBase
-
-
-class SourceType(Enum):
+class MutableLocalSource(Enum):
     """
-    This Enum divides VariableTracker into 2 cases, depending on the variable
-    it represents:
+    If the VariableTracker.mutable_local represents a Variable that:
     - already existed that Dynamo began tracking while introspection (Existing)
-    - is a new variable that is created during Dynamo introspection (New)
-
-    In general, we have these invariants:
-    1. for `VariableTracker` associated with `Existing`, its `source` field must not be None.
-    2. for `VariableTracker` associated with `New`, most of the time its
-       `source` field is None, except for cases like side effect codegen for
-       `AttributeMutationNew`, during which we generate a
-       `LocalSource('tmp...')` for such variable, to facilitate codegen.
+    - is a new variable that is created during Dynamo introspection (Local)
     """
 
     Existing = 0
-    New = 1
+    Local = 1
 
 
-class MutationType:
+class MutableLocalBase:
     """
-    Base class for Variable.mutation_type. It encodes information about
-    1. The type of mutation Dynamo allows on the variable.
-    2. Whether the value represented by this variable already existed before
-    Dynamo tracing.
+    Base class for Variable.mutable_local
     """
 
-    def __init__(self, typ: SourceType) -> None:
+    def __init__(self, typ: MutableLocalSource):
         # In HigherOrderOperator tracing, we need to distinguish
-        # between MutationTypes inside the HigherOrderOperator and
+        # between MutableLocals inside the HigherOrderOperator and
         # ones outside it. For example, it is not safe to mutate
         # `a` in the following example because it was constructed
         # in a different scope.
@@ -67,28 +51,23 @@ class MutationType:
         #             Dynamo introspection of a HigherOrderOp.
         #             The exact number corresponds to the level
         #             of nested HigherOrderOps.
-        if typ is SourceType.Existing:
+        if typ is MutableLocalSource.Existing:
             self.scope = 0
-        elif typ is SourceType.New:
+        elif typ is MutableLocalSource.Local:
             self.scope = current_scope_id()
         else:
-            unimplemented(f"Unsupported SourceType: {typ}")
+            unimplemented(f"Unsupported MutableLocalSource: {typ}")
 
 
-class ValueMutationNew(MutationType):
+class MutableLocal(MutableLocalBase):
     """
-    This case of VariableTracker.mutation_type marker indicates
-    1. Dynamo allows mutation on the value itself (rather than its attributes).
-    2. The value is created by the bytecode Dynamo is tracing through.
-
-    For instance, Dynamo could model a newly created list with this marker,
-    indicating that while we need to model mutations to this list, we don't have
-    to emit bytecode for these mutations if the list doesn't escape into the
-    Python world.
+    Marker used to indicate this (list, iter, etc) was constructed in
+    local scope and can be mutated safely in analysis without leaking
+    state.
     """
 
-    def __init__(self) -> None:
-        super().__init__(SourceType.New)
+    def __init__(self):
+        super().__init__(MutableLocalSource.Local)
 
     def __hash__(self):
         return id(self)
@@ -97,76 +76,11 @@ class ValueMutationNew(MutationType):
         return self is other
 
 
-class ValueMutationExisting(MutationType):
-    """
-    This case of VariableTracker.mutation_type marker indicates
-    1. Dynamo allows mutation on the value itself (rather than its attributes).
-    2. The value exists before Dynamo tracing started.
-
-    For instance, Dynamo could model a pre-existing list with this marker,
-    indicating that if we encounter mutations to this list, we need to buffer
-    and re-apply those mutations after the graph runs, since the list might be
-    used afterwards in Python.
-    """
-
-    # A flag to indicate whether mutation happened on the associated
-    # `VariableTracker`. This enables SideEffects to accurately and quickly
-    # filter out which pre-existing values it needs to generate mutation for.
-    is_modified: bool
-
-    def __init__(self, is_modified: bool = False):
-        super().__init__(SourceType.Existing)
-        self.is_modified = is_modified
-
-
-class AttributeMutation(MutationType):
-    """
-    This case of VariableTracker.mutation_type marker indicates that Dynamo
-    allows mutation on the value's attributes.
-    """
-
-    def __init__(self, typ: SourceType):
-        super().__init__(typ)
-
-
-class AttributeMutationExisting(AttributeMutation):
-    """
-    This case of VariableTracker.mutation_type marker indicates
-    1. Dynamo allows mutation on the value's attributes.
-    2. The value exists before Dynamo tracing started.
-
-    For instance, Dynamo could model a pre-existing object with this marker,
-    indicating that if we encounter mutations to this object, we need to buffer
-    then re-apply those mutations after the graph runs, since the object might
-    be used afterwards in Python.
-    """
-
-    def __init__(self):
-        super().__init__(SourceType.Existing)
-
-
-class AttributeMutationNew(AttributeMutation):
-    """
-    This case of VariableTracker.mutation_type marker indicates
-    1. Dynamo allows mutation on the value's attributes.
-    2. The value is created by the bytecode Dynamo is tracing through.
-
-    For instance, Dynamo could model a newly created object with this marker,
-    indicating that while we need to model mutations to this object, we don't
-    have to emit bytecode for these mutations if the object doesn't escape into
-    the Python world.
-    """
-
-    def __init__(self, cls_source: Optional[Source] = None):
-        super().__init__(SourceType.New)
-        self.cls_source = cls_source
-
-
 def _is_top_level_scope(scope_id):
     return scope_id == 1
 
 
-def is_side_effect_safe(m: MutationType):
+def is_side_effect_safe(m: MutableLocalBase):
     scope_id = current_scope_id()
 
     # In the top-level scope (if no HigherOrderOperators are involved),
@@ -192,7 +106,7 @@ class VariableTrackerMeta(type):
             instance = instance.realize()
         return type.__instancecheck__(cls, instance)
 
-    def __init__(cls, name, bases, attrs) -> None:
+    def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
         VariableTrackerMeta.all_subclasses.append(cls)
 
@@ -203,8 +117,6 @@ class VariableTracker(metaclass=VariableTrackerMeta):
 
     VariableTracker instances are immutable and should be copied in
     order to change them.
-
-    Prefer the factory function VariableTracker.build() over VariableTracker.__init__().
     """
 
     # fields to leave unmodified in apply()
@@ -212,7 +124,7 @@ class VariableTracker(metaclass=VariableTrackerMeta):
         "value",
         "guards",
         "source",
-        "mutation_type",
+        "mutable_local",
         "parents_tracker",
         "user_code_variable_name",
     }
@@ -227,14 +139,14 @@ class VariableTracker(metaclass=VariableTrackerMeta):
     def visit(
         cls,
         fn: Callable[["VariableTracker"], None],
-        value: Any,
-        cache: Optional[Dict[int, Any]] = None,
-    ) -> None:
+        value,
+        cache=None,
+    ):
         """
         Walk value and call fn on all the VariableTracker instances
         """
         if cache is None:
-            cache = {}
+            cache = dict()
 
         idx = id(value)
         if idx in cache:
@@ -257,7 +169,7 @@ class VariableTracker(metaclass=VariableTrackerMeta):
             for subvalue in value.values():
                 cls.visit(fn, subvalue, cache)
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"{self.__class__.__name__}()"
 
     def debug_repr(self):
@@ -291,10 +203,7 @@ class VariableTracker(metaclass=VariableTrackerMeta):
         Raises:
             NotImplementedError: If the method is not implemented in a subclass.
         """
-        try:
-            return type(self.as_python_constant())
-        except NotImplementedError:
-            raise NotImplementedError(f"{self} has no type") from None
+        raise NotImplementedError(f"{self} has no type")
 
     def as_python_constant(self):
         """For constants"""
@@ -319,18 +228,18 @@ class VariableTracker(metaclass=VariableTrackerMeta):
             return self.source.make_guard(fn)
         raise NotImplementedError
 
-    def const_getattr(self, tx: "InstructionTranslator", name: str) -> Any:
+    def const_getattr(self, tx, name: str) -> Any:
         """getattr(self, name) returning a python constant"""
         raise NotImplementedError
 
-    def var_getattr(self, tx: "InstructionTranslator", name: str) -> "VariableTracker":
+    def var_getattr(self, tx, name: str) -> "VariableTracker":
         """getattr(self, name) returning a new variable"""
         value = self.const_getattr(tx, name)
         if not variables.ConstantVariable.is_literal(value):
             raise NotImplementedError
-        source = self.source and AttrSource(self.source, name)
-        if source:
-            install_guard(source.make_guard(GuardBuilder.CONSTANT_MATCH))
+        source = None
+        if self.source:
+            source = AttrSource(self.source, name)
         return variables.ConstantVariable.create(value, source=source)
 
     def is_proxy(self):
@@ -357,17 +266,21 @@ class VariableTracker(metaclass=VariableTrackerMeta):
     def reconstruct(self, codegen):
         raise NotImplementedError
 
+    def can_reconstruct(self, tx):
+        """If it is possible to reconstruct the Python object this
+        VariableTracker represents."""
+        assert tx is tx.output.root_tx, "Only root tx can reconstruct"
+        try:
+            from ..codegen import PyCodegen
+
+            cg = PyCodegen(tx)
+            self.reconstruct(cg)
+            return True
+        except NotImplementedError:
+            return False
+
     def unpack_var_sequence(self, tx) -> List["VariableTracker"]:
         raise NotImplementedError
-
-    def force_unpack_var_sequence(self, tx) -> List["VariableTracker"]:
-        # like unpack_var_sequence, but should only be used when it is
-        # safe to eagerly (vs. lazily) unpack this variable.
-        # e.g. map(f, x) is normally evaluated lazily but sometimes
-        # we want to force eager unpacking, e.g. when converting to a list.
-        # NOTE: this method is allowed to mutate the VariableTracker, so
-        # it should only be called once.
-        return self.unpack_var_sequence(tx)
 
     def has_unpack_var_sequence(self, tx) -> bool:
         try:
@@ -376,21 +289,14 @@ class VariableTracker(metaclass=VariableTrackerMeta):
         except NotImplementedError:
             return False
 
-    # NB: don't call force_unpack_var_sequence, especially if it mutates!
-    def has_force_unpack_var_sequence(self, tx) -> bool:
-        return self.has_unpack_var_sequence(tx)
-
     def inspect_parameter_names(self) -> List[str]:
         unimplemented(f"inspect_parameter_names: {self}")
 
-    def call_hasattr(self, tx: "InstructionTranslator", name: str) -> "VariableTracker":
+    def call_hasattr(self, tx, name: str) -> "VariableTracker":
         unimplemented(f"hasattr {self.__class__.__name__} {name}")
 
     def call_function(
-        self,
-        tx: "InstructionTranslator",
-        args: "List[VariableTracker]",
-        kwargs: "Dict[str, VariableTracker]",
+        self, tx, args: "List[VariableTracker]", kwargs: "Dict[str, VariableTracker]"
     ) -> "VariableTracker":
         unimplemented(f"call_function {self} {args} {kwargs}")
 
@@ -434,54 +340,15 @@ class VariableTracker(metaclass=VariableTrackerMeta):
     def is_strict_mode(self, tx):
         return tx.strict_checks_fn and tx.strict_checks_fn(self)
 
-    def is_mutable(self):
-        """Whether Dynamo allows mutation on this variable."""
-        return not self.is_immutable()
-
-    def is_immutable(self):
-        """Whether Dynamo bans mutation on this variable."""
-        return self.mutation_type is None
-
-    @staticmethod
-    def build(
-        tx: "InstructionTranslatorBase",
-        value: Any,
-        source: Optional[Source] = None,
-    ) -> Any:
-        """Create a new VariableTracker from a value and optional Source"""
-        from . import builder
-
-        if source is None:
-            return builder.SourcelessBuilder.create(tx, value)
-        else:
-            return builder.VariableBuilder(tx, source)(value)
-
     def __init__(
         self,
         *,
         source: Source = None,
-        mutation_type: MutationType = None,
-    ) -> None:
+        mutable_local: MutableLocal = None,
+    ):
         super().__init__()
         self.source = source
-        self.mutation_type = mutation_type
-
-        # NOTE sometimes mutation_type is set afterwards for implementation
-        # convenience, we don't validate those cases at the moment.
-        if mutation_type is not None:
-            if isinstance(mutation_type, (ValueMutationNew, AttributeMutationNew)):
-                # If this fails, it's either
-                # 1. one mistakenly passed in a source
-                # 2. `mutation_type` is incorrect
-                assert source is None
-            else:
-                assert isinstance(
-                    mutation_type, (ValueMutationExisting, AttributeMutationExisting)
-                )
-                # If this fails, it's either
-                # 1. one forgot to pass in a source
-                # 2. `mutation_type` is incorrect
-                assert source is not None
+        self.mutable_local = mutable_local
 
 
 def typestr(*objs):

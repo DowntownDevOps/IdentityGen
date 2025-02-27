@@ -2,7 +2,6 @@
 These ``Views`` often restrict element access, with either the entire view or
 layers of nested mappings being read-only.
 """
-
 from collections.abc import Mapping
 
 __all__ = [
@@ -282,13 +281,7 @@ class FilterAtlas(Mapping):  # nodedict, nbrdict, keydict
         self.NODE_OK = NODE_OK
 
     def __len__(self):
-        # check whether NODE_OK stores the number of nodes as `length`
-        # or the nodes themselves as a set `nodes`. If not, count the nodes.
-        if hasattr(self.NODE_OK, "length"):
-            return self.NODE_OK.length
-        if hasattr(self.NODE_OK, "nodes"):
-            return len(self.NODE_OK.nodes & self._atlas.keys())
-        return sum(1 for n in self._atlas if self.NODE_OK(n))
+        return sum(1 for n in self)
 
     def __iter__(self):
         try:  # check that NODE_OK has attr 'nodes'
@@ -331,13 +324,7 @@ class FilterAdjacency(Mapping):  # edgedict
         self.EDGE_OK = EDGE_OK
 
     def __len__(self):
-        # check whether NODE_OK stores the number of nodes as `length`
-        # or the nodes themselves as a set `nodes`. If not, count the nodes.
-        if hasattr(self.NODE_OK, "length"):
-            return self.NODE_OK.length
-        if hasattr(self.NODE_OK, "nodes"):
-            return len(self.NODE_OK.nodes & self._atlas.keys())
-        return sum(1 for n in self._atlas if self.NODE_OK(n))
+        return sum(1 for n in self)
 
     def __iter__(self):
         try:  # check that NODE_OK has attr 'nodes'

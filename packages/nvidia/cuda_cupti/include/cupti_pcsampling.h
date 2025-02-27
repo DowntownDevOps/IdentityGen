@@ -54,8 +54,29 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "cupti_result.h"
-#include "cupti_common.h"
 
+#ifndef CUPTIAPI
+#ifdef _WIN32
+#define CUPTIAPI __stdcall
+#else
+#define CUPTIAPI
+#endif
+#endif
+
+#define ACTIVITY_RECORD_ALIGNMENT 8
+#if defined(_WIN32) // Windows 32- and 64-bit
+#define START_PACKED_ALIGNMENT __pragma(pack(push,1)) // exact fit - no padding
+#define PACKED_ALIGNMENT __declspec(align(ACTIVITY_RECORD_ALIGNMENT))
+#define END_PACKED_ALIGNMENT __pragma(pack(pop))
+#elif defined(__GNUC__) // GCC
+#define START_PACKED_ALIGNMENT
+#define PACKED_ALIGNMENT __attribute__ ((__packed__)) __attribute__ ((aligned (ACTIVITY_RECORD_ALIGNMENT)))
+#define END_PACKED_ALIGNMENT
+#else // all other compilers
+#define START_PACKED_ALIGNMENT
+#define PACKED_ALIGNMENT
+#define END_PACKED_ALIGNMENT
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -156,11 +177,6 @@ typedef struct PACKED_ALIGNMENT
    * Total samples
    */
   CUpti_PCSamplingStallReason *stallReason;
-  /**
-   * The correlation ID of the kernel to which this result is associated. Only valid for serialized mode of pc sampling collection.
-   * For continous mode of collection the correlationId will be set to 0.
-   */
-  uint32_t correlationId;
 } CUpti_PCSamplingPCData;
 
 /**
@@ -545,7 +561,7 @@ typedef struct
  *       It is possible that when the API is called there is some unconsumed data from the HW buffer. In this case
  * CUPTI provides only the data available with it at that moment.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingGetDataParams
+ * \param Refer \ref CUpti_PCSamplingGetDataParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_OPERATION if this API is called without
@@ -582,7 +598,7 @@ typedef struct
 /**
  * \brief Enable PC sampling.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingEnableParams
+ * \param Refer \ref CUpti_PCSamplingEnableParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_PARAMETER if any \p pParams is not valid
@@ -620,7 +636,7 @@ typedef struct
  * this API does the PC Sampling tear-down, joins threads and copies PC records in the buffer provided
  * during the PC sampling configuration. PC records which can't be accommodated in the buffer are discarded.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingDisableParams
+ * \param Refer \ref CUpti_PCSamplingDisableParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_PARAMETER if any \p pParams is not valid
@@ -658,7 +674,7 @@ typedef struct
  * This API can be used to mark starting of range. Set configuration option
  * \brief CUPTI_PC_SAMPLING_CONFIGURATION_ATTR_TYPE_ENABLE_START_STOP_CONTROL to use this API.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingStartParams
+ * \param Refer \ref CUpti_PCSamplingStartParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_OPERATION if this API is called with
@@ -698,7 +714,7 @@ typedef struct
  * This API can be used to mark end of range. Set configuration option
  * \brief CUPTI_PC_SAMPLING_CONFIGURATION_ATTR_TYPE_ENABLE_START_STOP_CONTROL to use this API.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingStopParams
+ * \param Refer \ref CUpti_PCSamplingStopParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_OPERATION if this API is called with
@@ -738,7 +754,7 @@ typedef struct
 /**
  * \brief Get PC sampling stall reason count.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingGetNumStallReasonsParams
+ * \param Refer \ref CUpti_PCSamplingGetNumStallReasonsParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_PARAMETER if any \p pParams is not valid
@@ -784,7 +800,7 @@ typedef struct
 /**
  * \brief Get PC sampling stall reasons.
  *
- * \param pParams A pointer to \ref CUpti_PCSamplingGetStallReasonsParams
+ * \param Refer \ref CUpti_PCSamplingGetStallReasonsParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_PARAMETER if any \p pParams is not valid
@@ -793,11 +809,10 @@ typedef struct
  */
 CUptiResult CUPTIAPI cuptiPCSamplingGetStallReasons(CUpti_PCSamplingGetStallReasonsParams *pParams);
 
-
 /**
  * \brief Params for cuptiGetSassToSourceCorrelation
  */
-typedef struct CUpti_GetSassToSourceCorrelationParams {
+typedef struct {
   /**
    * [w] Size of the data structure i.e. CUpti_GetSassToSourceCorrelationParamsSize
    * CUPTI client should set the size of the structure. It will be used in CUPTI to check what fields are
@@ -833,13 +848,12 @@ typedef struct CUpti_GetSassToSourceCorrelationParams {
    */
   char *dirName;
 } CUpti_GetSassToSourceCorrelationParams;
-
 #define CUpti_GetSassToSourceCorrelationParamsSize     CUPTI_PCSAMPLING_STRUCT_SIZE(CUpti_GetSassToSourceCorrelationParams, dirName)
 
 /**
  * \brief SASS to Source correlation.
  *
- * \param pParams A pointer to \ref CUpti_GetSassToSourceCorrelationParams
+ * \param Refer \ref CUpti_GetSassToSourceCorrelationParams
  *
  * It is expected from user to free allocated memory for fileName and dirName after use.
  *
@@ -883,7 +897,7 @@ typedef struct {
  *
  * This function returns the CRC of provided cubin binary.
  *
- * \param pParams A pointer to \ref CUpti_GetCubinCrcParams
+ * \param Refer \ref CUpti_GetCubinCrcParams
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_INVALID_PARAMETER if parameter cubin is NULL or

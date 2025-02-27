@@ -2,7 +2,7 @@
 #define NVPERF_HOST_H
 
 /*
- * Copyright 2014-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2014-2022  NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -523,53 +523,6 @@ extern "C" {
  *  @}
  ******************************************************************************/
  
-    typedef struct NVPW_Config_GetRawCounterInfo_Params
-    {
-        /// [in]
-        size_t structSize;
-        /// [in] assign to NULL
-        void* pPriv;
-        /// [in]
-        const uint8_t* pConfig;
-        /// [in]
-        size_t configSize;
-        /// [in]
-        const char* pRawCounterName;
-        /// [inout] array containing indices of passes the counter resides in. 'pPassIndices' is in, '*pPassIndices' is
-        /// out.
-        size_t* pPassIndices;
-        /// [inout] if 'pPassIndices' is NULL, the count of passes this counter resides in will be returned; otherwise
-        /// it should be set to the capacity of 'pPassIndices' array, and on return, it will be overwritten to reflect
-        /// the actual count filled into 'pPassIndices'
-        size_t numPassIndices;
-    } NVPW_Config_GetRawCounterInfo_Params;
-#define NVPW_Config_GetRawCounterInfo_Params_STRUCT_SIZE NVPA_STRUCT_SIZE(NVPW_Config_GetRawCounterInfo_Params, numPassIndices)
-
-    NVPA_Status NVPW_Config_GetRawCounterInfo(NVPW_Config_GetRawCounterInfo_Params* pParams);
-
-    typedef struct NVPW_Config_GetRawCounters_Params
-    {
-        /// [in]
-        size_t structSize;
-        /// [in] assign to NULL
-        void* pPriv;
-        /// [in]
-        const uint8_t* pConfig;
-        /// [in]
-        size_t configSize;
-        /// [in]
-        size_t passIndex;
-        /// [inout] array containing raw counter names. 'ppRawCounterNames' is in, '*ppRawCounterNames' is out.
-        const char** ppRawCounterNames;
-        /// [inout] if 'ppRawCounterNames' is NULL, the count of raw counters will be returned; otherwise it should be
-        /// set to the capacity of 'ppRawCounterNames' array, and on return, it will be overwritten to reflect the
-        /// actual count filled into 'ppRawCounterNames'
-        size_t numRawCounters;
-    } NVPW_Config_GetRawCounters_Params;
-#define NVPW_Config_GetRawCounters_Params_STRUCT_SIZE NVPA_STRUCT_SIZE(NVPW_Config_GetRawCounters_Params, numRawCounters)
-
-    NVPA_Status NVPW_Config_GetRawCounters(NVPW_Config_GetRawCounters_Params* pParams);
-
 /***************************************************************************//**
  *  @name   CounterData Creation
  *  @{
@@ -1100,7 +1053,6 @@ extern "C" {
         NVPW_DIM_UNIT_ATTRIBUTES = 3776338729,
         NVPW_DIM_UNIT_BYTES = 3797850191,
         NVPW_DIM_UNIT_CTAS = 1960564139,
-        NVPW_DIM_UNIT_CTC_CYCLES = 2224883873,
         NVPW_DIM_UNIT_DRAM_CYCLES = 2650981327,
         NVPW_DIM_UNIT_FBP_CYCLES = 1785238957,
         NVPW_DIM_UNIT_FE_OPS = 2919159083,
@@ -1116,7 +1068,6 @@ extern "C" {
         NVPW_DIM_UNIT_L2_REQUESTS = 1143695106,
         NVPW_DIM_UNIT_L2_SECTORS = 3424101564,
         NVPW_DIM_UNIT_L2_TAGS = 3755612781,
-        NVPW_DIM_UNIT_MCC_CYCLES = 1826685787,
         NVPW_DIM_UNIT_NANOSECONDS = 3047500672,
         NVPW_DIM_UNIT_NVLRX_CYCLES = 4059934930,
         NVPW_DIM_UNIT_NVLTX_CYCLES = 1814350488,
@@ -1155,7 +1106,6 @@ extern "C" {
         NVPW_HW_UNIT_IDC = 842765289,
         NVPW_HW_UNIT_L1TEX = 893940957,
         NVPW_HW_UNIT_LTS = 2333266697,
-        NVPW_HW_UNIT_MCC = 3980130194,
         NVPW_HW_UNIT_NVLRX = 3091684901,
         NVPW_HW_UNIT_NVLTX = 869679659,
         NVPW_HW_UNIT_PCIE = 3433264174,

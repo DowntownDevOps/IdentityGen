@@ -274,7 +274,6 @@ static PyObject *setPrintfFifoSize(PyObject *self, PyObject *args) {
   }
 
   Py_END_ALLOW_THREADS;
-  Py_INCREF(Py_None);
   return Py_None;
 }
 
@@ -285,11 +284,12 @@ static PyObject *fill1DTMADescriptor(PyObject *self, PyObject *args) {
   uint64_t dim;
   uint32_t tensorDim;
   int elementSize;
-  unsigned long long desc_address;
-  if (!PyArg_ParseTuple(args, "KKiiK", &global_address, &dim, &tensorDim,
-                        &elementSize, &desc_address)) {
+  Py_buffer desc_buffer;
+  if (!PyArg_ParseTuple(args, "KKiiy*", &global_address, &dim, &tensorDim,
+                        &elementSize, &desc_buffer)) {
     return NULL;
   }
+  char *desc = (char *)desc_buffer.buf;
   uint64_t dims[1] = {dim};
   uint64_t globalStrides[1] = {dim * elementSize};
   uint32_t boxDim[1] = {tensorDim};
@@ -307,19 +307,18 @@ static PyObject *fill1DTMADescriptor(PyObject *self, PyObject *args) {
     break;
   default:
     PyErr_SetString(PyExc_ValueError, "elementSize must be 1, 2, or 4");
-    return NULL;
   }
   assert((elementSize * tensorDim) >= 32 && "block size too small.");
   int rank = 1;
   static cuTensorMapEncodeTiled_t cuTensorMapEncodeTiled = NULL;
   INITIALIZE_FUNCTION_POINTER_IF_NULL(cuTensorMapEncodeTiled,
                                       getCuTensorMapEncodeTiledHandle);
-  CUDA_CHECK_AND_RETURN_NULL(cuTensorMapEncodeTiled(
-      (CUtensorMap *)desc_address, type, rank, (void *)global_address, dims,
+  CUresult result = cuTensorMapEncodeTiled(
+      (CUtensorMap *)desc, type, rank, (void *)global_address, dims,
       globalStrides, boxDim, elementStrides, CU_TENSOR_MAP_INTERLEAVE_NONE,
       CU_TENSOR_MAP_SWIZZLE_NONE, CU_TENSOR_MAP_L2_PROMOTION_NONE,
-      CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
-  Py_INCREF(Py_None);
+      CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
+  assert(result == CUDA_SUCCESS);
   return Py_None;
 }
 
@@ -330,12 +329,13 @@ static PyObject *fill2DTMADescriptor(PyObject *self, PyObject *args) {
   uint64_t dims[2];
   uint32_t tensorDims[2];
   int elementSize;
-  unsigned long long desc_address;
-  if (!PyArg_ParseTuple(args, "KKKiiiK", &global_address, &dims[1], &dims[0],
+  Py_buffer desc_buffer;
+  if (!PyArg_ParseTuple(args, "KKKiiiy*", &global_address, &dims[1], &dims[0],
                         &tensorDims[1], &tensorDims[0], &elementSize,
-                        &desc_address)) {
+                        &desc_buffer)) {
     return NULL;
   }
+  char *desc = (char *)desc_buffer.buf;
   uint64_t globalStrides[2] = {dims[0] * elementSize,
                                dims[0] * dims[1] * elementSize};
   uint32_t elementStrides[2] = {1, 1};
@@ -377,12 +377,12 @@ static PyObject *fill2DTMADescriptor(PyObject *self, PyObject *args) {
   static cuTensorMapEncodeTiled_t cuTensorMapEncodeTiled = NULL;
   INITIALIZE_FUNCTION_POINTER_IF_NULL(cuTensorMapEncodeTiled,
                                       getCuTensorMapEncodeTiledHandle);
-  CUDA_CHECK_AND_RETURN_NULL(cuTensorMapEncodeTiled(
-      (CUtensorMap *)desc_address, type, rank, (void *)global_address, dims,
+  CUresult result = cuTensorMapEncodeTiled(
+      (CUtensorMap *)desc, type, rank, (void *)global_address, dims,
       globalStrides, tensorDims, elementStrides, CU_TENSOR_MAP_INTERLEAVE_NONE,
       swizzle, CU_TENSOR_MAP_L2_PROMOTION_L2_128B,
-      CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
-  Py_INCREF(Py_None);
+      CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
+  assert(result == CUDA_SUCCESS);
   return Py_None;
 }
 

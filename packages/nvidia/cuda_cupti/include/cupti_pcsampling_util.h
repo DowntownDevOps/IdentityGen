@@ -4,7 +4,28 @@
 #include <cupti_pcsampling.h>
 #include <fstream>
 
-#include <cupti_common.h>
+#ifndef CUPTIUTILAPI
+#ifdef _WIN32
+#define CUPTIUTILAPI __stdcall
+#else
+#define CUPTIUTILAPI
+#endif
+#endif
+
+#define ACTIVITY_RECORD_ALIGNMENT 8
+#if defined(_WIN32) // Windows 32- and 64-bit
+#define START_PACKED_ALIGNMENT __pragma(pack(push,1)) // exact fit - no padding
+#define PACKED_ALIGNMENT __declspec(align(ACTIVITY_RECORD_ALIGNMENT))
+#define END_PACKED_ALIGNMENT __pragma(pack(pop))
+#elif defined(__GNUC__) // GCC
+#define START_PACKED_ALIGNMENT
+#define PACKED_ALIGNMENT __attribute__ ((__packed__)) __attribute__ ((aligned (ACTIVITY_RECORD_ALIGNMENT)))
+#define END_PACKED_ALIGNMENT
+#else // all other compilers
+#define START_PACKED_ALIGNMENT
+#define PACKED_ALIGNMENT
+#define END_PACKED_ALIGNMENT
+#endif
 
 #ifndef CUPTI_UTIL_STRUCT_SIZE
 #define CUPTI_UTIL_STRUCT_SIZE(type_, lastfield_)                     (offsetof(type_, lastfield_) + sizeof(((type_*)0)->lastfield_))
@@ -87,10 +108,6 @@ typedef struct PACKED_ALIGNMENT {
   uint32_t *stallReasonIndex;
 } PcSamplingStallReasons;
 
-/**
- * \brief CUPTI PC sampling buffer types.
- *
- */
 typedef enum {
   /**
    * Invalid buffer type.

@@ -252,6 +252,15 @@ cufftResult CUFFTAPI cufftXtExecDescriptor(cufftHandle plan,
 
 cufftResult CUFFTAPI cufftXtSetWorkAreaPolicy(cufftHandle plan, cufftXtWorkAreaPolicy policy, size_t *workSize);
 
+cufftResult CUFFTAPI cufftXtSetDistribution(cufftHandle plan, 
+                                            int rank, 
+                                            const long long int* lower_input,  
+                                            const long long int* upper_input,
+                                            const long long int* lower_output,
+                                            const long long int* upper_output,
+                                            const long long int* strides_input, 
+                                            const long long int* strides_output);
+
 #ifdef __cplusplus
 }
 #endif

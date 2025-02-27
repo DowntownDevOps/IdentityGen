@@ -6,7 +6,7 @@ COMPUTE_METADATA_SCOPE_NAME = "__proton_launch_metadata"
 
 class TritonHook:
     flops_width = [8, 16, 32, 64]
-    metrics = [f"flops{width}" for width in flops_width] + ["bytes"] + ["flops"]
+    metrics = [f"flops{width}" for width in flops_width] + ["bytes"]
 
     @staticmethod
     def enter(lazy_dict: LazyDict) -> None:

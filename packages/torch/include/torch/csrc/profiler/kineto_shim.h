@@ -67,6 +67,9 @@ void addMetadata(
 // Wraps: libkineto::CpuTraceBuffer
 struct TraceWrapper {
   TraceWrapper(const int64_t start_time, const std::string& name);
+  TraceWrapper(TraceWrapper&&) = default;
+  TraceWrapper(const TraceWrapper&) = delete;
+  ~TraceWrapper();
 
   // The caller is expected to hold a mutex when calling `addCPUActivity`.
   activity_t* addCPUActivity(
@@ -93,6 +96,8 @@ struct TraceWrapper {
 struct ActivityTraceWrapper {
   explicit ActivityTraceWrapper(std::unique_ptr<interface_trace_t>&& trace);
   ActivityTraceWrapper() = default;
+  ActivityTraceWrapper(ActivityTraceWrapper&&) = default;
+  ActivityTraceWrapper(const ActivityTraceWrapper&) = delete;
   explicit operator bool() const;
   void save(const std::string& path);
 
@@ -111,10 +116,7 @@ using ActivitySet = std::set<torch::autograd::profiler::ActivityType>;
 void prepareTrace(
     const bool cpuOnly,
     const ActivitySet& activities,
-    const torch::profiler::impl::ExperimentalConfig& config,
-    const std::string& trace_id = "");
-
-void toggleCollectionDynamic(const bool enable);
+    const torch::profiler::impl::ExperimentalConfig& config);
 void startTrace();
 ActivityTraceWrapper stopTrace();
 void pushCorrelationId(uint64_t correlation_id);

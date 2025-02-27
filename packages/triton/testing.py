@@ -5,7 +5,6 @@ import sys
 from contextlib import contextmanager
 from typing import Any, Dict, List
 from . import language as tl
-from . import runtime
 
 
 def nvsmi(attrs):
@@ -17,19 +16,7 @@ def nvsmi(attrs):
     return ret
 
 
-def _summarize_statistics(times, quantiles, return_mode):
-    import torch
-    if quantiles is not None:
-        ret = torch.quantile(times, torch.tensor(quantiles, dtype=torch.float)).tolist()
-        if len(ret) == 1:
-            ret = ret[0]
-        return ret
-    if return_mode == "all":
-        return times.tolist()
-    return getattr(torch, return_mode)(times).item()
-
-
-def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mode="mean"):
+def do_bench_cudagraph(fn, rep=20, grad_to_none=None, return_mode="mean"):
     """
     Benchmark the runtime of the provided function.
 
@@ -39,60 +26,60 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
     :type rep: int
     :param grad_to_none: Reset the gradient of the provided tensor to None
     :type grad_to_none: torch.tensor, optional
-    :param return_mode: The statistical measure to return. Options are "min", "max", "mean", "median", or "all" Default is "mean".
-    :type return_mode: str
     """
     import torch
-    assert return_mode in ["min", "max", "mean", "median", "all"]
+    assert return_mode in ["min", "max", "mean", "median"]
 
-    with torch.cuda.stream(torch.cuda.Stream()):
-        # warmup
+    if torch.cuda.current_stream() == torch.cuda.default_stream():
+        raise RuntimeError("Cannot capture graph in default stream. Please use side stream in benchmark code.")
+    # warmup
+    fn()
+    # step 1 - we estimate the amount of time the kernel call takes
+    # NOTE: this estimate isn't super accurate because the GPU isn't warmed up at this point
+    #       but it is probably good enough
+    if grad_to_none is not None:
+        for x in grad_to_none:
+            x.detach_()
+            x.requires_grad_(True)
+            x.grad = None
+    g = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(g):
         fn()
-        if grad_to_none is not None:
-            for x in grad_to_none:
-                x.detach_()
-                x.requires_grad_(True)
-                x.grad = None
-        # step 1 - we estimate the amount of time the kernel call takes
-        # NOTE: this estimate isn't super accurate because the GPU isn't warmed up at this point
-        #       but it is probably good enough
-        # NOTE: we don't use a graph to estimate the runtime because creating a graph is expensive,
-        #       ~300ms on A100, so we default to the same method used in `do_bench` (minus the L2
-        #       cache flush).
+    torch.cuda.synchronize()
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    start_event.record()
+    g.replay()
+    end_event.record()
+    torch.cuda.synchronize()
+    estimate_ms = start_event.elapsed_time(end_event)
+    n_repeat = max(1, int(rep / estimate_ms))
+    # step 2 - construct a cuda graph with `n_repeat` unrolled function calls to minimize
+    # host overhead
+    g = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(g):
+        for i in range(n_repeat):
+            if grad_to_none is not None:
+                for x in grad_to_none:
+                    x.grad = None
+            fn()
+    torch.cuda.synchronize()
+    # measure time and return
+    ret = []
+    n_retries = 10
+    for i in range(n_retries):
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
         start_event.record()
-        for _ in range(5):
-            fn()
+        g.replay()
         end_event.record()
         torch.cuda.synchronize()
-        estimate_ms = start_event.elapsed_time(end_event) / 5
-        n_repeat = max(1, int(rep / estimate_ms))
-        # step 2 - construct a cuda graph with `n_repeat` unrolled function calls to minimize
-        # host overhead
-        g = torch.cuda.CUDAGraph()
-        with torch.cuda.graph(g):
-            for _ in range(n_repeat):
-                if grad_to_none is not None:
-                    for x in grad_to_none:
-                        x.grad = None
-                fn()
-        torch.cuda.synchronize()
-        # measure time and return
-        ret = []
-        n_retries = 10
-        for _ in range(n_retries):
-            start_event = torch.cuda.Event(enable_timing=True)
-            end_event = torch.cuda.Event(enable_timing=True)
-            start_event.record()
-            g.replay()
-            end_event.record()
-            torch.cuda.synchronize()
-            ret += [start_event.elapsed_time(end_event) / n_repeat]
-        return _summarize_statistics(torch.tensor(ret), quantiles, return_mode)
+        ret += [start_event.elapsed_time(end_event) / n_repeat]
+    times = torch.tensor(ret)
+    return getattr(torch, return_mode)(times).item()
 
 
-def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_mode="mean"):
+def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, fast_flush=True, return_mode="mean"):
     """
     Benchmark the runtime of the provided function. By default, return the median runtime of :code:`fn` along with
     the 20-th and 80-th performance percentile.
@@ -106,35 +93,40 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     :param grad_to_none: Reset the gradient of the provided tensor to None
     :type grad_to_none: torch.tensor, optional
     :param quantiles: Performance percentile to return in addition to the median.
-    :type quantiles: list[float], optional
-    :param return_mode: The statistical measure to return. Options are "min", "max", "mean", "median", or "all" Default is "mean".    :type return_mode: str
+    :type quantiles: list[float]
+    :param fast_flush: Use faster kernel to flush L2 between measurements
+    :type fast_flush: bool
     """
-    assert return_mode in ["min", "max", "mean", "median", "all"]
+    assert return_mode in ["min", "max", "mean", "median"]
     import torch
 
-    di = runtime.driver.active.get_device_interface()
-
     fn()
-    di.synchronize()
+    torch.cuda.synchronize()
 
-    cache = runtime.driver.active.get_empty_cache_for_benchmark()
+    # We maintain a buffer of 256 MB that we clear
+    # before each kernel call to make sure that the L2
+    # doesn't contain any input data before the run
+    if fast_flush:
+        cache = torch.empty(int(256e6 // 4), dtype=torch.int, device='cuda')
+    else:
+        cache = torch.empty(int(256e6), dtype=torch.int8, device='cuda')
 
     # Estimate the runtime of the function
-    start_event = di.Event(enable_timing=True)
-    end_event = di.Event(enable_timing=True)
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
     start_event.record()
     for _ in range(5):
         cache.zero_()
         fn()
     end_event.record()
-    di.synchronize()
+    torch.cuda.synchronize()
     estimate_ms = start_event.elapsed_time(end_event) / 5
 
     # compute number of warmup and repeat
     n_warmup = max(1, int(warmup / estimate_ms))
     n_repeat = max(1, int(rep / estimate_ms))
-    start_event = [di.Event(enable_timing=True) for i in range(n_repeat)]
-    end_event = [di.Event(enable_timing=True) for i in range(n_repeat)]
+    start_event = [torch.cuda.Event(enable_timing=True) for i in range(n_repeat)]
+    end_event = [torch.cuda.Event(enable_timing=True) for i in range(n_repeat)]
     # Warm-up
     for _ in range(n_warmup):
         fn()
@@ -153,26 +145,17 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
         fn()
         end_event[i].record()
     # Record clocks
-    di.synchronize()
+    torch.cuda.synchronize()
     times = torch.tensor([s.elapsed_time(e) for s, e in zip(start_event, end_event)], dtype=torch.float)
-    return _summarize_statistics(times, quantiles, return_mode)
+    if quantiles is not None:
+        ret = torch.quantile(times, torch.tensor(quantiles, dtype=torch.float)).tolist()
+        if len(ret) == 1:
+            ret = ret[0]
+        return ret
+    return getattr(torch, return_mode)(times).item()
 
 
 def assert_close(x, y, atol=None, rtol=None, err_msg=''):
-    """
-    Asserts that two inputs are close within a certain tolerance.
-
-    :param x: The first input.
-    :type x: scala, list, numpy.ndarray, or torch.Tensor
-    :param y: The second input.
-    :type y: scala, list, numpy.ndarray, or torch.Tensor
-    :param atol: The absolute tolerance. Default value is 1e-2.
-    :type atol: float, optional
-    :param rtol: The relative tolerance. Default value is 0.
-    :type rtol: float, optional
-    :param err_msg: The error message to use if the assertion fails.
-    :type err_msg: str
-    """
     import numpy as np
     import torch
 
@@ -227,6 +210,7 @@ class Benchmark:
         ylabel: str = '',
         x_log: bool = False,
         y_log: bool = False,
+        color=None,
         styles=None,
     ):
         """
@@ -258,8 +242,6 @@ class Benchmark:
         :type x_log: bool, optional
         :param y_log: Whether the y axis should be log scale.
         :type y_log: bool, optional
-        :param styles: A list of tuples, where each tuple contains two elements: a color and a linestyle.
-        :type styles: list[tuple[str, str]]
         """
         self.x_names = x_names
         self.x_vals = x_vals
