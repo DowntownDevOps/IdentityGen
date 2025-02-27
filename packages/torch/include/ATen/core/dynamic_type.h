@@ -5,7 +5,7 @@
 #include <type_traits>
 
 #include <ATen/core/jit_type_base.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 namespace c10 {
 
@@ -138,7 +138,7 @@ class DynamicType : public SharedType {
   struct Arguments {
     Arguments() = default;
     Arguments(c10::ArrayRef<TypePtr>);
-    Arguments(const std::vector<std::string_view>&, c10::ArrayRef<TypePtr>);
+    Arguments(const std::vector<c10::string_view>&, c10::ArrayRef<TypePtr>);
     std::vector<LabeledDynamicType> elems;
   };
 
@@ -156,12 +156,7 @@ class DynamicType : public SharedType {
   static TORCH_API DynamicTypePtr create(Type& ty);
 
   explicit DynamicType(Tag, Arguments);
-  explicit DynamicType(Tag, std::string_view, Arguments);
-
-  DynamicType(DynamicType&& other) = delete;
-  DynamicType(const DynamicType&) = delete;
-  DynamicType& operator=(const DynamicType&) = delete;
-  DynamicType& operator=(DynamicType&&) = delete;
+  explicit DynamicType(Tag, c10::string_view, Arguments);
 
   TypePtr containedType(size_t) const override;
   size_t containedTypeSize() const override;

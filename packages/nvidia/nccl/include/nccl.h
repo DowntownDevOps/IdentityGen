@@ -14,11 +14,11 @@
 #endif
 
 #define NCCL_MAJOR 2
-#define NCCL_MINOR 21
+#define NCCL_MINOR 20
 #define NCCL_PATCH 5
 #define NCCL_SUFFIX ""
 
-#define NCCL_VERSION_CODE 22105
+#define NCCL_VERSION_CODE 22005
 #define NCCL_VERSION(X,Y,Z) (((X) <= 2 && (Y) <= 8) ? (X) * 1000 + (Y) * 100 + (Z) : (X) * 10000 + (Y) * 100 + (Z))
 
 #ifdef __cplusplus
@@ -173,6 +173,7 @@ ncclResult_t pncclCommCuDevice(const ncclComm_t comm, int* device);
 /* Returns the user-ordered "rank" associated with the communicator. */
 ncclResult_t  ncclCommUserRank(const ncclComm_t comm, int* rank);
 ncclResult_t pncclCommUserRank(const ncclComm_t comm, int* rank);
+
 
 /* Register CUDA buffer for zero-copy operation */
 ncclResult_t  ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle);
@@ -431,6 +432,14 @@ ncclResult_t pncclGroupStart();
  */
 ncclResult_t  ncclGroupEnd();
 ncclResult_t pncclGroupEnd();
+
+/* Register CUDA buffer for zero-copy operation */
+ncclResult_t  ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle);
+ncclResult_t pncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle);
+
+/* Deregister CUDA buffer */
+ncclResult_t  ncclCommDeregister(const ncclComm_t comm, void* handle);
+ncclResult_t pncclCommDeregister(const ncclComm_t comm, void* handle);
 
 #ifdef __cplusplus
 } // end extern "C"

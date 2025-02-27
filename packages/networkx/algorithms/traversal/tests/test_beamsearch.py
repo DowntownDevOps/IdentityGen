@@ -1,5 +1,4 @@
 """Unit tests for the beam search functions."""
-
 import pytest
 
 import networkx as nx

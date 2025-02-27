@@ -213,6 +213,14 @@ typedef struct cuCtxSetCacheConfig_params_st {
     CUfunc_cache config;
 } cuCtxSetCacheConfig_params;
 
+typedef struct cuCtxGetSharedMemConfig_params_st {
+    CUsharedconfig *pConfig;
+} cuCtxGetSharedMemConfig_params;
+
+typedef struct cuCtxSetSharedMemConfig_params_st {
+    CUsharedconfig config;
+} cuCtxSetSharedMemConfig_params;
+
 typedef struct cuCtxGetApiVersion_params_st {
     CUcontext ctx;
     unsigned int *version;
@@ -236,14 +244,6 @@ typedef struct cuCtxAttach_params_st {
 typedef struct cuCtxDetach_params_st {
     CUcontext ctx;
 } cuCtxDetach_params;
-
-typedef struct cuCtxGetSharedMemConfig_params_st {
-    CUsharedconfig *pConfig;
-} cuCtxGetSharedMemConfig_params;
-
-typedef struct cuCtxSetSharedMemConfig_params_st {
-    CUsharedconfig config;
-} cuCtxSetSharedMemConfig_params;
 
 typedef struct cuModuleLoad_params_st {
     CUmodule *module;
@@ -281,17 +281,6 @@ typedef struct cuModuleGetFunction_params_st {
     CUmodule hmod;
     const char *name;
 } cuModuleGetFunction_params;
-
-typedef struct cuModuleGetFunctionCount_params_st {
-    unsigned int *count;
-    CUmodule mod;
-} cuModuleGetFunctionCount_params;
-
-typedef struct cuModuleEnumerateFunctions_params_st {
-    CUfunction *functions;
-    unsigned int numFunctions;
-    CUmodule mod;
-} cuModuleEnumerateFunctions_params;
 
 typedef struct cuModuleGetGlobal_v2_params_st {
     CUdeviceptr *dptr;
@@ -381,17 +370,6 @@ typedef struct cuLibraryGetKernel_params_st {
     const char *name;
 } cuLibraryGetKernel_params;
 
-typedef struct cuLibraryGetKernelCount_params_st {
-    unsigned int *count;
-    CUlibrary lib;
-} cuLibraryGetKernelCount_params;
-
-typedef struct cuLibraryEnumerateKernels_params_st {
-    CUkernel *kernels;
-    unsigned int numKernels;
-    CUlibrary lib;
-} cuLibraryEnumerateKernels_params;
-
 typedef struct cuLibraryGetModule_params_st {
     CUmodule *pMod;
     CUlibrary library;
@@ -441,18 +419,6 @@ typedef struct cuKernelSetCacheConfig_params_st {
     CUfunc_cache config;
     CUdevice dev;
 } cuKernelSetCacheConfig_params;
-
-typedef struct cuKernelGetName_params_st {
-    const char **name;
-    CUkernel hfunc;
-} cuKernelGetName_params;
-
-typedef struct cuKernelGetParamInfo_params_st {
-    CUkernel kernel;
-    size_t paramIndex;
-    size_t *paramOffset;
-    size_t *paramSize;
-} cuKernelGetParamInfo_params;
 
 typedef struct cuMemGetInfo_v2_params_st {
     size_t *free;
@@ -1097,27 +1063,12 @@ typedef struct cuMemPrefetchAsync_ptsz_params_st {
     CUstream hStream;
 } cuMemPrefetchAsync_ptsz_params;
 
-typedef struct cuMemPrefetchAsync_v2_ptsz_params_st {
-    CUdeviceptr devPtr;
-    size_t count;
-    CUmemLocation location;
-    unsigned int flags;
-    CUstream hStream;
-} cuMemPrefetchAsync_v2_ptsz_params;
-
 typedef struct cuMemAdvise_params_st {
     CUdeviceptr devPtr;
     size_t count;
     CUmem_advise advice;
     CUdevice device;
 } cuMemAdvise_params;
-
-typedef struct cuMemAdvise_v2_params_st {
-    CUdeviceptr devPtr;
-    size_t count;
-    CUmem_advise advice;
-    CUmemLocation location;
-} cuMemAdvise_v2_params;
 
 typedef struct cuMemRangeGetAttribute_params_st {
     void *data;
@@ -1198,15 +1149,6 @@ typedef struct cuStreamBeginCapture_v2_ptsz_params_st {
     CUstreamCaptureMode mode;
 } cuStreamBeginCapture_v2_ptsz_params;
 
-typedef struct cuStreamBeginCaptureToGraph_ptsz_params_st {
-    CUstream hStream;
-    CUgraph hGraph;
-    const CUgraphNode *dependencies;
-    const CUgraphEdgeData *dependencyData;
-    size_t numDependencies;
-    CUstreamCaptureMode mode;
-} cuStreamBeginCaptureToGraph_ptsz_params;
-
 typedef struct cuThreadExchangeStreamCaptureMode_params_st {
     CUstreamCaptureMode *mode;
 } cuThreadExchangeStreamCaptureMode_params;
@@ -1230,30 +1172,12 @@ typedef struct cuStreamGetCaptureInfo_v2_ptsz_params_st {
     size_t *numDependencies_out;
 } cuStreamGetCaptureInfo_v2_ptsz_params;
 
-typedef struct cuStreamGetCaptureInfo_v3_ptsz_params_st {
-    CUstream hStream;
-    CUstreamCaptureStatus *captureStatus_out;
-    cuuint64_t *id_out;
-    CUgraph *graph_out;
-    const CUgraphNode **dependencies_out;
-    const CUgraphEdgeData **edgeData_out;
-    size_t *numDependencies_out;
-} cuStreamGetCaptureInfo_v3_ptsz_params;
-
 typedef struct cuStreamUpdateCaptureDependencies_ptsz_params_st {
     CUstream hStream;
     CUgraphNode *dependencies;
     size_t numDependencies;
     unsigned int flags;
 } cuStreamUpdateCaptureDependencies_ptsz_params;
-
-typedef struct cuStreamUpdateCaptureDependencies_v2_ptsz_params_st {
-    CUstream hStream;
-    CUgraphNode *dependencies;
-    const CUgraphEdgeData *dependencyData;
-    size_t numDependencies;
-    unsigned int flags;
-} cuStreamUpdateCaptureDependencies_v2_ptsz_params;
 
 typedef struct cuStreamAttachMemAsync_ptsz_params_st {
     CUstream hStream;
@@ -1421,31 +1345,15 @@ typedef struct cuFuncSetCacheConfig_params_st {
     CUfunc_cache config;
 } cuFuncSetCacheConfig_params;
 
+typedef struct cuFuncSetSharedMemConfig_params_st {
+    CUfunction hfunc;
+    CUsharedconfig config;
+} cuFuncSetSharedMemConfig_params;
+
 typedef struct cuFuncGetModule_params_st {
     CUmodule *hmod;
     CUfunction hfunc;
 } cuFuncGetModule_params;
-
-typedef struct cuFuncGetName_params_st {
-    const char **name;
-    CUfunction hfunc;
-} cuFuncGetName_params;
-
-typedef struct cuFuncGetParamInfo_params_st {
-    CUfunction func;
-    size_t paramIndex;
-    size_t *paramOffset;
-    size_t *paramSize;
-} cuFuncGetParamInfo_params;
-
-typedef struct cuFuncIsLoaded_params_st {
-    CUfunctionLoadingState *state;
-    CUfunction function;
-} cuFuncIsLoaded_params;
-
-typedef struct cuFuncLoad_params_st {
-    CUfunction function;
-} cuFuncLoad_params;
 
 typedef struct cuLaunchKernel_ptsz_params_st {
     CUfunction f;
@@ -1551,11 +1459,6 @@ typedef struct cuParamSetTexRef_params_st {
     int texunit;
     CUtexref hTexRef;
 } cuParamSetTexRef_params;
-
-typedef struct cuFuncSetSharedMemConfig_params_st {
-    CUfunction hfunc;
-    CUsharedconfig config;
-} cuFuncSetSharedMemConfig_params;
 
 typedef struct cuGraphCreate_params_st {
     CUgraph *phGraph;
@@ -1829,39 +1732,17 @@ typedef struct cuGraphGetEdges_params_st {
     size_t *numEdges;
 } cuGraphGetEdges_params;
 
-typedef struct cuGraphGetEdges_v2_params_st {
-    CUgraph hGraph;
-    CUgraphNode *from;
-    CUgraphNode *to;
-    CUgraphEdgeData *edgeData;
-    size_t *numEdges;
-} cuGraphGetEdges_v2_params;
-
 typedef struct cuGraphNodeGetDependencies_params_st {
     CUgraphNode hNode;
     CUgraphNode *dependencies;
     size_t *numDependencies;
 } cuGraphNodeGetDependencies_params;
 
-typedef struct cuGraphNodeGetDependencies_v2_params_st {
-    CUgraphNode hNode;
-    CUgraphNode *dependencies;
-    CUgraphEdgeData *edgeData;
-    size_t *numDependencies;
-} cuGraphNodeGetDependencies_v2_params;
-
 typedef struct cuGraphNodeGetDependentNodes_params_st {
     CUgraphNode hNode;
     CUgraphNode *dependentNodes;
     size_t *numDependentNodes;
 } cuGraphNodeGetDependentNodes_params;
-
-typedef struct cuGraphNodeGetDependentNodes_v2_params_st {
-    CUgraphNode hNode;
-    CUgraphNode *dependentNodes;
-    CUgraphEdgeData *edgeData;
-    size_t *numDependentNodes;
-} cuGraphNodeGetDependentNodes_v2_params;
 
 typedef struct cuGraphAddDependencies_params_st {
     CUgraph hGraph;
@@ -1870,28 +1751,12 @@ typedef struct cuGraphAddDependencies_params_st {
     size_t numDependencies;
 } cuGraphAddDependencies_params;
 
-typedef struct cuGraphAddDependencies_v2_params_st {
-    CUgraph hGraph;
-    const CUgraphNode *from;
-    const CUgraphNode *to;
-    const CUgraphEdgeData *edgeData;
-    size_t numDependencies;
-} cuGraphAddDependencies_v2_params;
-
 typedef struct cuGraphRemoveDependencies_params_st {
     CUgraph hGraph;
     const CUgraphNode *from;
     const CUgraphNode *to;
     size_t numDependencies;
 } cuGraphRemoveDependencies_params;
-
-typedef struct cuGraphRemoveDependencies_v2_params_st {
-    CUgraph hGraph;
-    const CUgraphNode *from;
-    const CUgraphNode *to;
-    const CUgraphEdgeData *edgeData;
-    size_t numDependencies;
-} cuGraphRemoveDependencies_v2_params;
 
 typedef struct cuGraphDestroyNode_params_st {
     CUgraphNode hNode;
@@ -2059,42 +1924,6 @@ typedef struct cuGraphReleaseUserObject_params_st {
     CUuserObject object;
     unsigned int count;
 } cuGraphReleaseUserObject_params;
-
-typedef struct cuGraphAddNode_params_st {
-    CUgraphNode *phGraphNode;
-    CUgraph hGraph;
-    const CUgraphNode *dependencies;
-    size_t numDependencies;
-    CUgraphNodeParams *nodeParams;
-} cuGraphAddNode_params;
-
-typedef struct cuGraphAddNode_v2_params_st {
-    CUgraphNode *phGraphNode;
-    CUgraph hGraph;
-    const CUgraphNode *dependencies;
-    const CUgraphEdgeData *dependencyData;
-    size_t numDependencies;
-    CUgraphNodeParams *nodeParams;
-} cuGraphAddNode_v2_params;
-
-typedef struct cuGraphNodeSetParams_params_st {
-    CUgraphNode hNode;
-    CUgraphNodeParams *nodeParams;
-} cuGraphNodeSetParams_params;
-
-typedef struct cuGraphExecNodeSetParams_params_st {
-    CUgraphExec hGraphExec;
-    CUgraphNode hNode;
-    CUgraphNodeParams *nodeParams;
-} cuGraphExecNodeSetParams_params;
-
-typedef struct cuGraphConditionalHandleCreate_params_st {
-    CUgraphConditionalHandle *pHandle_out;
-    CUgraph hGraph;
-    CUcontext ctx;
-    unsigned int defaultLaunchValue;
-    unsigned int flags;
-} cuGraphConditionalHandleCreate_params;
 
 typedef struct cuOccupancyMaxActiveBlocksPerMultiprocessor_params_st {
     int *numBlocks;
@@ -2480,70 +2309,6 @@ typedef struct cuGetExportTable_params_st {
     const void **ppExportTable;
     const CUuuid *pExportTableId;
 } cuGetExportTable_params;
-
-typedef struct cuGreenCtxCreate_params_st {
-    CUgreenCtx *phCtx;
-    CUdevResourceDesc desc;
-    CUdevice dev;
-    unsigned int flags;
-} cuGreenCtxCreate_params;
-
-typedef struct cuGreenCtxDestroy_params_st {
-    CUgreenCtx hCtx;
-} cuGreenCtxDestroy_params;
-
-typedef struct cuCtxFromGreenCtx_params_st {
-    CUcontext *pContext;
-    CUgreenCtx hCtx;
-} cuCtxFromGreenCtx_params;
-
-typedef struct cuDeviceGetDevResource_params_st {
-    CUdevice device;
-    CUdevResource *resource;
-    CUdevResourceType type;
-} cuDeviceGetDevResource_params;
-
-typedef struct cuCtxGetDevResource_params_st {
-    CUcontext hCtx;
-    CUdevResource *resource;
-    CUdevResourceType type;
-} cuCtxGetDevResource_params;
-
-typedef struct cuGreenCtxGetDevResource_params_st {
-    CUgreenCtx hCtx;
-    CUdevResource *resource;
-    CUdevResourceType type;
-} cuGreenCtxGetDevResource_params;
-
-typedef struct cuDevSmResourceSplitByCount_params_st {
-    CUdevResource *result;
-    unsigned int *nbGroups;
-    const CUdevResource *input;
-    CUdevResource *remaining;
-    unsigned int useFlags;
-    unsigned int minCount;
-} cuDevSmResourceSplitByCount_params;
-
-typedef struct cuDevResourceGenerateDesc_params_st {
-    CUdevResourceDesc *phDesc;
-    CUdevResource *resources;
-    unsigned int nbResources;
-} cuDevResourceGenerateDesc_params;
-
-typedef struct cuGreenCtxRecordEvent_params_st {
-    CUgreenCtx hCtx;
-    CUevent hEvent;
-} cuGreenCtxRecordEvent_params;
-
-typedef struct cuGreenCtxWaitEvent_params_st {
-    CUgreenCtx hCtx;
-    CUevent hEvent;
-} cuGreenCtxWaitEvent_params;
-
-typedef struct cuStreamGetGreenCtx_params_st {
-    CUstream hStream;
-    CUgreenCtx *phCtx;
-} cuStreamGetGreenCtx_params;
 
 typedef struct cuMemHostRegister_params_st {
     void *p;
@@ -3332,14 +3097,6 @@ typedef struct cuMemPrefetchAsync_params_st {
     CUstream hStream;
 } cuMemPrefetchAsync_params;
 
-typedef struct cuMemPrefetchAsync_v2_params_st {
-    CUdeviceptr devPtr;
-    size_t count;
-    CUmemLocation location;
-    unsigned int flags;
-    CUstream hStream;
-} cuMemPrefetchAsync_v2_params;
-
 typedef struct cuLaunchCooperativeKernel_params_st {
     CUfunction f;
     unsigned int gridDimX;
@@ -3380,15 +3137,6 @@ typedef struct cuStreamBeginCapture_v2_params_st {
     CUstreamCaptureMode mode;
 } cuStreamBeginCapture_v2_params;
 
-typedef struct cuStreamBeginCaptureToGraph_params_st {
-    CUstream hStream;
-    CUgraph hGraph;
-    const CUgraphNode *dependencies;
-    const CUgraphEdgeData *dependencyData;
-    size_t numDependencies;
-    CUstreamCaptureMode mode;
-} cuStreamBeginCaptureToGraph_params;
-
 typedef struct cuStreamEndCapture_params_st {
     CUstream hStream;
     CUgraph *phGraph;
@@ -3419,16 +3167,6 @@ typedef struct cuStreamGetCaptureInfo_v2_params_st {
     const CUgraphNode **dependencies_out;
     size_t *numDependencies_out;
 } cuStreamGetCaptureInfo_v2_params;
-
-typedef struct cuStreamGetCaptureInfo_v3_params_st {
-    CUstream hStream;
-    CUstreamCaptureStatus *captureStatus_out;
-    cuuint64_t *id_out;
-    CUgraph *graph_out;
-    const CUgraphNode **dependencies_out;
-    const CUgraphEdgeData **edgeData_out;
-    size_t *numDependencies_out;
-} cuStreamGetCaptureInfo_v3_params;
 
 typedef struct cuGraphAddKernelNode_params_st {
     CUgraphNode *phGraphNode;
@@ -3546,14 +3284,6 @@ typedef struct cuStreamUpdateCaptureDependencies_params_st {
     size_t numDependencies;
     unsigned int flags;
 } cuStreamUpdateCaptureDependencies_params;
-
-typedef struct cuStreamUpdateCaptureDependencies_v2_params_st {
-    CUstream hStream;
-    CUgraphNode *dependencies;
-    const CUgraphEdgeData *dependencyData;
-    size_t numDependencies;
-    unsigned int flags;
-} cuStreamUpdateCaptureDependencies_v2_params;
 
 typedef struct cuGetProcAddress_params_st {
     const char *symbol;

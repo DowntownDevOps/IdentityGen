@@ -1,4 +1,5 @@
-"""Function for computing walks in a graph."""
+"""Function for computing walks in a graph.
+"""
 
 import networkx as nx
 

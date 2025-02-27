@@ -10,21 +10,17 @@ in torch._dynamo.convert_frame.
 
 from __future__ import annotations
 
-import atexit
 import contextlib
 import functools
 import inspect
 import logging
 import os
 import sys
-import sysconfig
 import textwrap
-import threading
 import traceback
 import types
 import warnings
 import weakref
-from dataclasses import dataclass
 from enum import Enum
 from os.path import dirname, join
 from typing import (
@@ -41,60 +37,52 @@ from typing import (
 )
 from unittest.mock import patch
 
-import sympy
-
 import torch
 import torch.fx
 import torch.utils._pytree as pytree
 import torch.utils.checkpoint
 from torch import _guards
-
-# see discussion at https://github.com/pytorch/pytorch/issues/120699
-from torch._C._dynamo.eval_frame import (  # noqa: F401
-    reset_code,
-    set_guard_error_hook,
-    set_skip_guard_eval_unsafe,
-    skip_code,
-    unsupported,
-)
-from torch._dispatch.python import enable_python_dispatcher
-from torch._subclasses.fake_tensor import unset_fake_temporarily
-from torch._utils_internal import justknobs_check, log_export_usage
-from torch.export.dynamic_shapes import (
-    _combine_args,
-    _process_dynamic_shapes,
-    _RelaxedConstraint,
-)
-from torch.fx import GraphModule
-from torch.fx.experimental.proxy_tensor import make_fx
+from torch._utils_internal import log_export_usage
+from torch.export.dynamic_shapes import _process_dynamic_shapes
+from torch.fx.experimental.proxy_tensor import make_fx, maybe_disable_fake_tensor_mode
 from torch.fx.experimental.symbolic_shapes import (
     ConstraintViolationError,
     DimDynamic,
-    ShapeEnv,
     StatelessSymbolicContext,
 )
 from torch.fx.graph import _PyTreeCodeGen, _PyTreeInfo
 
-from . import config, convert_frame, external_utils, trace_rules, utils
+from ..fx import GraphModule
 from .backends.registry import CompilerFn, lookup_backend
+
+from .hooks import Hooks
+
+# see discussion at https://github.com/pytorch/pytorch/issues/120699
+reset_code = torch._C._dynamo.eval_frame.reset_code  # noqa: F401
+set_eval_frame = torch._C._dynamo.eval_frame.set_eval_frame  # noqa: F401
+set_guard_error_hook = torch._C._dynamo.eval_frame.set_guard_error_hook  # noqa: F401
+skip_code = torch._C._dynamo.eval_frame.skip_code  # noqa: F401
+unsupported = torch._C._dynamo.eval_frame.unsupported  # noqa: F401
+
+from . import config, convert_frame, external_utils, trace_rules, utils
 from .code_context import code_context
 from .exc import CondOpArgsMismatchError, UserError, UserErrorType
-from .hooks import Hooks
 from .mutation_guard import install_generation_tagging_init
 from .utils import common_constant_types, compile_times
 
-
-if TYPE_CHECKING:
-    from torch._subclasses import fake_tensor
-
-    from .types import CacheEntry, DynamoCallback
-
-
 log = logging.getLogger(__name__)
 
+from torch._dispatch.python import enable_python_dispatcher
 
 always_optimize_code_objects = utils.ExactWeakKeyDictionary()
 null_context = contextlib.nullcontext
+
+
+import sympy
+
+if TYPE_CHECKING:
+    from torch._subclasses import fake_tensor
+    from .types import CacheEntry, DynamoCallback
 
 
 # See https://github.com/python/typing/pull/240
@@ -105,89 +93,6 @@ class Unset(Enum):
 cached_backends: Dict[int, CompilerFn] = {}
 
 unset = Unset.token
-
-
-def _maybe_set_eval_frame(callback: DynamoCallback):
-    # A wrapper on set_eval_frame that is guarded by a Justknob.
-    # Users can disable torchDynamo by setting the JK to False.
-    from torch._C._dynamo.eval_frame import set_eval_frame
-
-    if not justknobs_check("pytorch/compiler:enable_compiler_set_eval_frame"):
-        torch._dynamo.utils.warn_once(
-            "Dynamo disabled by Justknob: enable_compiler_set_eval_frame, skipping set_eval_frame"
-        )
-        return callback
-    else:
-        return set_eval_frame(callback)
-
-
-@dataclass
-class DynamoStance:
-    stance: str = "default"
-    skip_guard_eval_unsafe: bool = False
-    backend: Union[str, Callable[..., Any], None] = None
-
-
-_stance = DynamoStance()
-
-
-def _set_stance(stance: DynamoStance) -> DynamoStance:
-    global _stance
-
-    from torch._C._dynamo.eval_frame import get_eval_frame_callback
-
-    callback = get_eval_frame_callback()
-
-    if callback is not False and callback is not None:
-        raise RuntimeError("attempted to set_stance in a torch.compile region")
-
-    prior = _stance
-    _stance = stance
-    return prior
-
-
-_set_stance._dynamo_forbidden = True  # type: ignore[attr-defined]
-
-
-def _callback_from_stance(callback):
-    if _stance.stance == "default":
-        # force_backend
-        if _stance.backend is not None and callback not in (False, None):
-            hooks = Hooks()
-            callback = convert_frame.catch_errors_wrapper(
-                convert_frame.convert_frame(  # type: ignore[arg-type]
-                    get_compiler_fn(_stance.backend),
-                    hooks,
-                ),
-                hooks,
-            )
-
-        return callback
-    elif _stance.stance == "force_eager":
-        # disable
-        return None
-    elif _stance.stance == "eager_on_recompile":
-        # run mode
-        return False
-    elif _stance.stance == "fail_on_recompile":
-        if callback in (False, None):
-            return callback
-
-        def fail_callback(*args, **kwargs):
-            raise RuntimeError(
-                "Detected recompile when torch.compile stance is 'fail_on_recompile'"
-            )
-
-        # to prevent cache miss due to different callback
-        fail_callback._torchdynamo_orig_callable = callback  # type: ignore[attr-defined]
-
-        return fail_callback
-    else:
-        raise RuntimeError(f"invalid torch.compile stance '{_stance}'")
-
-
-def _is_skip_guard_eval_unsafe_stance():
-    return _stance.skip_guard_eval_unsafe
 
 
 def _reset_guarded_backend_cache():
@@ -237,22 +142,20 @@ class OptimizedModule(torch.nn.Module):
         "named_children_walk",
     }
 
-    def __init__(self, mod: torch.nn.Module, dynamo_ctx) -> None:
+    def __init__(self, mod: torch.nn.Module, dynamo_ctx):
         super().__init__()
         # Installs the params/buffer
         self._orig_mod = mod
         self.dynamo_ctx = dynamo_ctx
         self._initialize()
-        self.training = self._orig_mod.training
 
     def _initialize(self):
         # Do this stuff in constructor to lower overhead slightly
         if isinstance(self.dynamo_ctx, DisableContext):
             # No need to check trace rules
             self.forward = self.dynamo_ctx(self._orig_mod.__call__)
-        elif isinstance(self._orig_mod.forward, types.MethodType) and (
-            trace_rules.check(self._orig_mod.forward)
-            or getattr(self._orig_mod, "_is_fsdp_managed_module", False)
+        elif isinstance(self._orig_mod.forward, types.MethodType) and trace_rules.check(
+            self._orig_mod.forward
         ):
             # This may be a torch.nn.* instance in trace_rules.py which
             # won't trigger a frame evaluation workaround to add an extra
@@ -279,25 +182,12 @@ class OptimizedModule(torch.nn.Module):
         self.__dict__ = state
         self._initialize()
 
-    @property
-    def training(self):
-        return self._orig_mod.training
-
-    @training.setter
-    def training(self, value):
-        try:
-            super().__getattr__("_orig_mod")
-            self._orig_mod.training = value
-        except AttributeError:
-            # still initializing
-            pass
-
     def __getattr__(self, name):
         if name == "_orig_mod":
             return self._modules["_orig_mod"]
         return getattr(self._orig_mod, name)
 
-    def __setattr__(self, name, val) -> None:
+    def __setattr__(self, name, val):
         # Allow patching over class attributes
         if hasattr(type(self), name):
             return super().__setattr__(name, val)
@@ -307,11 +197,7 @@ class OptimizedModule(torch.nn.Module):
         return setattr(self._orig_mod, name, val)
 
     def _call_lazy_check(self, *args, **kwargs):
-        if (
-            hasattr(self._orig_mod, "_initialize_hook")
-            and hasattr(self._orig_mod, "_infer_parameters")
-            and callable(self._orig_mod._infer_parameters)
-        ):
+        if hasattr(self._orig_mod, "_initialize_hook"):
             # In the case of a lazy module, we want to run
             # the pre-hooks which initialize it.
             # Afterwards, lazy module deletes its pre-hooks
@@ -375,29 +261,6 @@ def make_set_enable_dynamic(enable: bool):
         )
 
 
-# A thread local storage that serves to store information as Dynamo traces
-# through a user provided function.
-class DynamoTLS(threading.local):
-    # Each string is a summary of a frame Dynamo attempted to trace, stored in
-    # temporal order.
-    traced_frame_infos: List[str] = []
-
-
-dynamo_tls = DynamoTLS()
-
-
-@atexit.register
-def _log_traced_frames():
-    """
-    At program exit, log all of the frames Dynamo has attempted to trace from,
-    excluding the continuation frames generated by Dynamo.
-    """
-    msg = "\n".join(dynamo_tls.traced_frame_infos)
-    msg = textwrap.indent(msg, "  * ")
-    msg = f"TorchDynamo attempted to trace the following frames: [\n{msg}\n]"
-    log.info(msg)
-
-
 class _TorchDynamoContext:
     def __init__(
         self,
@@ -410,7 +273,7 @@ class _TorchDynamoContext:
         export=False,
         dynamic=None,
         compiler_config=None,
-    ) -> None:
+    ):
         super().__init__()
         assert callable(callback) or callback is False or callback is None
         self.callback: DynamoCallback = callback
@@ -456,15 +319,11 @@ class _TorchDynamoContext:
                 "to use torch._dynamo.optimize(...) as an annotation/decorator. "
             )
         self.cleanup_fns = [enter() for enter in self.enter_exit_hooks]
-        self.prior = _maybe_set_eval_frame(_callback_from_stance(self.callback))
-        self.prior_skip_guard_eval_unsafe = set_skip_guard_eval_unsafe(
-            _is_skip_guard_eval_unsafe_stance()
-        )
+        self.prior = set_eval_frame(self.callback)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         assert self.prior is not unset
-        _maybe_set_eval_frame(self.prior)
-        set_skip_guard_eval_unsafe(self.prior_skip_guard_eval_unsafe)
+        set_eval_frame(self.prior)
         self.prior = unset
         for cleanup in self.cleanup_fns:
             cleanup()
@@ -549,16 +408,16 @@ class _TorchDynamoContext:
                     return fn(*args, **kwargs)
 
             if is_jit_tracing():
-                raise RuntimeError(
-                    "Detected that you are using FX to torch.jit.trace "
-                    "a dynamo-optimized function. This is not supported at the moment."
-                )
+                if config.error_on_nested_jit_trace:
+                    raise RuntimeError(
+                        "Detected that you are using FX to torch.jit.trace "
+                        "a dynamo-optimized function. This is not supported at the moment."
+                    )
+                else:
+                    return fn(*args, **kwargs)
 
             cleanups = [enter() for enter in self.enter_exit_hooks]
-            prior = _maybe_set_eval_frame(_callback_from_stance(callback))
-            prior_skip_guard_eval_unsafe = set_skip_guard_eval_unsafe(
-                _is_skip_guard_eval_unsafe_stance()
-            )
+            prior = set_eval_frame(callback)
 
             # Ensure that if an assertion occurs after graph pushes
             # something onto the DynamicLayerStack then we pop it off (the
@@ -578,8 +437,7 @@ class _TorchDynamoContext:
                     saved_dynamic_layer_stack_depth
                 )
 
-                _maybe_set_eval_frame(prior)
-                set_skip_guard_eval_unsafe(prior_skip_guard_eval_unsafe)
+                set_eval_frame(prior)
                 for cleanup in cleanups:
                     cleanup()
 
@@ -608,7 +466,7 @@ class _TorchDynamoContext:
                         wrapper function.
 
                         >> class CallableClass:
-                        >>     def __init__(self) -> None:
+                        >>     def __init__(self):
                         >>         super().__init__()
                         >>         self.relu = torch.nn.ReLU()
                         >>
@@ -650,7 +508,7 @@ class OptimizeContext(_TorchDynamoContext):
         rebuild_ctx: Optional[
             Callable[[], Union[OptimizeContext, _NullDecorator]]
         ] = None,
-    ) -> None:
+    ):
         def on_enter():
             install_generation_tagging_init()
 
@@ -670,9 +528,7 @@ class OptimizeContext(_TorchDynamoContext):
             def call_compiled_autograd():
                 assert rebuild_ctx is not None
                 compiler_fn = rebuild_ctx()
-                ctx = torch._dynamo.compiled_autograd._enable(
-                    compiler_fn, dynamic=self._dynamic
-                )
+                ctx = torch._dynamo.compiled_autograd.enable(compiler_fn)
                 ctx.__enter__()
                 return functools.partial(ctx.__exit__, None, None, None)
 
@@ -691,7 +547,7 @@ class OptimizeContext(_TorchDynamoContext):
 
 
 class RunOnlyContext(_TorchDynamoContext):
-    def __init__(self) -> None:
+    def __init__(self):
         # cudagraph trees relies on generation increment
         def on_enter():
             torch._dynamo.mutation_guard.GenerationTracker.generation += 1
@@ -703,7 +559,7 @@ class RunOnlyContext(_TorchDynamoContext):
 
 
 class DisableContext(_TorchDynamoContext):
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__(callback=None)
 
     def __call__(self, fn):
@@ -735,17 +591,15 @@ class DisableContext(_TorchDynamoContext):
 
         assert callable(fn)
 
+        callback = self.callback
+
         @functools.wraps(fn)
         def _fn(*args, **kwargs):
-            prior = _maybe_set_eval_frame(_callback_from_stance(self.callback))
-            prior_skip_guard_eval_unsafe = set_skip_guard_eval_unsafe(
-                _is_skip_guard_eval_unsafe_stance()
-            )
+            prior = set_eval_frame(callback)
             try:
                 return fn(*args, **kwargs)
             finally:
-                _maybe_set_eval_frame(prior)
-                set_skip_guard_eval_unsafe(prior_skip_guard_eval_unsafe)
+                set_eval_frame(prior)
 
         _fn._torchdynamo_disable = True  # type: ignore[attr-defined]
 
@@ -799,12 +653,8 @@ class _NullDecorator(contextlib.nullcontext):  # type: ignore[type-arg]
 
 
 def check_if_dynamo_supported():
-    if sys.version_info >= (3, 14):
-        raise RuntimeError("Python 3.14+ not yet supported for torch.compile")
-    elif sysconfig.get_config_var("Py_GIL_DISABLED") == 1:
-        raise RuntimeError(
-            "torch.compile is not supported on Python built with GIL disabled"
-        )
+    if sys.version_info >= (3, 13):
+        raise RuntimeError("Python 3.13+ not yet supported for torch.compile")
 
 
 def is_dynamo_supported():
@@ -818,6 +668,9 @@ def is_dynamo_supported():
 def check_if_inductor_supported():
     check_if_dynamo_supported()
 
+    if sys.platform == "win32":
+        raise RuntimeError("Windows not yet supported for inductor")
+
 
 def is_inductor_supported():
     try:
@@ -829,14 +682,6 @@ def is_inductor_supported():
 
 def optimize(*args, **kwargs):
     def rebuild_ctx():
-        ca_kwargs_override = config.compiled_autograd_kwargs_override
-        if ca_kwargs_override:
-            # NOTE: The process of translating other `torch.compile` kwargs to `torch._dynamo.optimize` kwargs
-            # is more complicated, we will add it in the future when needed.
-            assert set(ca_kwargs_override.keys()) == {
-                "fullgraph"
-            }, f"Only `fullgraph` kwarg override is supported for now, but got {ca_kwargs_override.keys()}"
-            kwargs["nopython"] = ca_kwargs_override["fullgraph"]
         return optimize(*args, **kwargs)
 
     return _optimize(rebuild_ctx, *args, **kwargs)
@@ -886,11 +731,7 @@ def _optimize(
     # easier to understand UX at the cost of a little more plumbing on our end.
     hooks = Hooks(guard_export_fn=guard_export_fn, guard_fail_fn=guard_fail_fn)
     torch._C._log_api_usage_once("torch._dynamo.optimize")
-    if (
-        disable
-        or os.environ.get("TORCHDYNAMO_DISABLE", "") == "1"
-        or (not justknobs_check("pytorch/compiler:enable_dynamo"))
-    ):
+    if disable or os.environ.get("TORCHDYNAMO_DISABLE", "") == "1":
         return _NullDecorator()
 
     backend = get_compiler_fn(backend)
@@ -913,11 +754,9 @@ def _optimize(
         hooks,
         backend_ctx_ctor,
         dynamic=dynamic,
-        compiler_config=(
-            backend.get_compiler_config()
-            if hasattr(backend, "get_compiler_config")
-            else None
-        ),
+        compiler_config=backend.get_compiler_config()
+        if hasattr(backend, "get_compiler_config")
+        else None,
         rebuild_ctx=rebuild_ctx,
     )
 
@@ -997,7 +836,7 @@ def explain(f, *extra_args, **extra_kwargs):
         return inner
 
 
-class FlattenInputOutputSignature(torch.fx.Transformer):
+class FlattenInputOutputSignature(torch.fx.interpreter.Transformer):
     def __init__(
         self,
         m: torch.fx.GraphModule,
@@ -1008,7 +847,7 @@ class FlattenInputOutputSignature(torch.fx.Transformer):
         example_fake_inputs: List[torch.Tensor],
         flat_args_dynamic_dims: List[Set[int]],
         fake_mode: Optional[fake_tensor.FakeTensorMode] = None,
-    ) -> None:
+    ):
         super().__init__(m)
 
         assert len(flat_args_dynamic_dims) == len(flat_args)
@@ -1031,11 +870,9 @@ class FlattenInputOutputSignature(torch.fx.Transformer):
                         flat_args[i],
                         symbolic_context=StatelessSymbolicContext(
                             dynamic_sizes=[
-                                (
-                                    DimDynamic.DYNAMIC
-                                    if d in flat_args_dynamic_dims[i]
-                                    else DimDynamic.STATIC
-                                )
+                                DimDynamic.DYNAMIC
+                                if d in flat_args_dynamic_dims[i]
+                                else DimDynamic.STATIC
                                 for d in range(len(flat_args[i].shape))
                             ],
                             constraint_sizes=[None] * len(flat_args[i].shape),
@@ -1098,12 +935,10 @@ class FlattenInputOutputSignature(torch.fx.Transformer):
 
     def transform(self):
         result_gm = super().transform()
-        if "dynamo_flat_name_to_original_fqn" in self.module.meta:  # type: ignore[operator]
-            result_gm.meta["dynamo_flat_name_to_original_fqn"] = self.module.meta[  # type: ignore[index]
-                "dynamo_flat_name_to_original_fqn"  # type: ignore[index]
+        if "dynamo_flat_name_to_original_fqn" in self.module.meta:
+            result_gm.meta["dynamo_flat_name_to_original_fqn"] = self.module.meta[
+                "dynamo_flat_name_to_original_fqn"
             ]
-        if "dynamo_compile_id" in self.module.meta:  # type: ignore[operator]
-            result_gm.meta["dynamo_compile_id"] = self.module.meta["dynamo_compile_id"]  # type: ignore[index]
         return result_gm
 
 
@@ -1204,22 +1039,6 @@ def rewrite_signature(
     flat_results_traced, out_spec_traced = pytree.tree_flatten(dynamo_traced_result)
     check_user_input_output(flat_results_traced, UserErrorType.INVALID_OUTPUT)
 
-    def check_optional_input_and_error(f_sig: inspect.Signature):
-        # Check if function has optional input.
-        for name, param in f_sig.parameters.items():
-            if param.default is not inspect.Parameter.empty:
-                from torch._dynamo.exc import Unsupported
-
-                log.error(
-                    "Parameter %s is optional with a default value of %s",
-                    name,
-                    param.default,
-                )
-                raise Unsupported(
-                    "Tracing through optional input is not supported yet",
-                    case_name="optional_input",
-                )
-
     def produce_matching(debug_type, sources, candidates):
         matched_elements_positions: List[Optional[int]] = []
         dict_of_source_vals = {}
@@ -1230,11 +1049,9 @@ def rewrite_signature(
             if isinstance(val, tuple(common_constant_types)):
                 matched_elements_positions.append(None)
             elif id(val) not in dict_of_source_vals:
-                if debug_type == "inputs":
-                    check_optional_input_and_error(f_sig)
                 raise AssertionError(
                     f"Unexpectedly found a {type(val)} in the {debug_type}.\n"
-                    'Please file an issue along with a paste of the logs from TORCH_LOGS="+export"',
+                    'Please file an issue along with a paste of the logs from TORCH_LOGS="+export"'
                 )
             else:
                 matched_elements_positions.append(dict_of_source_vals[id(val)])
@@ -1365,12 +1182,11 @@ def export(
     ] = None,
     tracing_mode: str = "symbolic",
     dynamic_shapes: Optional[Union[Dict[str, Any], Tuple[Any], List[Any]]] = None,
-    specialize_float: bool = True,
     assume_static_by_default: bool = False,
     same_signature: bool = True,
     disable_constraint_solver: bool = False,
     prefer_deferred_runtime_asserts_over_guards: bool = False,
-    allow_complex_guards_as_runtime_asserts: bool = False,
+    _allow_complex_guards_as_runtime_asserts: bool = False,
     _log_export_usage: bool = True,
     **extra_kwargs,
 ) -> Callable[..., ExportResult]:
@@ -1432,14 +1248,11 @@ def export(
 
     # Deal with "local variable referenced before assignment"
     _f = f
-    _specialize_float = specialize_float
     _assume_static_by_default = assume_static_by_default
 
     def inner(*args, **kwargs):
-        combined_args = _combine_args(_f, args, kwargs)
-        constraints = _process_dynamic_shapes(combined_args, dynamic_shapes)
+        constraints = _process_dynamic_shapes(_f, args, kwargs, dynamic_shapes)
         f = _f
-        specialize_float = _specialize_float
         assume_static_by_default = _assume_static_by_default
         check_if_dynamo_supported()
         torch._C._log_api_usage_once("torch._dynamo.export")
@@ -1457,7 +1270,6 @@ def export(
         graph_captured_input = None
         graph_captured_result: Optional[Tuple[torch.Tensor, ...]] = None
         fake_mode = None
-        result_traced = None
 
         def guard_export_print(guards: _guards.GuardsSet):
             nonlocal out_guards
@@ -1508,7 +1320,6 @@ def export(
                 # NB: this is wrong if graph_captured_result has
                 # data-dependent output size!
                 ignore_fresh_unbacked = null_context()
-                assert ambient_fake_mode is not None
                 if shape_env := ambient_fake_mode.shape_env:
                     ignore_fresh_unbacked = shape_env.ignore_fresh_unbacked_symbols()
 
@@ -1519,7 +1330,7 @@ def export(
                         **named_parameters,
                         **named_buffers,
                     }
-                    fake_params_buffers = {}
+                    fake_params_buffers = dict()
 
                     for name, value in params_and_buffers.items():
                         fake_params_buffers[name] = ambient_fake_mode.from_tensor(
@@ -1547,13 +1358,12 @@ def export(
             assume_static_by_default = True
         with config.patch(
             specialize_int=True,
-            specialize_float=specialize_float,
             assume_static_by_default=assume_static_by_default,
             automatic_dynamic_shapes=False,
             capture_dynamic_output_shape_ops=True,
             capture_scalar_outputs=True,
             prefer_deferred_runtime_asserts_over_guards=prefer_deferred_runtime_asserts_over_guards,
-            allow_complex_guards_as_runtime_asserts=allow_complex_guards_as_runtime_asserts,
+            _allow_complex_guards_as_runtime_asserts=_allow_complex_guards_as_runtime_asserts,
         ):
             opt_f = optimize_assert(
                 dynamo_normalization_capturing_compiler,
@@ -1581,6 +1391,7 @@ def export(
             and not trace_rules.check(call_to_inspect)
         ):
             dim_constraints.solve()
+            dim_constraints.remove_redundant_dynamic_results()
             forced_specializations = dim_constraints.forced_specializations()
             msg = dim_constraints.prettify_results(
                 original_signature,
@@ -1613,55 +1424,21 @@ def export(
         if constraint_violation_error:
             raise constraint_violation_error
 
-        if graph is None:
-            assert (
-                same_signature
-            ), "Failed to produce a graph during tracing as no tensor operations were found and same_signature is False."
-            # If the module does not contain any tensor computation, we would create a graph with inputs and outputs.
-            # To be consitant with the graph traced by dynano, `graph` will have only tensor inputs as placeholders
-            # and tensor outputs as output nodes. non-tensor inputs and outputs will be added when rewriting signature.
-            # We will also construct the `example_inputs`, `graph_captured_input`, and `graph_captured_result` corresponding
-            # to `graph`.
-            example_inputs = []
-            graph_captured_input = ()
-            graph_captured_result = ()
-            fake_mode = torch._subclasses.FakeTensorMode(
-                shape_env=ShapeEnv(), export=True
-            )
-            if out_guards is None:
-                out_guards = _guards.GuardsSet()
-            assert out_guards is not None  # suppress mypy error
-            parameter_names = list(original_signature.parameters.keys())
-            fx_graph = torch.fx.Graph()
-            for i, name in enumerate(parameter_names):
-                if torch.is_tensor(flat_args[i]):
-                    node = fx_graph.placeholder(name)
-                    node.meta["val"] = fake_mode.from_tensor(
-                        flat_args[i], static_shapes=True
-                    )
-                    graph_captured_input = graph_captured_input + (flat_args[i],)
-                    example_inputs.append(flat_args[i])
-            fx_graph.output(graph_captured_result)
-            module = torch.nn.Module()
-            graph = torch.fx.GraphModule(module, fx_graph)
-            log.info(
-                "Failed to capture a graph during tracing as no tensor operations were found.:\n\n%s",
-                graph.print_readable(print_output=False, colored=True),
-            )
-        else:
-            assert hasattr(graph, "_source_to_user_stacks")
-            assert out_guards is not None, "Failed to produce guards during tracing"
-            assert fake_mode is not None
+        assert (
+            graph is not None
+        ), "Failed to produce a graph during tracing as no tensor operations were found."
+        assert hasattr(graph, "_source_to_user_stacks")
+        assert out_guards is not None, "Failed to produce guards during tracing"
+        assert fake_mode is not None
 
-            log.info(
-                "Dynamo captured graph:\n\n%s",
-                graph.print_readable(print_output=False, colored=True),
-            )
+        log.info(
+            "Dynamo captured graph:\n\n%s", graph.print_readable(print_output=False)
+        )
 
-            # This check need to happened before aten_graph
-            # because placeholder's _source_node attribute is not preserved by make_fx
-            if same_signature:
-                check_signature_rewritable(graph)
+        # This check need to happened before aten_graph
+        # because placeholder's _source_node attribute is not preserved by make_fx
+        if same_signature:
+            check_signature_rewritable(graph)
 
         # NB: This is mostly hitting the cache; Dynamo already converted these
         example_fake_inputs = [fake_mode.from_tensor(t) for t in example_inputs]
@@ -1670,9 +1447,11 @@ def export(
             # Running graph with interpreter is needed for propagating the stack_trace
             def graph_with_interpreter(*args):
                 with torch.fx.traceback.preserve_node_meta():
-                    return torch.fx.Interpreter(graph).run(*args)  # type: ignore[arg-type]
+                    return torch.fx.Interpreter(graph).run(*args)
 
-            with unset_fake_temporarily(), enable_python_dispatcher(), fake_mode:
+            with maybe_disable_fake_tensor_mode(), enable_python_dispatcher(), (
+                fake_mode
+            ):
                 try:
                     graph = make_fx(
                         graph_with_interpreter,
@@ -1692,22 +1471,14 @@ def export(
 
             assert graph is not None
             for node in graph.graph.find_nodes(op="get_attr"):
-                if isinstance(getattr(graph, node.target), torch.Tensor):  # type: ignore[arg-type]
+                if isinstance(getattr(graph, node.target), torch.Tensor):
                     node.meta["val"] = fake_mode.from_tensor(
-                        getattr(graph, node.target), static_shapes=True  # type: ignore[arg-type]
+                        getattr(graph, node.target), static_shapes=True
                     )
 
         if same_signature:
             flat_args_dynamic_dims = [
-                {
-                    c.dim
-                    for c in (constraints or ())
-                    if (
-                        c.t_id == id(x)
-                        and not isinstance(c, _RelaxedConstraint)
-                        and c.constraint_range.vr.lower != c.constraint_range.vr.upper
-                    )
-                }
+                {c.dim for c in (constraints or ()) if c.w_tensor() is x}
                 for x in flat_args
             ]
             graph = rewrite_signature(
@@ -1722,7 +1493,15 @@ def export(
                 result_traced,  # type: ignore[possibly-undefined]
                 flat_args_dynamic_dims,
             )
-        return ExportResult(graph, out_guards)  # type: ignore[arg-type]
+        # Store constraints and inputs as metadata for user passes, e.g. turn constraints to runtime check
+        assert graph is not None
+        graph.meta["input_shape_constraints"] = (
+            [constraint.serializable_spec for constraint in constraints]
+            if constraints
+            else []
+        )
+
+        return ExportResult(graph, out_guards)
 
     if extra_args or extra_kwargs:
         warnings.warn(
@@ -1783,7 +1562,7 @@ class TorchPatcher:
         )
         torch.distributions.Distribution.set_default_validate_args(False)
 
-        from torch.optim import (
+        from ..optim import (
             adadelta,
             adagrad,
             adam,

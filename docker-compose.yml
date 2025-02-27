@@ -3,20 +3,18 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+    runtime: nvidia
     ports:
       - "8000:8000"
     volumes:
-      # Optional: Mount a volume for persistent storage of models
-      - model-cache:/root/.cache/huggingface
-      - ./models:/app/models:ro  # Mount as read-only
-      - ./packages:/packages:ro  # Mount pre-downloaded packages as read-only
-      # Storage volumes for persistent data
+      - ./packages:/usr/local/lib/python3.10/site-packages:ro
+      - ./models:/app/models:ro
       - ./storage/base_characters:/app/storage/base_characters
       - ./storage/lora_models:/app/storage/lora_models  
       - ./storage/outputs:/app/storage/outputs
-      - ./storage/db:/app/storage/db  # For future database storage
+      - ./storage/db:/app/storage/db
+      - ./src:/app/src:ro
     environment:
-      # Model and generation parameters
       - CUDA_VISIBLE_DEVICES=0
       - MODEL_PATH=${MODEL_PATH}
       - DEVICE=${DEVICE}
@@ -25,18 +23,16 @@ services:
       - PORT=${PORT}
       - WORKERS=${WORKERS}
       - MODELS_DIR=/app/models
-      # Storage paths configuration
       - BASE_CHARACTERS_PATH=/app/storage/base_characters
       - LORA_MODELS_PATH=/app/storage/lora_models
       - OUTPUT_PATH=/app/storage/outputs
+      - PYTHONPATH=/app/src:/usr/local/lib/python3.10/site-packages:/usr/local/lib/python3/dist-packages
+      - TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
+      - NVIDIA_VISIBLE_DEVICES=all
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: all
               capabilities: [gpu]
-
-volumes:
-  model-cache:
-    # This creates a named volume for caching downloaded models 

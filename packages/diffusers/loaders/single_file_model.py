@@ -11,29 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import importlib
 import inspect
 import re
 from contextlib import nullcontext
 from typing import Optional
 
-import torch
 from huggingface_hub.utils import validate_hf_hub_args
 
-from ..quantizers import DiffusersAutoQuantizer
 from ..utils import deprecate, is_accelerate_available, logging
 from .single_file_utils import (
     SingleFileComponentError,
-    convert_animatediff_checkpoint_to_diffusers,
-    convert_autoencoder_dc_checkpoint_to_diffusers,
     convert_controlnet_checkpoint,
-    convert_flux_transformer_checkpoint_to_diffusers,
-    convert_hunyuan_video_transformer_to_diffusers,
     convert_ldm_unet_checkpoint,
     convert_ldm_vae_checkpoint,
-    convert_ltx_transformer_checkpoint_to_diffusers,
-    convert_ltx_vae_checkpoint_to_diffusers,
-    convert_mochi_transformer_checkpoint_to_diffusers,
     convert_sd3_transformer_checkpoint_to_diffusers,
     convert_stable_cascade_unet_single_file_to_diffusers,
     create_controlnet_diffusers_config_from_ldm,
@@ -79,45 +69,7 @@ SINGLE_FILE_LOADABLE_CLASSES = {
         "checkpoint_mapping_fn": convert_sd3_transformer_checkpoint_to_diffusers,
         "default_subfolder": "transformer",
     },
-    "MotionAdapter": {
-        "checkpoint_mapping_fn": convert_animatediff_checkpoint_to_diffusers,
-    },
-    "SparseControlNetModel": {
-        "checkpoint_mapping_fn": convert_animatediff_checkpoint_to_diffusers,
-    },
-    "FluxTransformer2DModel": {
-        "checkpoint_mapping_fn": convert_flux_transformer_checkpoint_to_diffusers,
-        "default_subfolder": "transformer",
-    },
-    "LTXVideoTransformer3DModel": {
-        "checkpoint_mapping_fn": convert_ltx_transformer_checkpoint_to_diffusers,
-        "default_subfolder": "transformer",
-    },
-    "AutoencoderKLLTXVideo": {
-        "checkpoint_mapping_fn": convert_ltx_vae_checkpoint_to_diffusers,
-        "default_subfolder": "vae",
-    },
-    "AutoencoderDC": {"checkpoint_mapping_fn": convert_autoencoder_dc_checkpoint_to_diffusers},
-    "MochiTransformer3DModel": {
-        "checkpoint_mapping_fn": convert_mochi_transformer_checkpoint_to_diffusers,
-        "default_subfolder": "transformer",
-    },
-    "HunyuanVideoTransformer3DModel": {
-        "checkpoint_mapping_fn": convert_hunyuan_video_transformer_to_diffusers,
-        "default_subfolder": "transformer",
-    },
 }
-
-
-def _get_single_file_loadable_mapping_class(cls):
-    diffusers_module = importlib.import_module(__name__.split(".")[0])
-    for loadable_class_str in SINGLE_FILE_LOADABLE_CLASSES:
-        loadable_class = getattr(diffusers_module, loadable_class_str)
-
-        if issubclass(cls, loadable_class):
-            return loadable_class_str
-
-    return None
 
 
 def _get_mapping_function_kwargs(mapping_fn, **kwargs):
@@ -169,7 +121,9 @@ class FromOriginalModelMixin:
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-
+            resume_download (`bool`, *optional*, defaults to `False`):
+                Whether or not to resume downloading the model weights and configuration files. If set to `False`, any
+                incompletely downloaded files are deleted.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -195,9 +149,8 @@ class FromOriginalModelMixin:
         ```
         """
 
-        mapping_class_name = _get_single_file_loadable_mapping_class(cls)
-        # if class_name not in SINGLE_FILE_LOADABLE_CLASSES:
-        if mapping_class_name is None:
+        class_name = cls.__name__
+        if class_name not in SINGLE_FILE_LOADABLE_CLASSES:
             raise ValueError(
                 f"FromOriginalModelMixin is currently only compatible with {', '.join(SINGLE_FILE_LOADABLE_CLASSES.keys())}"
             )
@@ -218,6 +171,7 @@ class FromOriginalModelMixin:
                 "`from_single_file` cannot accept both `config` and `original_config` arguments. Please provide only one of these arguments"
             )
 
+        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         token = kwargs.pop("token", None)
@@ -225,16 +179,14 @@ class FromOriginalModelMixin:
         local_files_only = kwargs.pop("local_files_only", None)
         subfolder = kwargs.pop("subfolder", None)
         revision = kwargs.pop("revision", None)
-        config_revision = kwargs.pop("config_revision", None)
         torch_dtype = kwargs.pop("torch_dtype", None)
-        quantization_config = kwargs.pop("quantization_config", None)
-        device = kwargs.pop("device", None)
 
         if isinstance(pretrained_model_link_or_path_or_dict, dict):
             checkpoint = pretrained_model_link_or_path_or_dict
         else:
             checkpoint = load_single_file_checkpoint(
                 pretrained_model_link_or_path_or_dict,
+                resume_download=resume_download,
                 force_download=force_download,
                 proxies=proxies,
                 token=token,
@@ -242,17 +194,11 @@ class FromOriginalModelMixin:
                 local_files_only=local_files_only,
                 revision=revision,
             )
-        if quantization_config is not None:
-            hf_quantizer = DiffusersAutoQuantizer.from_config(quantization_config)
-            hf_quantizer.validate_environment()
 
-        else:
-            hf_quantizer = None
-
-        mapping_functions = SINGLE_FILE_LOADABLE_CLASSES[mapping_class_name]
+        mapping_functions = SINGLE_FILE_LOADABLE_CLASSES[class_name]
 
         checkpoint_mapping_fn = mapping_functions["checkpoint_mapping_fn"]
-        if original_config is not None:
+        if original_config:
             if "config_mapping_fn" in mapping_functions:
                 config_mapping_fn = mapping_functions["config_mapping_fn"]
             else:
@@ -261,7 +207,7 @@ class FromOriginalModelMixin:
             if config_mapping_fn is None:
                 raise ValueError(
                     (
-                        f"`original_config` has been provided for {mapping_class_name} but no mapping function"
+                        f"`original_config` has been provided for {class_name} but no mapping function"
                         "was found to convert the original config to a Diffusers config in"
                         "`diffusers.loaders.single_file_utils`"
                     )
@@ -276,7 +222,7 @@ class FromOriginalModelMixin:
                 original_config=original_config, checkpoint=checkpoint, **config_mapping_kwargs
             )
         else:
-            if config is not None:
+            if config:
                 if isinstance(config, str):
                     default_pretrained_model_config_name = config
                 else:
@@ -302,8 +248,6 @@ class FromOriginalModelMixin:
                 pretrained_model_name_or_path=default_pretrained_model_config_name,
                 subfolder=subfolder,
                 local_files_only=local_files_only,
-                token=token,
-                revision=config_revision,
             )
             expected_kwargs, optional_kwargs = cls._get_signature_keys(cls)
 
@@ -323,61 +267,27 @@ class FromOriginalModelMixin:
         )
         if not diffusers_format_checkpoint:
             raise SingleFileComponentError(
-                f"Failed to load {mapping_class_name}. Weights for this component appear to be missing in the checkpoint."
+                f"Failed to load {class_name}. Weights for this component appear to be missing in the checkpoint."
             )
 
         ctx = init_empty_weights if is_accelerate_available() else nullcontext
         with ctx():
             model = cls.from_config(diffusers_model_config)
 
-        # Check if `_keep_in_fp32_modules` is not None
-        use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (
-            (torch_dtype == torch.float16) or hasattr(hf_quantizer, "use_keep_in_fp32_modules")
-        )
-        if use_keep_in_fp32_modules:
-            keep_in_fp32_modules = cls._keep_in_fp32_modules
-            if not isinstance(keep_in_fp32_modules, list):
-                keep_in_fp32_modules = [keep_in_fp32_modules]
-
-        else:
-            keep_in_fp32_modules = []
-
-        if hf_quantizer is not None:
-            hf_quantizer.preprocess_model(
-                model=model,
-                device_map=None,
-                state_dict=diffusers_format_checkpoint,
-                keep_in_fp32_modules=keep_in_fp32_modules,
-            )
-
         if is_accelerate_available():
-            param_device = torch.device(device) if device else torch.device("cpu")
-            unexpected_keys = load_model_dict_into_meta(
-                model,
-                diffusers_format_checkpoint,
-                dtype=torch_dtype,
-                device=param_device,
-                hf_quantizer=hf_quantizer,
-                keep_in_fp32_modules=keep_in_fp32_modules,
-            )
+            unexpected_keys = load_model_dict_into_meta(model, diffusers_format_checkpoint, dtype=torch_dtype)
+            if model._keys_to_ignore_on_load_unexpected is not None:
+                for pat in model._keys_to_ignore_on_load_unexpected:
+                    unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
 
+            if len(unexpected_keys) > 0:
+                logger.warning(
+                    f"Some weights of the model checkpoint were not used when initializing {cls.__name__}: \n {[', '.join(unexpected_keys)]}"
+                )
         else:
-            _, unexpected_keys = model.load_state_dict(diffusers_format_checkpoint, strict=False)
+            model.load_state_dict(diffusers_format_checkpoint)
 
-        if model._keys_to_ignore_on_load_unexpected is not None:
-            for pat in model._keys_to_ignore_on_load_unexpected:
-                unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
-
-        if len(unexpected_keys) > 0:
-            logger.warning(
-                f"Some weights of the model checkpoint were not used when initializing {cls.__name__}: \n {[', '.join(unexpected_keys)]}"
-            )
-
-        if hf_quantizer is not None:
-            hf_quantizer.postprocess_model(model)
-            model.hf_quantizer = hf_quantizer
-
-        if torch_dtype is not None and hf_quantizer is None:
+        if torch_dtype is not None:
             model.to(torch_dtype)
 
         model.eval()

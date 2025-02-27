@@ -9,7 +9,9 @@
 #include <torch/csrc/distributed/autograd/functions/sendrpc_backward.h>
 #include <torch/csrc/distributed/rpc/rpc_agent.h>
 
-namespace torch::distributed::autograd {
+namespace torch {
+namespace distributed {
+namespace autograd {
 
 class RecvRpcBackward;
 
@@ -59,7 +61,7 @@ class TORCH_API DistAutogradContext {
   // needs to be updated.
   void runGradCallbackForVariable(
       const torch::autograd::Variable& variable,
-      const GradCallback& cb);
+      GradCallback&& cb);
 
   DistAutogradContext(const DistAutogradContext&) = delete;
   DistAutogradContext& operator=(const DistAutogradContext&) = delete;
@@ -167,4 +169,6 @@ class TORCH_API ThreadLocalDistAutogradContext {
   ContextPtr prev_context_ptr_;
 };
 
-} // namespace torch::distributed::autograd
+} // namespace autograd
+} // namespace distributed
+} // namespace torch

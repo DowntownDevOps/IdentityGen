@@ -1,4 +1,6 @@
-"""Functions for finding and evaluating cuts in a graph."""
+"""Functions for finding and evaluating cuts in a graph.
+
+"""
 
 from itertools import chain
 

@@ -23,7 +23,8 @@ from typing import Callable, Optional, Union
 
 import torch
 from huggingface_hub import snapshot_download
-from huggingface_hub.errors import HFValidationError, LocalEntryNotFoundError
+from huggingface_hub.errors import HFValidationError
+from huggingface_hub.utils import LocalEntryNotFoundError
 from safetensors import SafetensorError, safe_open
 from transformers.utils import cached_file
 from transformers.utils.hub import get_checkpoint_shard_files

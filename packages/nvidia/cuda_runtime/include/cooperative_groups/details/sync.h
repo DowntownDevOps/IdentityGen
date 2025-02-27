@@ -62,20 +62,15 @@ _CG_STATIC_QUALIFIER bool bar_has_flipped(unsigned int old_arrive, unsigned int 
     return (((old_arrive ^ current_arrive) & 0x80000000) != 0);
 }
 
-_CG_STATIC_QUALIFIER bool is_cta_master() {
-    return (threadIdx.x + threadIdx.y + threadIdx.z == 0);
-}
-
-_CG_STATIC_QUALIFIER unsigned int sync_grids_arrive(volatile barrier_t *arrived) {
-    unsigned int oldArrive = 0;
+_CG_STATIC_QUALIFIER void sync_grids(unsigned int expected, volatile barrier_t *arrived) {
+    bool cta_master = (threadIdx.x + threadIdx.y + threadIdx.z == 0);
+    bool gpu_master = (blockIdx.x + blockIdx.y + blockIdx.z == 0);
 
     __barrier_sync(0);
 
-    if (is_cta_master()) {
-        unsigned int expected = gridDim.x * gridDim.y * gridDim.z;
-        bool gpu_master = (blockIdx.x + blockIdx.y + blockIdx.z == 0);
+    if (cta_master) {
+        unsigned int oldArrive;
         unsigned int nb = 1;
-
         if (gpu_master) {
             nb = 0x80000000 - (expected - 1);
         }
@@ -85,24 +80,14 @@ _CG_STATIC_QUALIFIER unsigned int sync_grids_arrive(volatile barrier_t *arrived)
         __threadfence();
 
         oldArrive = atomicAdd((unsigned int*)arrived, nb);
-#else
-        // Barrier update with release; polling with acquire
-        asm volatile("atom.add.release.gpu.u32 %0,[%1],%2;" : "=r"(oldArrive) : _CG_ASM_PTR_CONSTRAINT((unsigned int*)arrived), "r"(nb) : "memory");
-#endif
-    }
 
-    return oldArrive;
-}
-
-
-_CG_STATIC_QUALIFIER void sync_grids_wait(unsigned int oldArrive, volatile barrier_t *arrived) {
-    if (is_cta_master()) {
-#if __CUDA_ARCH__ < 700
         while (!bar_has_flipped(oldArrive, *arrived));
 
         __threadfence();
-
 #else
+        // Barrier update with release; polling with acquire
+        asm volatile("atom.add.release.gpu.u32 %0,[%1],%2;" : "=r"(oldArrive) : _CG_ASM_PTR_CONSTRAINT((unsigned int*)arrived), "r"(nb) : "memory");
+
         unsigned int current_arrive;
         do {
             asm volatile("ld.acquire.gpu.u32 %0,[%1];" : "=r"(current_arrive) : _CG_ASM_PTR_CONSTRAINT((unsigned int *)arrived) : "memory");

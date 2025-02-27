@@ -1,0 +1,12 @@
+torch==2.4.1
+torchvision==0.19.1
+transformers>=4.37.0
+accelerate
+safetensors
+einops
+flash-attn>=2.0.0
+packaging
+ninja
+setuptools
+wheel 
+xformers==0.0.25.post1 

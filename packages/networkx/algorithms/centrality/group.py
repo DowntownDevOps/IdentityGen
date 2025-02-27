@@ -1,5 +1,4 @@
 """Group centrality measures."""
-
 from copy import deepcopy
 
 import networkx as nx
@@ -409,7 +408,7 @@ def prominent_group(
     # If undirected then count only the undirected edges
     elif not G.is_directed():
         max_GBC /= 2
-    max_GBC = float(f"{max_GBC:.2f}")
+    max_GBC = float("%.2f" % max_GBC)
     return max_GBC, max_group
 
 

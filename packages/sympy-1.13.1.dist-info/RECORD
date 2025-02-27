@@ -1,5 +1,5 @@
-../../bin/isympy,sha256=0A09VKzPXKthftsyp6PGGQW0BUMdrbunsvm5kRQxseY,205
-../../share/man/man1/isympy.1,sha256=9DZdSOIQLikrATHlbkdDZ04LBQigZDUE0_oCXBDvdBs,6659
+../../../bin/isympy,sha256=6aTohjnPIhB4p4HrJB9PR1x-0c7685xzh0E12HOhplc,206
+../../../share/man/man1/isympy.1,sha256=9DZdSOIQLikrATHlbkdDZ04LBQigZDUE0_oCXBDvdBs,6659
 __pycache__/isympy.cpython-310.pyc,,
 isympy.py,sha256=gAoHa7OM0y9G5IBO7wO-uTpD-CPnd6sbmjJ_GGB0yzg,11207
 sympy-1.13.1.dist-info/AUTHORS,sha256=9PoN6lAzfhidDzAOYcUbo51xTtgNTXMjhc6pJELREvo,53048

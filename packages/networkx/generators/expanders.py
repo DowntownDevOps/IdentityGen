@@ -1,5 +1,6 @@
-"""Provides explicit constructions of expander graphs."""
+"""Provides explicit constructions of expander graphs.
 
+"""
 import itertools
 
 import networkx as nx

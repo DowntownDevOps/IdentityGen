@@ -71,7 +71,6 @@ class LycorisLayer(BaseTunerLayer):
         self.alpha = {}
         self.scaling = {}
         self.rank_dropout = {}
-        self.rank_dropout_scale = {}
         self.module_dropout = {}
 
         # Tuner info

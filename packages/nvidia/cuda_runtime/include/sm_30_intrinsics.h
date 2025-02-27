@@ -99,27 +99,12 @@
 # define __DEPRECATED__(msg) __attribute__((deprecated(msg)))
 #endif
 
-#if defined(_NVHPC_CUDA)
-#define __WSB_DEPRECATION_MESSAGE(x) #x"() is not valid on cc70 and above, and should be replaced with "#x"_sync()."
-#elif !defined(__CUDA_ARCH__) || __CUDA_ARCH__ < 700
+#if defined(_NVHPC_CUDA) || !defined(__CUDA_ARCH__) || __CUDA_ARCH__ < 700
 #define __WSB_DEPRECATION_MESSAGE(x) #x"() is deprecated in favor of "#x"_sync() and may be removed in a future release (Use -Wno-deprecated-declarations to suppress this warning)."
+#elif defined(_NVHPC_CUDA)
+#define __WSB_DEPRECATION_MESSAGE(x) #x"() is not valid on cc70 and above, and should be replaced with "#x"_sync()."
 #endif
 
-/**
- * \ingroup CUDA_MATH_INTRINSIC_INT
- * \brief Find the position of the n-th set to 1 bit in a 32-bit integer.
- *
- * Given a 32-bit value \p mask and an integer value \p base (between 0 and 31),
- * find the n-th (given by \p offset) set bit in \p mask from the \p base bit.
- * If not found, return 0xFFFFFFFF.
- *
- * See also https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#integer-arithmetic-instructions-fns
- * for more information.
- *
- * \return Returns a value between 0 and 32 inclusive representing the position
- * of the n-th set bit.
- * - parameter \p base must be <=31, otherwise behavior is undefined.
- */
 __SM_30_INTRINSICS_DECL__ unsigned  __fns(unsigned mask, unsigned base, int offset) __DEF_IF_HOST
 __SM_30_INTRINSICS_DECL__ void  __barrier_sync(unsigned id) __DEF_IF_HOST
 __SM_30_INTRINSICS_DECL__ void  __barrier_sync_count(unsigned id, unsigned cnt) __DEF_IF_HOST
@@ -231,6 +216,6 @@ __SM_30_INTRINSICS_DECL__ unsigned long __shfl_xor_sync(unsigned mask, unsigned 
 
 #if !defined(__CUDACC_RTC__) && defined(__CUDA_ARCH__)
 #include "sm_30_intrinsics.hpp"
-#endif /* !__CUDACC_RTC__ && __CUDA_ARCH__ */
+#endif /* !__CUDACC_RTC__ && defined(__CUDA_ARCH__) */
 
 #endif /* !__SM_30_INTRINSICS_H__ */

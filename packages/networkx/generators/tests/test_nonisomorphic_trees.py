@@ -1,7 +1,6 @@
 """
 Unit tests for WROM algorithm generator in generators/nonisomorphic_trees.py
 """
-
 import pytest
 
 import networkx as nx

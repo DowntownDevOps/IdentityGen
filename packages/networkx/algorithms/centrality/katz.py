@@ -1,5 +1,4 @@
 """Katz centrality."""
-
 import math
 
 import networkx as nx

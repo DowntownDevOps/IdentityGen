@@ -3,14 +3,10 @@ from typing import Dict, List, Optional
 
 import torch
 import torch.optim._functional as F
-from torch import Tensor
-from torch.distributed.optim._deprecation_warning import (
-    _scripted_functional_optimizer_deprecation_warning,
-)
 
+from torch import Tensor
 
 __all__: List[str] = []
-
 
 # Define a TorchScript compatible Functional Adadelta Optimizer
 # where we use these optimizer in a functional way.
@@ -34,7 +30,6 @@ class _FunctionalAdadelta:
         maximize: bool = False,
         _allow_empty_param_list: bool = False,
     ):
-        _scripted_functional_optimizer_deprecation_warning(stacklevel=2)
         self.defaults = {
             "lr": lr,
             "rho": rho,
@@ -107,5 +102,5 @@ class _FunctionalAdadelta:
                 weight_decay=weight_decay,
                 foreach=self.foreach,
                 maximize=self.maximize,
-                has_complex=has_complex,
+                has_complex=has_complex
             )

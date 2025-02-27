@@ -202,10 +202,6 @@ known_implementations = {
         "err": 'SFTPFileSystem requires "paramiko" to be installed',
     },
     "tar": {"class": "fsspec.implementations.tar.TarFileSystem"},
-    "tosfs": {
-        "class": "tosfs.TosFileSystem",
-        "err": "Install tosfs to access ByteDance volcano engine Tinder Object Storage",
-    },
     "wandb": {"class": "wandbfs.WandbFS", "err": "Install wandbfs to access wandb"},
     "webdav": {
         "class": "webdav4.fsspec.WebdavFileSystem",
@@ -218,9 +214,9 @@ known_implementations = {
     "zip": {"class": "fsspec.implementations.zip.ZipFileSystem"},
 }
 
-assert list(known_implementations) == sorted(known_implementations), (
-    "Not in alphabetical order"
-)
+assert list(known_implementations) == sorted(
+    known_implementations
+), "Not in alphabetical order"
 
 
 def get_filesystem_class(protocol):

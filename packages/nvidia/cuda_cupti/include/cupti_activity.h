@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 2011-2021 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -50,31 +50,51 @@
 #if !defined(_CUPTI_ACTIVITY_H_)
 #define _CUPTI_ACTIVITY_H_
 
-/**
- * Deprecated APIs and structures have been moved to the
- * header :doc: `cupti_activity_deprecated.h`, which is included at
- * the bottom of this file. Header cupti_activity.h contains
- * only the latest version of APIs and structures.
- */
-
 #include <cuda.h>
 #include <cupti_callbacks.h>
 #include <cupti_events.h>
 #include <cupti_metrics.h>
 #include <cupti_result.h>
-
 #if defined(CUPTI_DIRECTIVE_SUPPORT)
 #include <Openacc/cupti_openacc.h>
 #include <Openmp/cupti_openmp.h>
 #endif
 
-#include <cupti_common.h>
+#ifndef CUPTIAPI
+#ifdef _WIN32
+#define CUPTIAPI __stdcall
+#else
+#define CUPTIAPI
+#endif
+#endif
+
+#if defined(__LP64__)
+#define CUPTILP64 1
+#elif defined(_WIN64)
+#define CUPTILP64 1
+#else
+#undef CUPTILP64
+#endif
+
+#define ACTIVITY_RECORD_ALIGNMENT 8
+#if defined(_WIN32) // Windows 32- and 64-bit
+#define START_PACKED_ALIGNMENT __pragma(pack(push,1)) // exact fit - no padding
+#define PACKED_ALIGNMENT __declspec(align(ACTIVITY_RECORD_ALIGNMENT))
+#define END_PACKED_ALIGNMENT __pragma(pack(pop))
+#elif defined(__GNUC__) // GCC
+#define START_PACKED_ALIGNMENT
+#define PACKED_ALIGNMENT __attribute__ ((__packed__)) __attribute__ ((aligned (ACTIVITY_RECORD_ALIGNMENT)))
+#define END_PACKED_ALIGNMENT
+#else // all other compilers
+#define START_PACKED_ALIGNMENT
+#define PACKED_ALIGNMENT
+#define END_PACKED_ALIGNMENT
+#endif
 
 #define CUPTI_UNIFIED_MEMORY_CPU_DEVICE_ID ((uint32_t) 0xFFFFFFFFU)
 #define CUPTI_INVALID_CONTEXT_ID ((uint32_t) 0xFFFFFFFFU)
 #define CUPTI_INVALID_STREAM_ID ((uint32_t) 0xFFFFFFFFU)
 #define CUPTI_INVALID_CHANNEL_ID ((uint32_t) 0xFFFFFFFFU)
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -101,7 +121,6 @@ extern "C" {
  * \see CUpti_Activity
  * \see CUpti_ActivityAPI
  * \see CUpti_ActivityContext
- * \see CUpti_ActivityContext2
  * \see CUpti_ActivityDevice
  * \see CUpti_ActivityDevice2
  * \see CUpti_ActivityDevice3
@@ -132,11 +151,6 @@ extern "C" {
  * \see CUpti_ActivityMemset2
  * \see CUpti_ActivityMemset3
  * \see CUpti_ActivityMemset4
- * \see CUpti_ActivityMemory
- * \see CUpti_ActivityMemory2
- * \see CUpti_ActivityMemory3
- * \see CUpti_ActivityMemoryPool
- * \see CUpti_ActivityMemoryPool2
  * \see CUpti_ActivityMetric
  * \see CUpti_ActivityMetricInstance
  * \see CUpti_ActivityName
@@ -149,7 +163,7 @@ extern "C" {
  * \see CUpti_ActivityGlobalAccess3
  * \see CUpti_ActivityBranch
  * \see CUpti_ActivityBranch2
- * \see CUpti_ActivityOverhead3
+ * \see CUpti_ActivityOverhead
  * \see CUpti_ActivityEnvironment
  * \see CUpti_ActivityInstructionExecution
  * \see CUpti_ActivityUnifiedMemoryCounter
@@ -174,9 +188,9 @@ extern "C" {
  * \see CUpti_ActivityNvLink2
  * \see CUpti_ActivityNvLink3
  * \see CUpti_ActivityNvLink4
+ * \see CUpti_ActivityMemory
  * \see CUpti_ActivityPcie
  */
-
 typedef enum {
   /**
    * The activity record is invalid.
@@ -229,15 +243,15 @@ typedef enum {
    */
   CUPTI_ACTIVITY_KIND_METRIC   = 7,
 
-  /**
+   /**
    * Information about a device. The corresponding activity record
-   * structure is \ref CUpti_ActivityDevice5.
+   * structure is \ref CUpti_ActivityDevice4.
    */
   CUPTI_ACTIVITY_KIND_DEVICE   = 8,
 
   /**
    * Information about a context. The corresponding activity record
-   * structure is \ref CUpti_ActivityContext2.
+   * structure is \ref CUpti_ActivityContext.
    */
   CUPTI_ACTIVITY_KIND_CONTEXT  = 9,
 
@@ -273,7 +287,7 @@ typedef enum {
   CUPTI_ACTIVITY_KIND_SOURCE_LOCATOR = 14,
 
   /**
-   * Results for source-level global access. The
+   * Results for source-level global acccess. The
    * corresponding activity record structure is \ref
    * CUpti_ActivityGlobalAccess3.
    */
@@ -288,7 +302,7 @@ typedef enum {
   /**
    * Overhead activity records. The
    * corresponding activity record structure is
-   * \ref CUpti_ActivityOverhead3.
+   * \ref CUpti_ActivityOverhead.
    */
   CUPTI_ACTIVITY_KIND_OVERHEAD = 17,
 
@@ -366,7 +380,7 @@ typedef enum {
   CUPTI_ACTIVITY_KIND_DEVICE_ATTRIBUTE   = 28,
 
   /**
-   * Results for source-level shared access. The
+   * Results for source-level shared acccess. The
    * corresponding activity record structure is \ref
    * CUpti_ActivitySharedAccess.
    */
@@ -522,7 +536,7 @@ typedef enum {
 
   /**
    * Memory pool activity tracking creation, destruction and
-   * trimming of the memory pool.
+   * triming of the memory pool.
    * The corresponding activity record structure is \ref
    * CUpti_ActivityMemoryPool2.
    */
@@ -530,7 +544,7 @@ typedef enum {
 
   /**
    * The corresponding activity record structure is
-   * \ref CUpti_ActivityGraphTrace2.
+   * \ref CUpti_ActivityGraphTrace.
    */
   CUPTI_ACTIVITY_KIND_GRAPH_TRACE = 51,
 
@@ -614,27 +628,6 @@ typedef union {
 } CUpti_ActivityObjectKindId;
 
 /**
- * \brief The structure to provide additional data for CUPTI_ACTIVITY_OVERHEAD_COMMAND_BUFFER_FULL.
- */
-typedef struct {
-  /**
-   * The length of the command buffer.
-   *
-   */
-  uint32_t commandBufferLength;
-  /**
-   * The channel ID of the command buffer.
-   *
-   */
-  uint32_t channelID;
-  /**
-   * The channel type of the command buffer.
-   *
-   */
-  uint32_t channelType;
-} CUpti_ActivityOverheadCommandBufferFullData;
-
-/**
  * \brief The kinds of activity overhead.
  */
 typedef enum {
@@ -651,34 +644,17 @@ typedef enum {
   /**
    * Activity buffer flush overhead.
    */
-  CUPTI_ACTIVITY_OVERHEAD_CUPTI_BUFFER_FLUSH               = 1<<16,
+  CUPTI_ACTIVITY_OVERHEAD_CUPTI_BUFFER_FLUSH    = 1<<16,
 
   /**
    * CUPTI instrumentation overhead.
    */
-  CUPTI_ACTIVITY_OVERHEAD_CUPTI_INSTRUMENTATION            = 2<<16,
+  CUPTI_ACTIVITY_OVERHEAD_CUPTI_INSTRUMENTATION = 2<<16,
 
   /**
    * CUPTI resource creation and destruction overhead.
    */
-  CUPTI_ACTIVITY_OVERHEAD_CUPTI_RESOURCE                   = 3<<16,
-
-  /**
-   * CUDA Runtime triggered module loading overhead.
-   */
-  CUPTI_ACTIVITY_OVERHEAD_RUNTIME_TRIGGERED_MODULE_LOADING = 4<<16,
-
-  /**
-   * Lazy function loading overhead.
-   */
-  CUPTI_ACTIVITY_OVERHEAD_LAZY_FUNCTION_LOADING            = 5<<16,
-
-  /**
-   * Overhead due to lack of command buffer space.
-   * Refer CUpti_ActivityOverheadCommandBufferFullData for more details.
-   */
-  CUPTI_ACTIVITY_OVERHEAD_COMMAND_BUFFER_FULL              = 6<<16,
-
+  CUPTI_ACTIVITY_OVERHEAD_CUPTI_RESOURCE        = 3<<16,
   CUPTI_ACTIVITY_OVERHEAD_FORCE_INT             = 0x7fffffff
 } CUpti_ActivityOverheadKind;
 
@@ -907,7 +883,7 @@ typedef enum {
   CUPTI_ACTIVITY_PC_SAMPLING_STALL_INST_FETCH   = 2,
 
   /**
-   * Instruction is waiting on an arithmetic dependency
+   * Instruction is waiting on an arithmatic dependency
    */
   CUPTI_ACTIVITY_PC_SAMPLING_STALL_EXEC_DEPENDENCY   = 3,
 
@@ -1254,7 +1230,7 @@ typedef enum {
  * \brief Kind of the Unified Memory counter
  *
  * Many activities are associated with Unified Memory mechanism; among them
- * are transfers from host to device, device to host, page fault at
+ * are tranfer from host to device, device to host, page fault at
  * host side.
  */
 typedef enum {
@@ -1264,12 +1240,12 @@ typedef enum {
   CUPTI_ACTIVITY_UNIFIED_MEMORY_COUNTER_KIND_UNKNOWN = 0,
 
   /**
-   * Number of bytes transferred from host to device
+   * Number of bytes transfered from host to device
    */
   CUPTI_ACTIVITY_UNIFIED_MEMORY_COUNTER_KIND_BYTES_TRANSFER_HTOD = 1,
 
   /**
-   * Number of bytes transferred from device to host
+   * Number of bytes transfered from device to host
    */
   CUPTI_ACTIVITY_UNIFIED_MEMORY_COUNTER_KIND_BYTES_TRANSFER_DTOH = 2,
 
@@ -1846,7 +1822,7 @@ typedef struct PACKED_ALIGNMENT {
   CUpti_ActivityUnifiedMemoryCounterKind kind;
 
   /**
-   * Device id of the target device. This is relevant only
+   * Device id of the traget device. This is relevant only
    * for single device scopes. (deprecated in CUDA 7.0)
    */
   uint32_t deviceId;
@@ -1934,6 +1910,323 @@ typedef struct PACKED_ALIGNMENT {
    */
   CUpti_ActivityKind kind;
 } CUpti_Activity;
+
+/**
+ * \brief The activity record for memory copies. (deprecated)
+ *
+ * This activity record represents a memory copy
+ * (CUPTI_ACTIVITY_KIND_MEMCPY).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMCPY.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The kind of the memory copy, stored as a byte to reduce record
+   * size. \see CUpti_ActivityMemcpyKind
+   */
+  uint8_t copyKind;
+
+  /**
+   * The source memory kind read by the memory copy, stored as a byte
+   * to reduce record size. \see CUpti_ActivityMemoryKind
+   */
+  uint8_t srcKind;
+
+  /**
+   * The destination memory kind read by the memory copy, stored as a
+   * byte to reduce record size. \see CUpti_ActivityMemoryKind
+   */
+  uint8_t dstKind;
+
+  /**
+   * The flags associated with the memory copy. \see CUpti_ActivityFlag
+   */
+  uint8_t flags;
+
+  /**
+   * The number of bytes transferred by the memory copy.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the memory copy is occurring.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory copy is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory copy is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The correlation ID of the memory copy. Each memory copy is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver API activity record that launched
+   * the memory copy.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The runtime correlation ID of the memory copy. Each memory copy
+   * is assigned a unique runtime correlation ID that is identical to
+   * the correlation ID in the runtime API activity record that
+   * launched the memory copy.
+   */
+  uint32_t runtimeCorrelationId;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+} CUpti_ActivityMemcpy;
+
+/**
+ * \brief The activity record for memory copies. (deprecated in CUDA 11.1)
+ *
+ * This activity record represents a memory copy
+ * (CUPTI_ACTIVITY_KIND_MEMCPY).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMCPY.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The kind of the memory copy, stored as a byte to reduce record
+   * size. \see CUpti_ActivityMemcpyKind
+   */
+  uint8_t copyKind;
+
+  /**
+   * The source memory kind read by the memory copy, stored as a byte
+   * to reduce record size. \see CUpti_ActivityMemoryKind
+   */
+  uint8_t srcKind;
+
+  /**
+   * The destination memory kind read by the memory copy, stored as a
+   * byte to reduce record size. \see CUpti_ActivityMemoryKind
+   */
+  uint8_t dstKind;
+
+  /**
+   * The flags associated with the memory copy. \see CUpti_ActivityFlag
+   */
+  uint8_t flags;
+
+  /**
+   * The number of bytes transferred by the memory copy.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the memory copy is occurring.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory copy is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory copy is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The correlation ID of the memory copy. Each memory copy is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver API activity record that launched
+   * the memory copy.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The runtime correlation ID of the memory copy. Each memory copy
+   * is assigned a unique runtime correlation ID that is identical to
+   * the correlation ID in the runtime API activity record that
+   * launched the memory copy.
+   */
+  uint32_t runtimeCorrelationId;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The unique ID of the graph node that executed this memcpy through graph launch.
+   * This field will be 0 if the memcpy is not done through graph launch.
+   */
+  uint64_t graphNodeId;
+} CUpti_ActivityMemcpy3;
+
+/**
+ * \brief The activity record for memory copies. (deprecated in CUDA 11.6)
+ *
+ * This activity record represents a memory copy
+ * (CUPTI_ACTIVITY_KIND_MEMCPY).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMCPY.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The kind of the memory copy, stored as a byte to reduce record
+   * size. \see CUpti_ActivityMemcpyKind
+   */
+  uint8_t copyKind;
+
+  /**
+   * The source memory kind read by the memory copy, stored as a byte
+   * to reduce record size. \see CUpti_ActivityMemoryKind
+   */
+  uint8_t srcKind;
+
+  /**
+   * The destination memory kind read by the memory copy, stored as a
+   * byte to reduce record size. \see CUpti_ActivityMemoryKind
+   */
+  uint8_t dstKind;
+
+  /**
+   * The flags associated with the memory copy. \see CUpti_ActivityFlag
+   */
+  uint8_t flags;
+
+  /**
+   * The number of bytes transferred by the memory copy.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the memory copy is occurring.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory copy is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory copy is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The correlation ID of the memory copy. Each memory copy is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver API activity record that launched
+   * the memory copy.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The runtime correlation ID of the memory copy. Each memory copy
+   * is assigned a unique runtime correlation ID that is identical to
+   * the correlation ID in the runtime API activity record that
+   * launched the memory copy.
+   */
+  uint32_t runtimeCorrelationId;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The unique ID of the graph node that executed this memcpy through graph launch.
+   * This field will be 0 if the memcpy is not done through graph launch.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The unique ID of the graph that executed this memcpy through graph launch.
+   * This field will be 0 if the memcpy is not done through graph launch.
+   */
+  uint32_t graphId;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t padding;
+} CUpti_ActivityMemcpy4;
 
 /**
  * \brief The activity record for memory copies.
@@ -2045,7 +2338,7 @@ typedef struct PACKED_ALIGNMENT {
   uint32_t graphId;
 
   /**
-   * The ID of the HW channel on which the memory copy is occurring.
+   * The ID of the HW channel on which the memory copy is occuring.
    */
   uint32_t channelID;
 
@@ -2059,6 +2352,368 @@ typedef struct PACKED_ALIGNMENT {
    */
   uint32_t pad2;
 } CUpti_ActivityMemcpy5;
+
+/**
+ * \brief The activity record for peer-to-peer memory copies.
+ *
+ * This activity record represents a peer-to-peer memory copy
+ * (CUPTI_ACTIVITY_KIND_MEMCPY2) but is no longer generated
+ * by CUPTI. Peer-to-peer memory copy activities are now reported using the
+ * CUpti_ActivityMemcpyPtoP2 activity record..
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMCPY2.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The kind of the memory copy, stored as a byte to reduce record
+   * size.  \see CUpti_ActivityMemcpyKind
+   */
+  uint8_t copyKind;
+
+  /**
+   * The source memory kind read by the memory copy, stored as a byte
+   * to reduce record size.  \see CUpti_ActivityMemoryKind
+   */
+  uint8_t srcKind;
+
+  /**
+   * The destination memory kind read by the memory copy, stored as a
+   * byte to reduce record size.  \see CUpti_ActivityMemoryKind
+   */
+  uint8_t dstKind;
+
+  /**
+   * The flags associated with the memory copy. \see
+   * CUpti_ActivityFlag
+   */
+  uint8_t flags;
+
+  /**
+   * The number of bytes transferred by the memory copy.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t end;
+
+  /**
+  * The ID of the device where the memory copy is occurring.
+  */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory copy is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory copy is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The ID of the device where memory is being copied from.
+   */
+  uint32_t srcDeviceId;
+
+  /**
+   * The ID of the context owning the memory being copied from.
+   */
+  uint32_t srcContextId;
+
+  /**
+   * The ID of the device where memory is being copied to.
+   */
+  uint32_t dstDeviceId;
+
+  /**
+   * The ID of the context owning the memory being copied to.
+   */
+  uint32_t dstContextId;
+
+  /**
+   * The correlation ID of the memory copy. Each memory copy is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver and runtime API activity record that
+   * launched the memory copy.
+   */
+  uint32_t correlationId;
+
+#ifndef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+} CUpti_ActivityMemcpyPtoP;
+
+typedef CUpti_ActivityMemcpyPtoP CUpti_ActivityMemcpy2;
+
+/**
+ * \brief The activity record for peer-to-peer memory copies.
+ * (deprecated in CUDA 11.1)
+ *
+ * This activity record represents a peer-to-peer memory copy
+ * (CUPTI_ACTIVITY_KIND_MEMCPY2).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMCPY2.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The kind of the memory copy, stored as a byte to reduce record
+   * size.  \see CUpti_ActivityMemcpyKind
+   */
+  uint8_t copyKind;
+
+  /**
+   * The source memory kind read by the memory copy, stored as a byte
+   * to reduce record size.  \see CUpti_ActivityMemoryKind
+   */
+  uint8_t srcKind;
+
+  /**
+   * The destination memory kind read by the memory copy, stored as a
+   * byte to reduce record size.  \see CUpti_ActivityMemoryKind
+   */
+  uint8_t dstKind;
+
+  /**
+   * The flags associated with the memory copy. \see
+   * CUpti_ActivityFlag
+   */
+  uint8_t flags;
+
+  /**
+   * The number of bytes transferred by the memory copy.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t end;
+
+  /**
+  * The ID of the device where the memory copy is occurring.
+  */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory copy is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory copy is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The ID of the device where memory is being copied from.
+   */
+  uint32_t srcDeviceId;
+
+  /**
+   * The ID of the context owning the memory being copied from.
+   */
+  uint32_t srcContextId;
+
+  /**
+   * The ID of the device where memory is being copied to.
+   */
+  uint32_t dstDeviceId;
+
+  /**
+   * The ID of the context owning the memory being copied to.
+   */
+  uint32_t dstContextId;
+
+  /**
+   * The correlation ID of the memory copy. Each memory copy is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver and runtime API activity record that
+   * launched the memory copy.
+   */
+  uint32_t correlationId;
+
+#ifndef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The unique ID of the graph node that executed the memcpy through graph launch.
+   * This field will be 0 if memcpy is not done using graph launch.
+   */
+  uint64_t graphNodeId;
+} CUpti_ActivityMemcpyPtoP2;
+
+/**
+ * \brief The activity record for peer-to-peer memory copies.
+ * (deprecated in CUDA 11.6)
+ *
+ * This activity record represents a peer-to-peer memory copy
+ * (CUPTI_ACTIVITY_KIND_MEMCPY2).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMCPY2.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The kind of the memory copy, stored as a byte to reduce record
+   * size.  \see CUpti_ActivityMemcpyKind
+   */
+  uint8_t copyKind;
+
+  /**
+   * The source memory kind read by the memory copy, stored as a byte
+   * to reduce record size.  \see CUpti_ActivityMemoryKind
+   */
+  uint8_t srcKind;
+
+  /**
+   * The destination memory kind read by the memory copy, stored as a
+   * byte to reduce record size.  \see CUpti_ActivityMemoryKind
+   */
+  uint8_t dstKind;
+
+  /**
+   * The flags associated with the memory copy. \see
+   * CUpti_ActivityFlag
+   */
+  uint8_t flags;
+
+  /**
+   * The number of bytes transferred by the memory copy.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory copy, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory copy.
+   */
+  uint64_t end;
+
+  /**
+  * The ID of the device where the memory copy is occurring.
+  */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory copy is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory copy is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The ID of the device where memory is being copied from.
+   */
+  uint32_t srcDeviceId;
+
+  /**
+   * The ID of the context owning the memory being copied from.
+   */
+  uint32_t srcContextId;
+
+  /**
+   * The ID of the device where memory is being copied to.
+   */
+  uint32_t dstDeviceId;
+
+  /**
+   * The ID of the context owning the memory being copied to.
+   */
+  uint32_t dstContextId;
+
+  /**
+   * The correlation ID of the memory copy. Each memory copy is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver and runtime API activity record that
+   * launched the memory copy.
+   */
+  uint32_t correlationId;
+
+#ifndef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The unique ID of the graph node that executed the memcpy through graph launch.
+   * This field will be 0 if memcpy is not done using graph launch.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The unique ID of the graph that executed this memcpy through graph launch.
+   * This field will be 0 if the memcpy is not done through graph launch.
+   */
+  uint32_t graphId;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t padding;
+} CUpti_ActivityMemcpyPtoP3;
 
 /**
  * \brief The activity record for peer-to-peer memory copies.
@@ -2183,7 +2838,7 @@ typedef struct PACKED_ALIGNMENT {
   uint32_t graphId;
 
   /**
-   * The ID of the HW channel on which the memory copy is occurring.
+   * The ID of the HW channel on which the memory copy is occuring.
    */
   uint32_t channelID;
 
@@ -2192,6 +2847,273 @@ typedef struct PACKED_ALIGNMENT {
    */
   CUpti_ChannelType channelType;
 } CUpti_ActivityMemcpyPtoP4;
+
+/**
+ * \brief The activity record for memset. (deprecated)
+ *
+ * This activity record represents a memory set operation
+ * (CUPTI_ACTIVITY_KIND_MEMSET).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMSET.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The value being assigned to memory by the memory set.
+   */
+  uint32_t value;
+
+  /**
+   * The number of bytes being set by the memory set.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory set, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory set.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory set, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory set.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the memory set is occurring.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory set is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory set is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The correlation ID of the memory set. Each memory set is assigned
+   * a unique correlation ID that is identical to the correlation ID
+   * in the driver API activity record that launched the memory set.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The flags associated with the memset. \see CUpti_ActivityFlag
+   */
+  uint16_t flags;
+
+  /**
+   * The memory kind of the memory set \see CUpti_ActivityMemoryKind
+   */
+  uint16_t memoryKind;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+} CUpti_ActivityMemset;
+
+/**
+ * \brief The activity record for memset. (deprecated in CUDA 11.1)
+ *
+ * This activity record represents a memory set operation
+ * (CUPTI_ACTIVITY_KIND_MEMSET).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMSET.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The value being assigned to memory by the memory set.
+   */
+  uint32_t value;
+
+  /**
+   * The number of bytes being set by the memory set.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory set, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory set.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory set, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory set.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the memory set is occurring.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory set is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory set is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The correlation ID of the memory set. Each memory set is assigned
+   * a unique correlation ID that is identical to the correlation ID
+   * in the driver API activity record that launched the memory set.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The flags associated with the memset. \see CUpti_ActivityFlag
+   */
+  uint16_t flags;
+
+  /**
+   * The memory kind of the memory set \see CUpti_ActivityMemoryKind
+   */
+  uint16_t memoryKind;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The unique ID of the graph node that executed this memset through graph launch.
+   * This field will be 0 if the memset is not executed through graph launch.
+   */
+  uint64_t graphNodeId;
+} CUpti_ActivityMemset2;
+
+/**
+ * \brief The activity record for memset. (deprecated in CUDA 11.6)
+ *
+ * This activity record represents a memory set operation
+ * (CUPTI_ACTIVITY_KIND_MEMSET).
+ */
+
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMSET.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The value being assigned to memory by the memory set.
+   */
+  uint32_t value;
+
+  /**
+   * The number of bytes being set by the memory set.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory set, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory set.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the memory set, in ns. A value of 0 for
+   * both the start and end timestamps indicates that timestamp
+   * information could not be collected for the memory set.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the memory set is occurring.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the memory set is occurring.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the memory set is occurring.
+   */
+  uint32_t streamId;
+
+  /**
+   * The correlation ID of the memory set. Each memory set is assigned
+   * a unique correlation ID that is identical to the correlation ID
+   * in the driver API activity record that launched the memory set.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The flags associated with the memset. \see CUpti_ActivityFlag
+   */
+  uint16_t flags;
+
+  /**
+   * The memory kind of the memory set \see CUpti_ActivityMemoryKind
+   */
+  uint16_t memoryKind;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The unique ID of the graph node that executed this memset through graph launch.
+   * This field will be 0 if the memset is not executed through graph launch.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The unique ID of the graph that executed this memset through graph launch.
+   * This field will be 0 if the memset is not executed through graph launch.
+   */
+  uint32_t graphId;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t padding;
+} CUpti_ActivityMemset3;
 
 /**
  * \brief The activity record for memset.
@@ -2286,7 +3208,7 @@ typedef struct PACKED_ALIGNMENT {
   uint32_t graphId;
 
   /**
-   * The ID of the HW channel on which the memory set is occurring.
+   * The ID of the HW channel on which the memory set is occuring.
    */
   uint32_t channelID;
 
@@ -2491,6 +3413,150 @@ typedef struct PACKED_ALIGNMENT {
   /**
    * The memory pool configuration used for the memory operations.
    */
+  struct {
+    /**
+     * The type of the memory pool, \ref CUpti_ActivityMemoryPoolType
+     */
+    CUpti_ActivityMemoryPoolType memoryPoolType;
+
+#ifdef CUPTILP64
+    /**
+     * Undefined. Reserved for internal use.
+     */
+    uint32_t pad2;
+#endif
+
+    /**
+     * The base address of the memory pool.
+     */
+    uint64_t address;
+
+    /**
+     * The release threshold of the memory pool in bytes. \p releaseThreshold is
+     * valid for CUPTI_ACTIVITY_MEMORY_POOL_TYPE_LOCAL, \ref CUpti_ActivityMemoryPoolType.
+     */
+    uint64_t releaseThreshold;
+
+    union {
+      /**
+       * The size of the memory pool in bytes.
+       * \p size is valid if \p memoryPoolType is
+       * CUPTI_ACTIVITY_MEMORY_POOL_TYPE_LOCAL, \ref CUpti_ActivityMemoryPoolType.
+       */
+      uint64_t size;
+
+      /**
+       * The processId of the memory pool.
+       * \p processId is valid if \p memoryPoolType is
+       * CUPTI_ACTIVITY_MEMORY_POOL_TYPE_IMPORTED, \ref CUpti_ActivityMemoryPoolType.
+       */
+      uint64_t processId;
+    } pool;
+  } memoryPoolConfig;
+
+} CUpti_ActivityMemory2;
+
+/**
+ * \brief The activity record for memory.
+ *
+ * This activity record represents a memory allocation and free operation
+ * (CUPTI_ACTIVITY_KIND_MEMORY2).
+ * This activity record provides separate records for memory allocation and
+ * memory release operations.
+ * This allows to correlate the corresponding driver and runtime API
+ * activity record with the memory operation.
+ *
+ * Note: This activity record is an upgrade over \ref CUpti_ActivityMemory
+ * enabled using the kind \ref CUPTI_ACTIVITY_KIND_MEMORY.
+ * \ref CUpti_ActivityMemory provides a single record for the memory
+ * allocation and memory release operations.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMORY2
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The memory operation requested by the user, \ref CUpti_ActivityMemoryOperationType.
+   */
+  CUpti_ActivityMemoryOperationType memoryOperationType;
+
+  /**
+   * The memory kind requested by the user, \ref CUpti_ActivityMemoryKind.
+   */
+  CUpti_ActivityMemoryKind memoryKind;
+
+  /**
+   * The correlation ID of the memory operation. Each memory operation is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver and runtime API activity record that
+   * launched the memory operation.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The virtual address of the allocation.
+   */
+  uint64_t address;
+
+  /**
+   * The number of bytes of memory allocated.
+   */
+  uint64_t bytes;
+
+  /**
+   * The start timestamp for the memory operation, in ns.
+   */
+  uint64_t timestamp;
+
+  /**
+   * The program counter of the memory operation.
+   */
+  uint64_t PC;
+
+  /**
+   * The ID of the process to which this record belongs to.
+   */
+  uint32_t processId;
+
+  /**
+   * The ID of the device where the memory operation is taking place.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context. If context is NULL, \p contextId is set to CUPTI_INVALID_CONTEXT_ID.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream. If memory operation is not async, \p streamId is set to CUPTI_INVALID_STREAM_ID.
+   */
+  uint32_t streamId;
+
+  /**
+   * Variable name. This name is shared across all activity
+   * records representing the same symbol, and so should not be
+   * modified.
+   */
+  const char* name;
+
+  /**
+   * \p isAsync is set if memory operation happens through async memory APIs.
+   */
+  uint32_t isAsync;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad1;
+#endif
+
+  /**
+   * The memory pool configuration used for the memory operations.
+   */
   struct PACKED_ALIGNMENT {
     /**
      * The type of the memory pool, \ref CUpti_ActivityMemoryPoolType
@@ -2515,15 +3581,19 @@ typedef struct PACKED_ALIGNMENT {
      */
     uint64_t releaseThreshold;
 
-    /**
-     * The size of memory pool in bytes and the processId of the memory pools
-     * \p size is valid if \p memoryPoolType is
-     * CUPTI_ACTIVITY_MEMORY_POOL_TYPE_LOCAL, \ref CUpti_ActivityMemoryPoolType.
-     * \p processId is valid if \p memoryPoolType is
-     * CUPTI_ACTIVITY_MEMORY_POOL_TYPE_IMPORTED, \ref CUpti_ActivityMemoryPoolType
-     */
     union {
+      /**
+       * The size of the memory pool in bytes.
+       * \p size is valid if \p memoryPoolType is
+       * CUPTI_ACTIVITY_MEMORY_POOL_TYPE_LOCAL, \ref CUpti_ActivityMemoryPoolType.
+       */
       uint64_t size;
+
+      /**
+       * The processId of the memory pool.
+       * \p processId is valid if \p memoryPoolType is
+       * CUPTI_ACTIVITY_MEMORY_POOL_TYPE_IMPORTED, \ref CUpti_ActivityMemoryPoolType.
+       */
       uint64_t processId;
     } pool;
 
@@ -2542,7 +3612,89 @@ typedef struct PACKED_ALIGNMENT {
  * This activity record represents a memory pool creation, destruction and
  * trimming (CUPTI_ACTIVITY_KIND_MEMORY_POOL).
  * This activity record provides separate records for memory pool creation,
- * destruction and trimming operations.
+ * destruction and triming operations.
+ * This allows to correlate the corresponding driver and runtime API
+ * activity record with the memory pool operation.
+ *
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MEMORY_POOL
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The memory operation requested by the user, \ref CUpti_ActivityMemoryPoolOperationType.
+   */
+  CUpti_ActivityMemoryPoolOperationType memoryPoolOperationType;
+
+  /**
+   * The type of the memory pool, \ref CUpti_ActivityMemoryPoolType
+   */
+  CUpti_ActivityMemoryPoolType memoryPoolType;
+
+  /**
+   * The correlation ID of the memory pool operation. Each memory pool
+   * operation is assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver and runtime API activity record that
+   * launched the memory operation.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The ID of the process to which this record belongs to.
+   */
+  uint32_t processId;
+
+  /**
+   * The ID of the device where the memory pool is created.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The minimum bytes to keep of the memory pool. \p minBytesToKeep is
+   * valid for CUPTI_ACTIVITY_MEMORY_POOL_OPERATION_TYPE_TRIMMED,
+   * \ref CUpti_ActivityMemoryPoolOperationType
+   */
+  size_t minBytesToKeep;
+
+#ifndef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * The virtual address of the allocation.
+   */
+  uint64_t address;
+
+  /**
+   * The size of the memory pool operation in bytes. \p size is
+   * valid for CUPTI_ACTIVITY_MEMORY_POOL_TYPE_LOCAL, \ref CUpti_ActivityMemoryPoolType.
+   */
+  uint64_t size;
+
+  /**
+   * The release threshold of the memory pool. \p releaseThreshold is
+   * valid for CUPTI_ACTIVITY_MEMORY_POOL_TYPE_LOCAL, \ref CUpti_ActivityMemoryPoolType.
+   */
+  uint64_t releaseThreshold;
+
+  /**
+   * The start timestamp for the memory operation, in ns.
+   */
+  uint64_t timestamp;
+} CUpti_ActivityMemoryPool;
+
+/**
+ * \brief The activity record for memory pool.
+ *
+ * This activity record represents a memory pool creation, destruction and
+ * trimming (CUPTI_ACTIVITY_KIND_MEMORY_POOL).
+ * This activity record provides separate records for memory pool creation,
+ * destruction and triming operations.
  * This allows to correlate the corresponding driver and runtime API
  * activity record with the memory pool operation.
  *
@@ -2625,6 +3777,491 @@ typedef struct PACKED_ALIGNMENT {
 } CUpti_ActivityMemoryPool2;
 
 /**
+ * \brief The activity record for kernel. (deprecated)
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL) but is no longer generated
+ * by CUPTI. Kernel activities are now reported using the
+ * CUpti_ActivityKernel9 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL
+   * or CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The cache configuration requested by the kernel. The value is one
+   * of the CUfunc_cache enumeration values from cuda.h.
+   */
+  uint8_t cacheConfigRequested;
+
+  /**
+   * The cache configuration used for the kernel. The value is one of
+   * the CUfunc_cache enumeration values from cuda.h.
+   */
+  uint8_t cacheConfigExecuted;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver API activity record that launched
+   * the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The runtime correlation ID of the kernel. Each kernel execution
+   * is assigned a unique runtime correlation ID that is identical to
+   * the correlation ID in the runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t runtimeCorrelationId;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+} CUpti_ActivityKernel;
+
+/**
+ * \brief The activity record for kernel. (deprecated)
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL) but is no longer generated
+ * by CUPTI. Kernel activities are now reported using the
+ * CUpti_ActivityKernel9 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+} CUpti_ActivityKernel2;
+
+/**
+ * \brief The activity record for a kernel (CUDA 6.5(with sm_52 support) onwards).
+ * (deprecated in CUDA 9.0)
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL).
+ * Kernel activities are now reported using the CUpti_ActivityKernel9 activity
+ * record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The partitioned global caching requested for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheRequested;
+
+  /**
+   * The partitioned global caching executed for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2. Partitioned global caching can be
+   * automatically disabled if the occupancy requirement of the launch cannot
+   * support caching.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheExecuted;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+} CUpti_ActivityKernel3;
+
+/**
  * \brief The type of the CUDA kernel launch.
  */
 typedef enum {
@@ -2652,6 +4289,240 @@ typedef enum {
 } CUpti_ActivityLaunchType;
 
 /**
+ * \brief The activity record for a kernel (CUDA 9.0(with sm_70 support) onwards).
+ * (deprecated in CUDA 11.0)
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL).
+ * Kernel activities are now reported using the CUpti_ActivityKernel9 activity
+ * record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * For devices with compute capability 7.0+ cacheConfig values are not updated
+   * in case field isSharedMemoryCarveoutRequested is set
+   */
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The partitioned global caching requested for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheRequested;
+
+  /**
+   * The partitioned global caching executed for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2. Partitioned global caching can be
+   * automatically disabled if the occupancy requirement of the launch cannot
+   * support caching.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheExecuted;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The timestamp when the kernel is queued up in the command buffer, in ns.
+   * A value of CUPTI_TIMESTAMP_UNKNOWN indicates that the queued time
+   * could not be collected for the kernel. This timestamp is not collected
+   * by default. Use API \ref cuptiActivityEnableLatencyTimestamps() to
+   * enable collection.
+   *
+   * Command buffer is a buffer written by CUDA driver to send commands
+   * like kernel launch, memory copy etc to the GPU. All launches of CUDA
+   * kernels are asynchrnous with respect to the host, the host requests
+   * the launch by writing commands into the command buffer, then returns
+   * without checking the GPU's progress.
+   */
+  uint64_t queued;
+
+  /**
+   * The timestamp when the command buffer containing the kernel launch
+   * is submitted to the GPU, in ns. A value of CUPTI_TIMESTAMP_UNKNOWN
+   * indicates that the submitted time could not be collected for the kernel.
+   * This timestamp is not collected by default. Use API \ref
+   * cuptiActivityEnableLatencyTimestamps() to enable collection.
+   */
+  uint64_t submitted;
+
+  /**
+   * The indicates if the kernel was executed via a regular launch or via a
+   * single/multi device cooperative launch. \see CUpti_ActivityLaunchType
+   */
+  uint8_t launchType;
+
+  /**
+   * This indicates if CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT was
+   * updated for the kernel launch
+   */
+  uint8_t isSharedMemoryCarveoutRequested;
+
+  /**
+   * Shared memory carveout value requested for the function in percentage of
+   * the total resource. The value will be updated only if field
+   * isSharedMemoryCarveoutRequested is set.
+   */
+  uint8_t sharedMemoryCarveoutRequested;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint8_t padding;
+
+ /**
+  * Shared memory size set by the driver.
+  */
+  uint32_t sharedMemoryExecuted;
+} CUpti_ActivityKernel4;
+
+/**
  * \brief The shared memory limit per block config for a kernel
  * This should be used to set 'cudaOccFuncShmemConfig' field in occupancy calculator API
  */
@@ -2668,6 +4539,781 @@ typedef enum  {
 
     CUPTI_FUNC_SHMEM_LIMIT_FORCE_INT            = 0x7fffffff
 } CUpti_FuncShmemLimitConfig;
+
+/**
+ * \brief The activity record for a kernel (CUDA 11.0(with sm_80 support) onwards).
+ * (deprecated in CUDA 11.2)
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL) but is no longer generated
+ * by CUPTI. Kernel activities are now reported using the
+ * CUpti_ActivityKernel9 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * For devices with compute capability 7.0+ cacheConfig values are not updated
+   * in case field isSharedMemoryCarveoutRequested is set
+   */
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The partitioned global caching requested for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheRequested;
+
+  /**
+   * The partitioned global caching executed for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2. Partitioned global caching can be
+   * automatically disabled if the occupancy requirement of the launch cannot
+   * support caching.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheExecuted;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The timestamp when the kernel is queued up in the command buffer, in ns.
+   * A value of CUPTI_TIMESTAMP_UNKNOWN indicates that the queued time
+   * could not be collected for the kernel. This timestamp is not collected
+   * by default. Use API \ref cuptiActivityEnableLatencyTimestamps() to
+   * enable collection.
+   *
+   * Command buffer is a buffer written by CUDA driver to send commands
+   * like kernel launch, memory copy etc to the GPU. All launches of CUDA
+   * kernels are asynchrnous with respect to the host, the host requests
+   * the launch by writing commands into the command buffer, then returns
+   * without checking the GPU's progress.
+   */
+  uint64_t queued;
+
+  /**
+   * The timestamp when the command buffer containing the kernel launch
+   * is submitted to the GPU, in ns. A value of CUPTI_TIMESTAMP_UNKNOWN
+   * indicates that the submitted time could not be collected for the kernel.
+   * This timestamp is not collected by default. Use API \ref
+   * cuptiActivityEnableLatencyTimestamps() to enable collection.
+   */
+  uint64_t submitted;
+
+  /**
+   * The indicates if the kernel was executed via a regular launch or via a
+   * single/multi device cooperative launch. \see CUpti_ActivityLaunchType
+   */
+  uint8_t launchType;
+
+  /**
+   * This indicates if CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT was
+   * updated for the kernel launch
+   */
+  uint8_t isSharedMemoryCarveoutRequested;
+
+  /**
+   * Shared memory carveout value requested for the function in percentage of
+   * the total resource. The value will be updated only if field
+   * isSharedMemoryCarveoutRequested is set.
+   */
+  uint8_t sharedMemoryCarveoutRequested;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint8_t padding;
+
+ /**
+  * Shared memory size set by the driver.
+  */
+  uint32_t sharedMemoryExecuted;
+
+  /**
+   * The unique ID of the graph node that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The shared memory limit config for the kernel. This field shows whether user has opted for a
+   * higher per block limit of dynamic shared memory.
+   */
+  CUpti_FuncShmemLimitConfig shmemLimitConfig;
+
+  /**
+   * The unique ID of the graph that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint32_t graphId;
+} CUpti_ActivityKernel5;
+
+/**
+ * \brief The activity record for kernel. (deprecated in CUDA 11.6)
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL) but is no longer generated
+ * by CUPTI. Kernel activities are now reported using the
+ * CUpti_ActivityKernel9 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * For devices with compute capability 7.0+ cacheConfig values are not updated
+   * in case field isSharedMemoryCarveoutRequested is set
+   */
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The partitioned global caching requested for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheRequested;
+
+  /**
+   * The partitioned global caching executed for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2. Partitioned global caching can be
+   * automatically disabled if the occupancy requirement of the launch cannot
+   * support caching.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheExecuted;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The timestamp when the kernel is queued up in the command buffer, in ns.
+   * A value of CUPTI_TIMESTAMP_UNKNOWN indicates that the queued time
+   * could not be collected for the kernel. This timestamp is not collected
+   * by default. Use API \ref cuptiActivityEnableLatencyTimestamps() to
+   * enable collection.
+   *
+   * Command buffer is a buffer written by CUDA driver to send commands
+   * like kernel launch, memory copy etc to the GPU. All launches of CUDA
+   * kernels are asynchrnous with respect to the host, the host requests
+   * the launch by writing commands into the command buffer, then returns
+   * without checking the GPU's progress.
+   */
+  uint64_t queued;
+
+  /**
+   * The timestamp when the command buffer containing the kernel launch
+   * is submitted to the GPU, in ns. A value of CUPTI_TIMESTAMP_UNKNOWN
+   * indicates that the submitted time could not be collected for the kernel.
+   * This timestamp is not collected by default. Use API \ref
+   * cuptiActivityEnableLatencyTimestamps() to enable collection.
+   */
+  uint64_t submitted;
+
+  /**
+   * The indicates if the kernel was executed via a regular launch or via a
+   * single/multi device cooperative launch. \see CUpti_ActivityLaunchType
+   */
+  uint8_t launchType;
+
+  /**
+   * This indicates if CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT was
+   * updated for the kernel launch
+   */
+  uint8_t isSharedMemoryCarveoutRequested;
+
+  /**
+   * Shared memory carveout value requested for the function in percentage of
+   * the total resource. The value will be updated only if field
+   * isSharedMemoryCarveoutRequested is set.
+   */
+  uint8_t sharedMemoryCarveoutRequested;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint8_t padding;
+
+ /**
+  * Shared memory size set by the driver.
+  */
+  uint32_t sharedMemoryExecuted;
+
+  /**
+   * The unique ID of the graph node that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The shared memory limit config for the kernel. This field shows whether user has opted for a
+   * higher per block limit of dynamic shared memory.
+   */
+  CUpti_FuncShmemLimitConfig shmemLimitConfig;
+
+  /**
+   * The unique ID of the graph that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint32_t graphId;
+
+  /**
+   * The pointer to the access policy window. The structure CUaccessPolicyWindow is
+   * defined in cuda.h.
+   */
+  CUaccessPolicyWindow *pAccessPolicyWindow;
+} CUpti_ActivityKernel6;
+
+/**
+ * \brief The activity record for kernel. (deprecated in CUDA 11.8)
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL) but is no longer generated
+ * by CUPTI. Kernel activities are now reported using the
+ * CUpti_ActivityKernel9 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * For devices with compute capability 7.0+ cacheConfig values are not updated
+   * in case field isSharedMemoryCarveoutRequested is set
+   */
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The partitioned global caching requested for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheRequested;
+
+  /**
+   * The partitioned global caching executed for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2. Partitioned global caching can be
+   * automatically disabled if the occupancy requirement of the launch cannot
+   * support caching.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheExecuted;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The timestamp when the kernel is queued up in the command buffer, in ns.
+   * A value of CUPTI_TIMESTAMP_UNKNOWN indicates that the queued time
+   * could not be collected for the kernel. This timestamp is not collected
+   * by default. Use API \ref cuptiActivityEnableLatencyTimestamps() to
+   * enable collection.
+   *
+   * Command buffer is a buffer written by CUDA driver to send commands
+   * like kernel launch, memory copy etc to the GPU. All launches of CUDA
+   * kernels are asynchrnous with respect to the host, the host requests
+   * the launch by writing commands into the command buffer, then returns
+   * without checking the GPU's progress.
+   */
+  uint64_t queued;
+
+  /**
+   * The timestamp when the command buffer containing the kernel launch
+   * is submitted to the GPU, in ns. A value of CUPTI_TIMESTAMP_UNKNOWN
+   * indicates that the submitted time could not be collected for the kernel.
+   * This timestamp is not collected by default. Use API \ref
+   * cuptiActivityEnableLatencyTimestamps() to enable collection.
+   */
+  uint64_t submitted;
+
+  /**
+   * The indicates if the kernel was executed via a regular launch or via a
+   * single/multi device cooperative launch. \see CUpti_ActivityLaunchType
+   */
+  uint8_t launchType;
+
+  /**
+   * This indicates if CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT was
+   * updated for the kernel launch
+   */
+  uint8_t isSharedMemoryCarveoutRequested;
+
+  /**
+   * Shared memory carveout value requested for the function in percentage of
+   * the total resource. The value will be updated only if field
+   * isSharedMemoryCarveoutRequested is set.
+   */
+  uint8_t sharedMemoryCarveoutRequested;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint8_t padding;
+
+ /**
+  * Shared memory size set by the driver.
+  */
+  uint32_t sharedMemoryExecuted;
+
+  /**
+   * The unique ID of the graph node that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The shared memory limit config for the kernel. This field shows whether user has opted for a
+   * higher per block limit of dynamic shared memory.
+   */
+  CUpti_FuncShmemLimitConfig shmemLimitConfig;
+
+  /**
+   * The unique ID of the graph that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint32_t graphId;
+
+  /**
+   * The pointer to the access policy window. The structure CUaccessPolicyWindow is
+   * defined in cuda.h.
+   */
+  CUaccessPolicyWindow *pAccessPolicyWindow;
+
+  /**
+   * The ID of the HW channel on which the kernel is launched.
+   */
+  uint32_t channelID;
+
+  /**
+   * The type of the channel
+   */
+  CUpti_ChannelType channelType;
+} CUpti_ActivityKernel7;
 
 /**
  * \brief The activity record for kernel.
@@ -2856,7 +5502,303 @@ typedef struct PACKED_ALIGNMENT {
    *
    * Command buffer is a buffer written by CUDA driver to send commands
    * like kernel launch, memory copy etc to the GPU. All launches of CUDA
-   * kernels are asynchronous with respect to the host, the host requests
+   * kernels are asynchrnous with respect to the host, the host requests
+   * the launch by writing commands into the command buffer, then returns
+   * without checking the GPU's progress.
+   */
+  uint64_t queued;
+
+  /**
+   * The timestamp when the command buffer containing the kernel launch
+   * is submitted to the GPU, in ns. A value of CUPTI_TIMESTAMP_UNKNOWN
+   * indicates that the submitted time could not be collected for the kernel.
+   * This timestamp is not collected by default. Use API \ref
+   * cuptiActivityEnableLatencyTimestamps() to enable collection.
+   */
+  uint64_t submitted;
+
+  /**
+   * The indicates if the kernel was executed via a regular launch or via a
+   * single/multi device cooperative launch. \see CUpti_ActivityLaunchType
+   */
+  uint8_t launchType;
+
+  /**
+   * This indicates if CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT was
+   * updated for the kernel launch
+   */
+  uint8_t isSharedMemoryCarveoutRequested;
+
+  /**
+   * Shared memory carveout value requested for the function in percentage of
+   * the total resource. The value will be updated only if field
+   * isSharedMemoryCarveoutRequested is set.
+   */
+  uint8_t sharedMemoryCarveoutRequested;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint8_t padding;
+
+ /**
+  * Shared memory size set by the driver.
+  */
+  uint32_t sharedMemoryExecuted;
+
+  /**
+   * The unique ID of the graph node that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint64_t graphNodeId;
+
+  /**
+   * The shared memory limit config for the kernel. This field shows whether user has opted for a
+   * higher per block limit of dynamic shared memory.
+   */
+  CUpti_FuncShmemLimitConfig shmemLimitConfig;
+
+  /**
+   * The unique ID of the graph that launched this kernel through graph launch APIs.
+   * This field will be 0 if the kernel is not launched through graph launch APIs.
+   */
+  uint32_t graphId;
+
+  /**
+   * The pointer to the access policy window. The structure CUaccessPolicyWindow is
+   * defined in cuda.h.
+   */
+  CUaccessPolicyWindow *pAccessPolicyWindow;
+
+  /**
+   * The ID of the HW channel on which the kernel is launched.
+   */
+  uint32_t channelID;
+
+  /**
+   * The type of the channel
+   */
+  CUpti_ChannelType channelType;
+
+  /**
+   * The X-dimension cluster size for the kernel.
+   * Field is valid for devices with compute capability 9.0 and higher
+   */
+  uint32_t clusterX;
+
+  /**
+   * The Y-dimension cluster size for the kernel.
+   * Field is valid for devices with compute capability 9.0 and higher
+   */
+  uint32_t clusterY;
+
+  /**
+   * The Z-dimension cluster size for the kernel.
+   * Field is valid for devices with compute capability 9.0 and higher
+   */
+  uint32_t clusterZ;
+
+  /**
+   * The cluster scheduling policy for the kernel. Refer CUclusterSchedulingPolicy
+   * Field is valid for devices with compute capability 9.0 and higher
+   */
+  uint32_t clusterSchedulingPolicy;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes.
+   */
+  uint64_t localMemoryTotal_v2;
+} CUpti_ActivityKernel8;
+
+/**
+ * \brief The activity record for kernel.
+ *
+ * This activity record represents a kernel execution
+ * (CUPTI_ACTIVITY_KIND_KERNEL and
+ * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL)
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_KERNEL or
+   * CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * For devices with compute capability 7.0+ cacheConfig values are not updated
+   * in case field isSharedMemoryCarveoutRequested is set
+   */
+  union {
+    uint8_t both;
+    struct {
+      /**
+       * The cache configuration requested by the kernel. The value is one
+       * of the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t requested:4;
+
+      /**
+       * The cache configuration used for the kernel. The value is one of
+       * the CUfunc_cache enumeration values from cuda.h.
+       */
+      uint8_t executed:4;
+    } config;
+  } cacheConfig;
+
+  /**
+   * The shared memory configuration used for the kernel. The value is one of
+   * the CUsharedconfig enumeration values from cuda.h.
+   */
+  uint8_t sharedMemoryConfig;
+
+  /**
+   * The number of registers required for each thread executing the
+   * kernel.
+   */
+  uint16_t registersPerThread;
+
+  /**
+   * The partitioned global caching requested for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheRequested;
+
+  /**
+   * The partitioned global caching executed for the kernel. Partitioned
+   * global caching is required to enable caching on certain chips, such as
+   * devices with compute capability 5.2. Partitioned global caching can be
+   * automatically disabled if the occupancy requirement of the launch cannot
+   * support caching.
+   */
+  CUpti_ActivityPartitionedGlobalCacheConfig partitionedGlobalCacheExecuted;
+
+  /**
+   * The start timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t start;
+
+  /**
+   * The end timestamp for the kernel execution, in ns. A value of 0
+   * for both the start and end timestamps indicates that timestamp
+   * information could not be collected for the kernel.
+   */
+  uint64_t end;
+
+  /**
+   * The completed timestamp for the kernel execution, in ns.  It
+   * represents the completion of all it's child kernels and the
+   * kernel itself. A value of CUPTI_TIMESTAMP_UNKNOWN indicates that
+   * the completion time is unknown.
+   */
+  uint64_t completed;
+
+  /**
+   * The ID of the device where the kernel is executing.
+   */
+  uint32_t deviceId;
+
+  /**
+   * The ID of the context where the kernel is executing.
+   */
+  uint32_t contextId;
+
+  /**
+   * The ID of the stream where the kernel is executing.
+   */
+  uint32_t streamId;
+
+  /**
+   * The X-dimension grid size for the kernel.
+   */
+  int32_t gridX;
+
+  /**
+   * The Y-dimension grid size for the kernel.
+   */
+  int32_t gridY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t gridZ;
+
+  /**
+   * The X-dimension block size for the kernel.
+   */
+  int32_t blockX;
+
+  /**
+   * The Y-dimension block size for the kernel.
+   */
+  int32_t blockY;
+
+  /**
+   * The Z-dimension grid size for the kernel.
+   */
+  int32_t blockZ;
+
+  /**
+   * The static shared memory allocated for the kernel, in bytes.
+   */
+  int32_t staticSharedMemory;
+
+  /**
+   * The dynamic shared memory reserved for the kernel, in bytes.
+   */
+  int32_t dynamicSharedMemory;
+
+  /**
+   * The amount of local memory reserved for each thread, in bytes.
+   */
+  uint32_t localMemoryPerThread;
+
+  /**
+   * The total amount of local memory reserved for the kernel, in
+   * bytes (deprecated in CUDA 11.8).
+   * Refer field localMemoryTotal_v2
+   */
+  uint32_t localMemoryTotal;
+
+  /**
+   * The correlation ID of the kernel. Each kernel execution is
+   * assigned a unique correlation ID that is identical to the
+   * correlation ID in the driver or runtime API activity record that
+   * launched the kernel.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The grid ID of the kernel. Each kernel is assigned a unique
+   * grid ID at runtime.
+   */
+  int64_t gridId;
+
+  /**
+   * The name of the kernel. This name is shared across all activity
+   * records representing the same kernel, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  void *reserved0;
+
+  /**
+   * The timestamp when the kernel is queued up in the command buffer, in ns.
+   * A value of CUPTI_TIMESTAMP_UNKNOWN indicates that the queued time
+   * could not be collected for the kernel. This timestamp is not collected
+   * by default. Use API \ref cuptiActivityEnableLatencyTimestamps() to
+   * enable collection.
+   *
+   * Command buffer is a buffer written by CUDA driver to send commands
+   * like kernel launch, memory copy etc to the GPU. All launches of CUDA
+   * kernels are asynchrnous with respect to the host, the host requests
    * the launch by writing commands into the command buffer, then returns
    * without checking the GPU's progress.
    */
@@ -2974,6 +5916,7 @@ typedef struct PACKED_ALIGNMENT {
    */
   uint32_t maxActiveClusters;
 } CUpti_ActivityKernel9;
+
 
 /**
  * \brief The activity record for CDP (CUDA Dynamic Parallelism)
@@ -3505,6 +6448,129 @@ typedef struct PACKED_ALIGNMENT {
 
 /**
  * \brief The activity record for source-level global
+ * access. (deprecated)
+ *
+ * This activity records the locations of the global
+ * accesses in the source (CUPTI_ACTIVITY_KIND_GLOBAL_ACCESS).
+ * Global access activities are now reported using the
+ * CUpti_ActivityGlobalAccess3 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_GLOBAL_ACCESS.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The properties of this global access.
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The ID for source locator.
+   */
+  uint32_t sourceLocatorId;
+
+  /**
+   * The correlation ID of the kernel to which this result is associated.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The pc offset for the access.
+   */
+  uint32_t pcOffset;
+
+  /**
+   * The number of times this instruction was executed per warp. It will be incremented
+   * when at least one of thread among warp is active with predicate and condition code
+   * evaluating to true.
+   */
+  uint32_t executed;
+
+  /**
+   * This increments each time when this instruction is executed by number
+   * of threads that executed this instruction with predicate and condition code evaluating to true.
+   */
+  uint64_t threadsExecuted;
+
+  /**
+   * The total number of 32 bytes transactions to L2 cache generated by this access
+   */
+  uint64_t l2_transactions;
+} CUpti_ActivityGlobalAccess;
+
+/**
+ * \brief The activity record for source-level global
+ * access. (deprecated in CUDA 9.0)
+ *
+ * This activity records the locations of the global
+ * accesses in the source (CUPTI_ACTIVITY_KIND_GLOBAL_ACCESS).
+ * Global access activities are now reported using the
+ * CUpti_ActivityGlobalAccess3 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_GLOBAL_ACCESS.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The properties of this global access.
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The ID for source locator.
+   */
+  uint32_t sourceLocatorId;
+
+  /**
+   * The correlation ID of the kernel to which this result is associated.
+   */
+  uint32_t correlationId;
+
+  /**
+  * Correlation ID with global/device function name
+  */
+  uint32_t functionId;
+
+  /**
+   * The pc offset for the access.
+   */
+  uint32_t pcOffset;
+
+  /**
+   * This increments each time when this instruction is executed by number
+   * of threads that executed this instruction with predicate and condition code evaluating to true.
+   */
+  uint64_t threadsExecuted;
+
+  /**
+   * The total number of 32 bytes transactions to L2 cache generated by this access
+   */
+  uint64_t l2_transactions;
+
+  /**
+   * The minimum number of L2 transactions possible based on the access pattern.
+   */
+  uint64_t theoreticalL2Transactions;
+
+  /**
+   * The number of times this instruction was executed per warp. It will be incremented
+   * when at least one of thread among warp is active with predicate and condition code
+   * evaluating to true.
+   */
+  uint32_t executed;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+} CUpti_ActivityGlobalAccess2;
+
+/**
+ * \brief The activity record for source-level global
  * access.
  *
  * This activity records the locations of the global
@@ -3569,6 +6635,54 @@ typedef struct PACKED_ALIGNMENT {
 
 /**
  * \brief The activity record for source level result
+ * branch. (deprecated)
+ *
+ * This activity record the locations of the branches in the
+ * source (CUPTI_ACTIVITY_KIND_BRANCH).
+ * Branch activities are now reported using the
+ * CUpti_ActivityBranch2 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_BRANCH.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The ID for source locator.
+   */
+  uint32_t sourceLocatorId;
+
+  /**
+   * The correlation ID of the kernel to which this result is associated.
+   */
+  uint32_t correlationId;
+
+  /**
+   * The pc offset for the branch.
+   */
+  uint32_t pcOffset;
+
+  /**
+   * The number of times this instruction was executed per warp. It will be incremented
+   * regardless of predicate or condition code.
+   */
+  uint32_t executed;
+
+  /**
+   * Number of times this branch diverged
+   */
+  uint32_t diverged;
+
+  /**
+   * This increments each time when this instruction is executed by number
+   * of threads that executed this instruction
+   */
+  uint64_t threadsExecuted;
+} CUpti_ActivityBranch;
+
+/**
+ * \brief The activity record for source level result
  * branch.
  *
  * This activity record the locations of the branches in the
@@ -3622,6 +6736,520 @@ typedef struct PACKED_ALIGNMENT {
    */
   uint32_t pad;
 } CUpti_ActivityBranch2;
+
+
+/**
+ * \brief The activity record for a device. (deprecated)
+ *
+ * This activity record represents information about a GPU device
+ * (CUPTI_ACTIVITY_KIND_DEVICE).
+ * Device activity is now reported using the
+ * CUpti_ActivityDevice4 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_DEVICE.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The flags associated with the device. \see CUpti_ActivityFlag
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The global memory bandwidth available on the device, in
+   * kBytes/sec.
+   */
+  uint64_t globalMemoryBandwidth;
+
+  /**
+   * The amount of global memory on the device, in bytes.
+   */
+  uint64_t globalMemorySize;
+
+  /**
+   * The amount of constant memory on the device, in bytes.
+   */
+  uint32_t constantMemorySize;
+
+  /**
+   * The size of the L2 cache on the device, in bytes.
+   */
+  uint32_t l2CacheSize;
+
+  /**
+   * The number of threads per warp on the device.
+   */
+  uint32_t numThreadsPerWarp;
+
+  /**
+   * The core clock rate of the device, in kHz.
+   */
+  uint32_t coreClockRate;
+
+  /**
+   * Number of memory copy engines on the device.
+   */
+  uint32_t numMemcpyEngines;
+
+  /**
+   * Number of multiprocessors on the device.
+   */
+  uint32_t numMultiprocessors;
+
+  /**
+   * The maximum "instructions per cycle" possible on each device
+   * multiprocessor.
+   */
+  uint32_t maxIPC;
+
+  /**
+   * Maximum number of warps that can be present on a multiprocessor
+   * at any given time.
+   */
+  uint32_t maxWarpsPerMultiprocessor;
+
+  /**
+   * Maximum number of blocks that can be present on a multiprocessor
+   * at any given time.
+   */
+  uint32_t maxBlocksPerMultiprocessor;
+
+  /**
+   * Maximum number of registers that can be allocated to a block.
+   */
+  uint32_t maxRegistersPerBlock;
+
+  /**
+   * Maximum amount of shared memory that can be assigned to a block,
+   * in bytes.
+   */
+  uint32_t maxSharedMemoryPerBlock;
+
+  /**
+   * Maximum number of threads allowed in a block.
+   */
+  uint32_t maxThreadsPerBlock;
+
+  /**
+   * Maximum allowed X dimension for a block.
+   */
+  uint32_t maxBlockDimX;
+
+  /**
+   * Maximum allowed Y dimension for a block.
+   */
+  uint32_t maxBlockDimY;
+
+  /**
+   * Maximum allowed Z dimension for a block.
+   */
+  uint32_t maxBlockDimZ;
+
+  /**
+   * Maximum allowed X dimension for a grid.
+   */
+  uint32_t maxGridDimX;
+
+  /**
+   * Maximum allowed Y dimension for a grid.
+   */
+  uint32_t maxGridDimY;
+
+  /**
+   * Maximum allowed Z dimension for a grid.
+   */
+  uint32_t maxGridDimZ;
+
+  /**
+   * Compute capability for the device, major number.
+   */
+  uint32_t computeCapabilityMajor;
+
+  /**
+   * Compute capability for the device, minor number.
+   */
+  uint32_t computeCapabilityMinor;
+
+  /**
+   * The device ID.
+   */
+  uint32_t id;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * The device name. This name is shared across all activity records
+   * representing instances of the device, and so should not be
+   * modified.
+   */
+  const char *name;
+} CUpti_ActivityDevice;
+
+/**
+ * \brief The activity record for a device. (deprecated)
+ *
+ * This activity record represents information about a GPU device
+ * (CUPTI_ACTIVITY_KIND_DEVICE).
+ * Device activity is now reported using the
+ * CUpti_ActivityDevice4 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_DEVICE.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The flags associated with the device. \see CUpti_ActivityFlag
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The global memory bandwidth available on the device, in
+   * kBytes/sec.
+   */
+  uint64_t globalMemoryBandwidth;
+
+  /**
+   * The amount of global memory on the device, in bytes.
+   */
+  uint64_t globalMemorySize;
+
+  /**
+   * The amount of constant memory on the device, in bytes.
+   */
+  uint32_t constantMemorySize;
+
+  /**
+   * The size of the L2 cache on the device, in bytes.
+   */
+  uint32_t l2CacheSize;
+
+  /**
+   * The number of threads per warp on the device.
+   */
+  uint32_t numThreadsPerWarp;
+
+  /**
+   * The core clock rate of the device, in kHz.
+   */
+  uint32_t coreClockRate;
+
+  /**
+   * Number of memory copy engines on the device.
+   */
+  uint32_t numMemcpyEngines;
+
+  /**
+   * Number of multiprocessors on the device.
+   */
+  uint32_t numMultiprocessors;
+
+  /**
+   * The maximum "instructions per cycle" possible on each device
+   * multiprocessor.
+   */
+  uint32_t maxIPC;
+
+  /**
+   * Maximum number of warps that can be present on a multiprocessor
+   * at any given time.
+   */
+  uint32_t maxWarpsPerMultiprocessor;
+
+  /**
+   * Maximum number of blocks that can be present on a multiprocessor
+   * at any given time.
+   */
+  uint32_t maxBlocksPerMultiprocessor;
+
+  /**
+   * Maximum amount of shared memory available per multiprocessor, in bytes.
+   */
+  uint32_t maxSharedMemoryPerMultiprocessor;
+
+  /**
+   * Maximum number of 32-bit registers available per multiprocessor.
+   */
+  uint32_t maxRegistersPerMultiprocessor;
+
+  /**
+   * Maximum number of registers that can be allocated to a block.
+   */
+  uint32_t maxRegistersPerBlock;
+
+  /**
+   * Maximum amount of shared memory that can be assigned to a block,
+   * in bytes.
+   */
+  uint32_t maxSharedMemoryPerBlock;
+
+  /**
+   * Maximum number of threads allowed in a block.
+   */
+  uint32_t maxThreadsPerBlock;
+
+  /**
+   * Maximum allowed X dimension for a block.
+   */
+  uint32_t maxBlockDimX;
+
+  /**
+   * Maximum allowed Y dimension for a block.
+   */
+  uint32_t maxBlockDimY;
+
+  /**
+   * Maximum allowed Z dimension for a block.
+   */
+  uint32_t maxBlockDimZ;
+
+  /**
+   * Maximum allowed X dimension for a grid.
+   */
+  uint32_t maxGridDimX;
+
+  /**
+   * Maximum allowed Y dimension for a grid.
+   */
+  uint32_t maxGridDimY;
+
+  /**
+   * Maximum allowed Z dimension for a grid.
+   */
+  uint32_t maxGridDimZ;
+
+  /**
+   * Compute capability for the device, major number.
+   */
+  uint32_t computeCapabilityMajor;
+
+  /**
+   * Compute capability for the device, minor number.
+   */
+  uint32_t computeCapabilityMinor;
+
+  /**
+   * The device ID.
+   */
+  uint32_t id;
+
+  /**
+   * ECC enabled flag for device
+   */
+  uint32_t eccEnabled;
+
+  /**
+   * The device UUID. This value is the globally unique immutable
+   * alphanumeric identifier of the device.
+   */
+  CUuuid uuid;
+
+#ifndef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * The device name. This name is shared across all activity records
+   * representing instances of the device, and so should not be
+   * modified.
+   */
+  const char *name;
+} CUpti_ActivityDevice2;
+
+/**
+ * \brief The activity record for a device. (CUDA 7.0 onwards)
+ *
+ * This activity record represents information about a GPU device
+ * (CUPTI_ACTIVITY_KIND_DEVICE).
+ * Device activity is now reported using the
+ * CUpti_ActivityDevice4 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_DEVICE.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The flags associated with the device. \see CUpti_ActivityFlag
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The global memory bandwidth available on the device, in
+   * kBytes/sec.
+   */
+  uint64_t globalMemoryBandwidth;
+
+  /**
+   * The amount of global memory on the device, in bytes.
+   */
+  uint64_t globalMemorySize;
+
+  /**
+   * The amount of constant memory on the device, in bytes.
+   */
+  uint32_t constantMemorySize;
+
+  /**
+   * The size of the L2 cache on the device, in bytes.
+   */
+  uint32_t l2CacheSize;
+
+  /**
+   * The number of threads per warp on the device.
+   */
+  uint32_t numThreadsPerWarp;
+
+  /**
+   * The core clock rate of the device, in kHz.
+   */
+  uint32_t coreClockRate;
+
+  /**
+   * Number of memory copy engines on the device.
+   */
+  uint32_t numMemcpyEngines;
+
+  /**
+   * Number of multiprocessors on the device.
+   */
+  uint32_t numMultiprocessors;
+
+  /**
+   * The maximum "instructions per cycle" possible on each device
+   * multiprocessor.
+   */
+  uint32_t maxIPC;
+
+  /**
+   * Maximum number of warps that can be present on a multiprocessor
+   * at any given time.
+   */
+  uint32_t maxWarpsPerMultiprocessor;
+
+  /**
+   * Maximum number of blocks that can be present on a multiprocessor
+   * at any given time.
+   */
+  uint32_t maxBlocksPerMultiprocessor;
+
+  /**
+   * Maximum amount of shared memory available per multiprocessor, in bytes.
+   */
+  uint32_t maxSharedMemoryPerMultiprocessor;
+
+  /**
+   * Maximum number of 32-bit registers available per multiprocessor.
+   */
+  uint32_t maxRegistersPerMultiprocessor;
+
+  /**
+   * Maximum number of registers that can be allocated to a block.
+   */
+  uint32_t maxRegistersPerBlock;
+
+  /**
+   * Maximum amount of shared memory that can be assigned to a block,
+   * in bytes.
+   */
+  uint32_t maxSharedMemoryPerBlock;
+
+  /**
+   * Maximum number of threads allowed in a block.
+   */
+  uint32_t maxThreadsPerBlock;
+
+  /**
+   * Maximum allowed X dimension for a block.
+   */
+  uint32_t maxBlockDimX;
+
+  /**
+   * Maximum allowed Y dimension for a block.
+   */
+  uint32_t maxBlockDimY;
+
+  /**
+   * Maximum allowed Z dimension for a block.
+   */
+  uint32_t maxBlockDimZ;
+
+  /**
+   * Maximum allowed X dimension for a grid.
+   */
+  uint32_t maxGridDimX;
+
+  /**
+   * Maximum allowed Y dimension for a grid.
+   */
+  uint32_t maxGridDimY;
+
+  /**
+   * Maximum allowed Z dimension for a grid.
+   */
+  uint32_t maxGridDimZ;
+
+  /**
+   * Compute capability for the device, major number.
+   */
+  uint32_t computeCapabilityMajor;
+
+  /**
+   * Compute capability for the device, minor number.
+   */
+  uint32_t computeCapabilityMinor;
+
+  /**
+   * The device ID.
+   */
+  uint32_t id;
+
+  /**
+   * ECC enabled flag for device
+   */
+  uint32_t eccEnabled;
+
+  /**
+   * The device UUID. This value is the globally unique immutable
+   * alphanumeric identifier of the device.
+   */
+  CUuuid uuid;
+
+#ifndef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * The device name. This name is shared across all activity records
+   * representing instances of the device, and so should not be
+   * modified.
+   */
+  const char *name;
+
+  /**
+   * Flag to indicate whether the device is visible to CUDA. Users can
+   * set the device visibility using CUDA_VISIBLE_DEVICES environment
+   */
+  uint8_t isCudaVisible;
+
+  uint8_t reserved[7];
+} CUpti_ActivityDevice3;
+
 
 /**
  * \brief The activity record for a device. (CUDA 11.6 onwards)
@@ -3826,19 +7454,7 @@ typedef struct PACKED_ALIGNMENT {
    */
   CUuuid migUuid;
 
-  /**
-   * Numa (Non-uniform memory access) information for device
-   * GPU is a NUMA node or not
-  */
-  uint32_t isNumaNode;
-
-  /**
-   * Numa (Non-uniform memory access) information for device
-   * NUMA node ID of the GPU memory
-   * if GPU is not a NUMA node, it returns invalidNumaId
-  */
-  uint32_t numaId;
-} CUpti_ActivityDevice5;
+} CUpti_ActivityDevice4;
 
 /**
  * \brief The activity record for a device attribute.
@@ -3923,20 +7539,7 @@ typedef struct PACKED_ALIGNMENT {
    * The ID for the NULL stream in this context
    */
   uint16_t nullStreamId;
-
-  /**
-   * The ID of the parent context. It would be 0 if
-   * context does not have parent
-   */
-  uint32_t parentContextId;
-
-  /**
-   * This field indicates whether the context is a green context
-   */
-  uint8_t isGreenContext;
-
-  uint8_t padding[3];
-} CUpti_ActivityContext2;
+} CUpti_ActivityContext;
 
 /**
  * \brief The activity record providing a name.
@@ -3975,6 +7578,63 @@ typedef struct PACKED_ALIGNMENT {
   const char *name;
 
 } CUpti_ActivityName;
+
+/**
+ * \brief The activity record providing a marker which is an
+ * instantaneous point in time. (deprecated in CUDA 8.0)
+ *
+ * The marker is specified with a descriptive name and unique id
+ * (CUPTI_ACTIVITY_KIND_MARKER).
+ * Marker activity is now reported using the
+ * CUpti_ActivityMarker2 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_MARKER.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The flags associated with the marker. \see CUpti_ActivityFlag
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The timestamp for the marker, in ns. A value of 0 indicates that
+   * timestamp information could not be collected for the marker.
+   */
+  uint64_t timestamp;
+
+  /**
+   * The marker ID.
+   */
+  uint32_t id;
+
+  /**
+   * The kind of activity object associated with this marker.
+   */
+  CUpti_ActivityObjectKind objectKind;
+
+  /**
+   * The identifier for the activity object associated with this
+   * marker. 'objectKind' indicates which ID is valid for this record.
+   */
+  CUpti_ActivityObjectKindId objectId;
+
+#ifdef CUPTILP64
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+#endif
+
+  /**
+   * The marker name for an instantaneous or start marker. This will
+   * be NULL for an end marker.
+   */
+  const char *name;
+
+} CUpti_ActivityMarker;
 
 /**
  * \brief The activity record providing a marker which is an
@@ -4122,29 +7782,7 @@ typedef struct PACKED_ALIGNMENT {
    * could not be collected for the overhead.
    */
   uint64_t end;
-
-  /**
-   * The correlation ID of the overhead operation to which
-   * records belong to. This ID is identical to the
-   * correlation ID in the driver or runtime API activity record that
-   * launched the overhead operation.
-   * In some cases, it can be zero, such as for CUPTI_ACTIVITY_OVERHEAD_CUPTI_BUFFER_FLUSH records.
-   */
-  uint32_t correlationId;
-
-  /**
-   * Reserved for internal use.
-   */
-  uint32_t reserved0;
-
-  /**
-   * Pointer to the struct with additional details about the overhead.
-   * Refer CUpti_ActivityOverheadKind enum and the corresponding structure to typecast and access additional overhead data.
-   * Client is responsible for freeing this memory using the free function when done.
-   */
-  void *overheadData;
-
-} CUpti_ActivityOverhead3;
+} CUpti_ActivityOverhead;
 
 /**
  * \brief The activity record for CUPTI environmental data.
@@ -4222,13 +7860,20 @@ typedef struct PACKED_ALIGNMENT {
     } temperature;
 
     /**
-     * Data returned for CUPTI_ACTIVITY_ENVIRONMENT_POWER environment kind.
-     * The power in milliwatts consumed by GPU and associated circuitry.
-     * The power in milliwatts that will trigger power management algorithm.
+     * Data returned for CUPTI_ACTIVITY_ENVIRONMENT_POWER environment
+     * kind.
      */
     struct {
-
+      /**
+       * The power in milliwatts consumed by GPU and associated
+       * circuitry.
+       */
       uint32_t power;
+
+      /**
+       * The power in milliwatts that will trigger power management
+       * algorithm.
+       */
       uint32_t powerLimit;
     } power;
 
@@ -4305,6 +7950,121 @@ typedef struct PACKED_ALIGNMENT {
    */
   uint32_t pad;
 } CUpti_ActivityInstructionExecution;
+
+/**
+ * \brief The activity record for PC sampling. (deprecated in CUDA 8.0)
+ *
+ * This activity records information obtained by sampling PC
+ * (CUPTI_ACTIVITY_KIND_PC_SAMPLING).
+ * PC sampling activities are now reported using the
+ * CUpti_ActivityPCSampling2 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_PC_SAMPLING.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The properties of this instruction.
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The ID for source locator.
+   */
+  uint32_t sourceLocatorId;
+
+  /**
+   * The correlation ID of the kernel to which this result is associated.
+   */
+  uint32_t correlationId;
+
+  /**
+  * Correlation ID with global/device function name
+  */
+  uint32_t functionId;
+
+  /**
+   * The pc offset for the instruction.
+   */
+  uint32_t pcOffset;
+
+  /**
+   * Number of times the PC was sampled with the stallReason in the record.
+   * The same PC can be sampled with different stall reasons.
+   */
+  uint32_t samples;
+
+  /**
+   * Current stall reason. Includes one of the reasons from
+   * \ref CUpti_ActivityPCSamplingStallReason
+   */
+  CUpti_ActivityPCSamplingStallReason stallReason;
+} CUpti_ActivityPCSampling;
+
+/**
+ * \brief The activity record for PC sampling. (deprecated in CUDA 9.0)
+ *
+ * This activity records information obtained by sampling PC
+ * (CUPTI_ACTIVITY_KIND_PC_SAMPLING).
+ * PC sampling activities are now reported using the
+ * CUpti_ActivityPCSampling3 activity record.
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_PC_SAMPLING.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The properties of this instruction.
+   */
+  CUpti_ActivityFlag flags;
+
+  /**
+   * The ID for source locator.
+   */
+  uint32_t sourceLocatorId;
+
+  /**
+   * The correlation ID of the kernel to which this result is associated.
+   */
+  uint32_t correlationId;
+
+  /**
+  * Correlation ID with global/device function name
+  */
+  uint32_t functionId;
+
+  /**
+   * The pc offset for the instruction.
+   */
+  uint32_t pcOffset;
+
+  /**
+   * Number of times the PC was sampled with the stallReason in the record.
+   * These samples indicate that no instruction was issued in that cycle from
+   * the warp scheduler from where the warp was sampled.
+   * Field is valid for devices with compute capability 6.0 and higher
+   */
+  uint32_t latencySamples;
+
+  /**
+   * Number of times the PC was sampled with the stallReason in the record.
+   * The same PC can be sampled with different stall reasons. The count includes
+   * latencySamples.
+   */
+  uint32_t samples;
+
+  /**
+   * Current stall reason. Includes one of the reasons from
+   * \ref CUpti_ActivityPCSamplingStallReason
+   */
+  CUpti_ActivityPCSamplingStallReason stallReason;
+
+  uint32_t pad;
+} CUpti_ActivityPCSampling2;
 
 /**
  * \brief The activity record for PC sampling.
@@ -4399,6 +8159,58 @@ typedef struct PACKED_ALIGNMENT {
 } CUpti_ActivityPCSamplingRecordInfo;
 
 /**
+ * \brief The activity record for Unified Memory counters (deprecated in CUDA 7.0)
+ *
+ * This activity record represents a Unified Memory counter
+ * (CUPTI_ACTIVITY_KIND_UNIFIED_MEMORY_COUNTER).
+ */
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_UNIFIED_MEMORY_COUNTER
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * The Unified Memory counter kind. See \ref CUpti_ActivityUnifiedMemoryCounterKind
+   */
+  CUpti_ActivityUnifiedMemoryCounterKind counterKind;
+
+  /**
+   * Scope of the Unified Memory counter. See \ref CUpti_ActivityUnifiedMemoryCounterScope
+   */
+  CUpti_ActivityUnifiedMemoryCounterScope scope;
+
+  /**
+   * The ID of the device involved in the memory transfer operation.
+   * It is not relevant if the scope of the counter is global (all devices).
+   */
+  uint32_t deviceId;
+
+  /**
+   * Value of the counter
+   *
+   */
+  uint64_t value;
+
+  /**
+   * The timestamp when this sample was retrieved, in ns. A value of 0
+   * indicates that timestamp information could not be collected
+   */
+  uint64_t timestamp;
+
+  /**
+   * The ID of the process to which this record belongs to. In case of
+   * global scope, processId is undefined.
+   */
+  uint32_t processId;
+
+  /**
+   * Undefined. Reserved for internal use.
+   */
+  uint32_t pad;
+} CUpti_ActivityUnifiedMemoryCounter;
+
+/**
  * \brief The activity record for Unified Memory counters (CUDA 7.0 and beyond)
  *
  * This activity record represents a Unified Memory counter
@@ -4440,7 +8252,7 @@ typedef struct PACKED_ALIGNMENT {
    * For counterKind CUPTI_ACTIVITY_UNIFIED_MEMORY_COUNTER_KIND_THRASHING, timestamp
    * is captured when CUDA driver detected thrashing of memory region.
    * For counterKind CUPTI_ACTIVITY_UNIFIED_MEMORY_COUNTER_KIND_THROTTLING,
-   * timestamp is captured when throttling operation was started by CUDA driver.
+   * timestamp is captured when throttling opeeration was started by CUDA driver.
    * For counterKind CUPTI_ACTIVITY_UNIFIED_MEMORY_COUNTER_KIND_REMOTE_MAP,
    * timestamp is captured when CUDA driver has pushed all required operations
    * to the processor specified by dstId.
@@ -4811,6 +8623,7 @@ typedef struct PACKED_ALIGNMENT {
   uint32_t cudaEventId;
 } CUpti_ActivitySynchronization;
 
+
 /**
  * \brief The activity record for source-level sass/source
  * line-by-line correlation.
@@ -5048,7 +8861,7 @@ typedef struct PACKED_ALIGNMENT {
    * The OpenACC correlation ID.
    * Valid only if deviceType is acc_device_nvidia.
    * If not 0, it uniquely identifies this record. It is identical to the
-   * externalId in the preceding external correlation record of type
+   * externalId in the preceeding external correlation record of type
    * CUPTI_EXTERNAL_CORRELATION_KIND_OPENACC.
    */
   uint32_t externalId;
@@ -5193,7 +9006,7 @@ typedef struct PACKED_ALIGNMENT {
    * The OpenACC correlation ID.
    * Valid only if deviceType is acc_device_nvidia.
    * If not 0, it uniquely identifies this record. It is identical to the
-   * externalId in the preceding external correlation record of type
+   * externalId in the preceeding external correlation record of type
    * CUPTI_EXTERNAL_CORRELATION_KIND_OPENACC.
    */
   uint32_t externalId;
@@ -5369,7 +9182,7 @@ typedef struct PACKED_ALIGNMENT {
    * The OpenACC correlation ID.
    * Valid only if deviceType is acc_device_nvidia.
    * If not 0, it uniquely identifies this record. It is identical to the
-   * externalId in the preceding external correlation record of type
+   * externalId in the preceeding external correlation record of type
    * CUPTI_EXTERNAL_CORRELATION_KIND_OPENACC.
    */
   uint32_t externalId;
@@ -5545,7 +9358,7 @@ typedef struct PACKED_ALIGNMENT {
    * The OpenACC correlation ID.
    * Valid only if deviceType is acc_device_nvidia.
    * If not 0, it uniquely identifies this record. It is identical to the
-   * externalId in the preceding external correlation record of type
+   * externalId in the preceeding external correlation record of type
    * CUPTI_EXTERNAL_CORRELATION_KIND_OPENACC.
    */
   uint32_t externalId;
@@ -5564,6 +9377,7 @@ typedef struct PACKED_ALIGNMENT {
 
   /* --- end of common CUpti_ActivityOpenAcc part --- */
 } CUpti_ActivityOpenAccOther;
+
 
 /**
  * \brief The base activity record for OpenMp records.
@@ -5714,6 +9528,333 @@ typedef enum {
 } CUpti_DevType;
 
 /**
+* \brief NVLink information. (deprecated in CUDA 9.0)
+*
+* This structure gives capabilities of each logical NVLink connection between two devices,
+* gpu<->gpu or gpu<->CPU which can be used to understand the topology.
+* NVLink information are now reported using the
+* CUpti_ActivityNvLink2 activity record.
+*/
+
+typedef struct PACKED_ALIGNMENT {
+  /**
+  * The activity record kind, must be CUPTI_ACTIVITY_KIND_NVLINK.
+  */
+  CUpti_ActivityKind kind;
+
+  /**
+  * NVLink version.
+  */
+  uint32_t nvlinkVersion;
+
+  /**
+  * Type of device 0 \ref CUpti_DevType
+  */
+  CUpti_DevType typeDev0;
+
+  /**
+  * Type of device 1 \ref CUpti_DevType
+  */
+  CUpti_DevType typeDev1;
+
+  /**
+  * If typeDev0 is CUPTI_DEV_TYPE_GPU, UUID for device 0. \ref CUpti_ActivityDevice4.
+  * If typeDev0 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
+  */
+  union {
+    CUuuid uuidDev;
+    struct {
+      /**
+      * Index of the NPU. First index will always be zero.
+      */
+      uint32_t index;
+
+      /**
+      * Domain ID of NPU. On Linux, this can be queried using lspci.
+      */
+      uint32_t domainId;
+    } npu;
+  } idDev0;
+
+  /**
+  * If typeDev1 is CUPTI_DEV_TYPE_GPU, UUID for device 1. \ref CUpti_ActivityDevice4.
+  * If typeDev1 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
+  */
+  union {
+    CUuuid uuidDev;
+    struct {
+      /**
+      * Index of the NPU. First index will always be zero.
+      */
+      uint32_t index;
+
+      /**
+      * Domain ID of NPU. On Linux, this can be queried using lspci.
+      */
+      uint32_t domainId;
+    } npu;
+  } idDev1;
+
+  /**
+  * Flag gives capabilities of the link \see CUpti_LinkFlag
+  */
+  uint32_t flag;
+
+  /**
+  * Number of physical NVLinks present between two devices.
+  */
+  uint32_t physicalNvLinkCount;
+
+  /**
+  * Port numbers for maximum 4 NVLinks connected to device 0.
+  * If typeDev0 is CUPTI_DEV_TYPE_NPU, ignore this field.
+  * In case of invalid/unknown port number, this field will be set
+  * to value CUPTI_NVLINK_INVALID_PORT.
+  * This will be used to correlate the metric values to individual
+  * physical link and attribute traffic to the logical NVLink in
+  * the topology.
+  */
+  int8_t portDev0[4];
+
+  /**
+  * Port numbers for maximum 4 NVLinks connected to device 1.
+  * If typeDev1 is CUPTI_DEV_TYPE_NPU, ignore this field.
+  * In case of invalid/unknown port number, this field will be set
+  * to value CUPTI_NVLINK_INVALID_PORT.
+  * This will be used to correlate the metric values to individual
+  * physical link and attribute traffic to the logical NVLink in
+  * the topology.
+  */
+  int8_t portDev1[4];
+
+  /**
+  * Banwidth of NVLink in kbytes/sec
+  */
+  uint64_t bandwidth;
+} CUpti_ActivityNvLink;
+
+/**
+* \brief NVLink information. (deprecated in CUDA 10.0)
+*
+* This structure gives capabilities of each logical NVLink connection between two devices,
+* gpu<->gpu or gpu<->CPU which can be used to understand the topology.
+* NvLink information are now reported using the
+* CUpti_ActivityNvLink4 activity record.
+*/
+
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_NVLINK.
+   */
+  CUpti_ActivityKind kind;
+
+  /**
+   * NvLink version.
+   */
+  uint32_t nvlinkVersion;
+
+  /**
+   * Type of device 0 \ref CUpti_DevType
+   */
+  CUpti_DevType typeDev0;
+
+  /**
+   * Type of device 1 \ref CUpti_DevType
+   */
+  CUpti_DevType typeDev1;
+
+  /**
+  * If typeDev0 is CUPTI_DEV_TYPE_GPU, UUID for device 0. \ref CUpti_ActivityDevice4.
+  * If typeDev0 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
+  */
+  union {
+    CUuuid uuidDev;
+    struct {
+      /**
+       * Index of the NPU. First index will always be zero.
+       */
+      uint32_t index;
+
+      /**
+       * Domain ID of NPU. On Linux, this can be queried using lspci.
+       */
+      uint32_t domainId;
+    } npu;
+  } idDev0;
+
+  /**
+  * If typeDev1 is CUPTI_DEV_TYPE_GPU, UUID for device 1. \ref CUpti_ActivityDevice4.
+  * If typeDev1 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
+  */
+  union {
+    CUuuid uuidDev;
+    struct {
+      /**
+       * Index of the NPU. First index will always be zero.
+       */
+      uint32_t index;
+
+      /**
+       * Domain ID of NPU. On Linux, this can be queried using lspci.
+       */
+      uint32_t domainId;
+    } npu;
+  } idDev1;
+
+  /**
+   * Flag gives capabilities of the link \see CUpti_LinkFlag
+   */
+  uint32_t flag;
+
+  /**
+   * Number of physical NVLinks present between two devices.
+   */
+  uint32_t physicalNvLinkCount;
+
+  /**
+   * Port numbers for maximum 16 NVLinks connected to device 0.
+   * If typeDev0 is CUPTI_DEV_TYPE_NPU, ignore this field.
+   * In case of invalid/unknown port number, this field will be set
+   * to value CUPTI_NVLINK_INVALID_PORT.
+   * This will be used to correlate the metric values to individual
+   * physical link and attribute traffic to the logical NVLink in
+   * the topology.
+   */
+  int8_t portDev0[CUPTI_MAX_NVLINK_PORTS];
+
+  /**
+   * Port numbers for maximum 16 NVLinks connected to device 1.
+   * If typeDev1 is CUPTI_DEV_TYPE_NPU, ignore this field.
+   * In case of invalid/unknown port number, this field will be set
+   * to value CUPTI_NVLINK_INVALID_PORT.
+   * This will be used to correlate the metric values to individual
+   * physical link and attribute traffic to the logical NVLink in
+   * the topology.
+   */
+  int8_t portDev1[CUPTI_MAX_NVLINK_PORTS];
+
+  /**
+   * Banwidth of NVLink in kbytes/sec
+   */
+  uint64_t  bandwidth;
+} CUpti_ActivityNvLink2;
+
+/**
+* \brief NVLink information.
+*
+* This structure gives capabilities of each logical NVLink connection between two devices,
+* gpu<->gpu or gpu<->CPU which can be used to understand the topology.
+* NvLink information are now reported using the
+* CUpti_ActivityNvLink4 activity record.
+*/
+
+typedef struct PACKED_ALIGNMENT {
+  /**
+   * The activity record kind, must be CUPTI_ACTIVITY_KIND_NVLINK.
+   */
+  CUpti_ActivityKind kind;
+  /**
+   * NvLink version.
+   */
+  uint32_t nvlinkVersion;
+
+  /**
+   * Type of device 0 \ref CUpti_DevType
+   */
+  CUpti_DevType typeDev0;
+
+  /**
+   * Type of device 1 \ref CUpti_DevType
+   */
+  CUpti_DevType typeDev1;
+
+  /**
+  * If typeDev0 is CUPTI_DEV_TYPE_GPU, UUID for device 0. \ref CUpti_ActivityDevice4.
+  * If typeDev0 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
+  */
+  union {
+    CUuuid uuidDev;
+    struct {
+      /**
+       * Index of the NPU. First index will always be zero.
+       */
+      uint32_t index;
+
+      /**
+       * Domain ID of NPU. On Linux, this can be queried using lspci.
+       */
+      uint32_t domainId;
+    } npu;
+  } idDev0;
+
+  /**
+  * If typeDev1 is CUPTI_DEV_TYPE_GPU, UUID for device 1. \ref CUpti_ActivityDevice4.
+  * If typeDev1 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
+  */
+  union {
+    CUuuid uuidDev;
+    struct {
+      /**
+       * Index of the NPU. First index will always be zero.
+       */
+      uint32_t index;
+
+      /**
+       * Domain ID of NPU. On Linux, this can be queried using lspci.
+       */
+      uint32_t domainId;
+    } npu;
+  } idDev1;
+
+  /**
+   * Flag gives capabilities of the link \see CUpti_LinkFlag
+   */
+  uint32_t flag;
+
+  /**
+   * Number of physical NVLinks present between two devices.
+   */
+  uint32_t physicalNvLinkCount;
+
+  /**
+   * Port numbers for maximum 16 NVLinks connected to device 0.
+   * If typeDev0 is CUPTI_DEV_TYPE_NPU, ignore this field.
+   * In case of invalid/unknown port number, this field will be set
+   * to value CUPTI_NVLINK_INVALID_PORT.
+   * This will be used to correlate the metric values to individual
+   * physical link and attribute traffic to the logical NVLink in
+   * the topology.
+   */
+  int8_t portDev0[CUPTI_MAX_NVLINK_PORTS];
+
+  /**
+   * Port numbers for maximum 16 NVLinks connected to device 1.
+   * If typeDev1 is CUPTI_DEV_TYPE_NPU, ignore this field.
+   * In case of invalid/unknown port number, this field will be set
+   * to value CUPTI_NVLINK_INVALID_PORT.
+   * This will be used to correlate the metric values to individual
+   * physical link and attribute traffic to the logical NVLink in
+   * the topology.
+   */
+  int8_t portDev1[CUPTI_MAX_NVLINK_PORTS];
+
+  /**
+   * Banwidth of NVLink in kbytes/sec
+   */
+  uint64_t bandwidth;
+
+  /**
+   * NVSwitch is connected as an intermediate node.
+   */
+  uint8_t nvswitchConnected;
+
+  /**
+   * Undefined. reserved for internal use
+   */
+  uint8_t pad[7];
+} CUpti_ActivityNvLink3;
+
+/**
 * \brief NVLink information.
 *
 * This structure gives capabilities of each logical NVLink connection between two devices,
@@ -5742,7 +9883,7 @@ typedef struct PACKED_ALIGNMENT {
   CUpti_DevType typeDev1;
 
   /**
-  * If typeDev0 is CUPTI_DEV_TYPE_GPU, UUID for device 0. \ref CUpti_ActivityDevice5.
+  * If typeDev0 is CUPTI_DEV_TYPE_GPU, UUID for device 0. \ref CUpti_ActivityDevice4.
   * If typeDev0 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
   */
   union {
@@ -5761,7 +9902,7 @@ typedef struct PACKED_ALIGNMENT {
   } idDev0;
 
   /**
-  * If typeDev1 is CUPTI_DEV_TYPE_GPU, UUID for device 1. \ref CUpti_ActivityDevice5.
+  * If typeDev1 is CUPTI_DEV_TYPE_GPU, UUID for device 1. \ref CUpti_ActivityDevice4.
   * If typeDev1 is CUPTI_DEV_TYPE_NPU, struct npu for NPU.
   */
   union {
@@ -5813,7 +9954,7 @@ typedef struct PACKED_ALIGNMENT {
   int8_t  portDev1[CUPTI_MAX_NVLINK_PORTS];
 
   /**
-   * Bandwidth of NVLink in kbytes/sec
+   * Banwidth of NVLink in kbytes/sec
    */
   uint64_t  bandwidth;
 
@@ -5914,7 +10055,7 @@ typedef struct PACKED_ALIGNMENT {
   union {
     struct {
       /**
-       * UUID for the device. \ref CUpti_ActivityDevice5.
+       * UUID for the device. \ref CUpti_ActivityDevice4.
        */
       CUuuid uuidDev;
 
@@ -6302,17 +10443,7 @@ typedef struct PACKED_ALIGNMENT {
    * The path where the fat binary is cached.
    */
   const char* cachePath;
-
-  /**
-   * The ID of the process where the JIT operation is executing.
-   */
-  uint32_t processId;
-
-  /**
-   * The ID of the thread where the JIT operation is executing.
-   */
-  uint32_t threadId;
-} CUpti_ActivityJit2;
+} CUpti_ActivityJit;
 
 
 /**
@@ -6351,7 +10482,7 @@ typedef struct {
   uint64_t end;
 
   /**
-   * The ID of the device where the first node of the graph is executed.
+   * The ID of the device where the graph execution is occurring.
    */
   uint32_t deviceId;
 
@@ -6361,7 +10492,7 @@ typedef struct {
   uint32_t graphId;
 
   /**
-   * The ID of the context where the first node of the graph is executed.
+   * The ID of the context where the graph is being launched.
    */
   uint32_t contextId;
 
@@ -6374,17 +10505,7 @@ typedef struct {
    * This field is reserved for internal use
    */
   void *reserved;
-
-  /**
-   * The ID of the device where last node of the graph is executed
-   */
-  uint32_t endDeviceId;
-
-  /**
-   * The ID of the context where the last node of the graph is executed.
-   */
-  uint32_t endContextId;
-} CUpti_ActivityGraphTrace2;
+} CUpti_ActivityGraphTrace;
 
 END_PACKED_ALIGNMENT
 
@@ -6461,7 +10582,7 @@ typedef enum {
      * The maximum number of device memory buffers per context. The value is a size_t.
      *
      * For an application with high rate of kernel launches, memcopies and memsets having a bigger pool
-     * limit helps in timestamp collection for all these activities at the expense of a larger memory footprint.
+     * limit helps in timestamp collection for all these activties at the expense of a larger memory footprint.
      * Refer to the description of the attribute \ref CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_SIZE
      * for more details.
      *
@@ -6476,8 +10597,9 @@ typedef enum {
     CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT                = 2,
 
     /**
-     * This attribute is not supported starting with CUDA 12.3
-     * CUPTI no longer uses profiling semaphore pool to store profiling data.
+     * The profiling semaphore pool size reserved for storing profiling data for
+     * serialized kernels tracing (activity kind \ref CUPTI_ACTIVITY_KIND_KERNEL)
+     * for each context. The value is a size_t.
      *
      * There is a limit on how many semaphore pools can be allocated per context. User
      * can query and set this limit using the attribute
@@ -6509,11 +10631,11 @@ typedef enum {
     CUPTI_ACTIVITY_ATTR_PROFILING_SEMAPHORE_POOL_SIZE           = 3,
 
     /**
-     * This attribute is not supported starting with CUDA 12.3
-     * CUPTI no longer uses profiling semaphore pool to store profiling data.
-     *
      * The maximum number of profiling semaphore pools per context. The value is a size_t.
      *
+     * For an application with high rate of kernel launches, having a bigger
+     * pool limit helps in timestamp collection for all the kernels, at the
+     * expense of a larger device memory footprint.
      * Refer to the description of the attribute \ref CUPTI_ACTIVITY_ATTR_PROFILING_SEMAPHORE_POOL_SIZE
      * for more details.
      *
@@ -6562,9 +10684,6 @@ typedef enum {
     CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_PRE_ALLOCATE_VALUE        = 6,
 
     /**
-     * This attribute is not supported starting with CUDA 12.3
-     * CUPTI no longer uses profiling semaphore pool to store profiling data.
-     *
      * Number of profiling semaphore pools to pre-allocate for a context during the
      * initialization phase. The value is a size_t.
      *
@@ -6592,27 +10711,9 @@ typedef enum {
      * might want to change the location from pinned host memory to device memory by setting
      * value of this attribute to 0.
      *
-     * Using page-locked (pinned) host memory buffers is not supported on confidential computing
-     * devices. On setting this attribute to 1, CUPTI will return CUPTI_ERROR_NOT_SUPPORTED.
-     *
      * The default value is 1.
      */
     CUPTI_ACTIVITY_ATTR_MEM_ALLOCATION_TYPE_HOST_PINNED         = 8,
-
-    /**
-     * Request activity buffers per-thread to store CUPTI activity records
-     * in the activity buffer on per-thread basis. The value is a uint8_t.
-     *
-     * The attribute should be set before registering the buffer callbacks using
-     * cuptiActivityRegisterCallbacks API and before any of the CUPTI activity kinds are enabled.
-     * This makes sure that all the records are stored in activity buffers allocated per-thread.
-     * Changing this attribute in the middle of the profiling session will result in undefined behavior.
-     *
-     * The default value is 0.
-     */
-    CUPTI_ACTIVITY_ATTR_PER_THREAD_ACTIVITY_BUFFER,
-
-
 
     CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_FORCE_INT                 = 0x7fffffff
 } CUpti_ActivityAttribute;
@@ -6642,11 +10743,6 @@ typedef enum {
      * Android/QNX use gettid()
      */
     CUPTI_ACTIVITY_THREAD_ID_TYPE_SYSTEM        = 1,
-
-    /**
-     * Add new enums before this field.
-     */
-    CUPTI_ACTIVITY_THREAD_ID_TYPE_SIZE          = 2,
 
     CUPTI_ACTIVITY_THREAD_ID_TYPE_FORCE_INT     = 0x7fffffff
 } CUpti_ActivityThreadIdType;
@@ -6777,20 +10873,6 @@ CUptiResult CUPTIAPI cuptiGetGraphNodeId(CUgraphNode node, uint64_t *nodeId);
 CUptiResult CUPTIAPI cuptiGetGraphId(CUgraph graph, uint32_t *pId);
 
 /**
- * \brief Get the unique ID of executable graph
- *
- * Returns the unique ID of executable CUDA graph.
- *
- * \param graphExec The executable graph.
- * \param pId Returns the unique ID of the executable graph
- *
- * \retval CUPTI_SUCCESS
- * \retval CUPTI_ERROR_NOT_INITIALIZED
- * \retval CUPTI_ERROR_INVALID_PARAMETER if \p graph is NULL
- */
-CUptiResult CUPTIAPI cuptiGetGraphExecId(CUgraphExec graphExec, uint32_t *pId);
-
-/**
  * \brief Enable collection of a specific kind of activity record.
  *
  * Enable collection of a specific kind of activity record. Multiple
@@ -6826,7 +10908,7 @@ CUptiResult CUPTIAPI cuptiActivityEnable(CUpti_ActivityKind kind);
  * can only be retrieved by the user if CUPTI is attached before CUDA initialization.
  * Context and stream records are emitted on context and stream creation.
  * The use case of the API is to provide the records for CUDA resources
- * (contexts/streams/devices) that are currently active if user late attaches CUPTI.
+ * (contexs/streams/devices) that are currently active if user late attaches CUPTI.
  *
  * Before calling this function, the user must register buffer callbacks
  * to get the activity records by calling \ref cuptiActivityRegisterCallbacks.
@@ -6929,8 +11011,7 @@ CUptiResult CUPTIAPI cuptiActivityGetNumDroppedRecords(CUcontext context, uint32
  *
  * This is a helper function to iterate over the activity records in a
  * buffer. A buffer of activity records is typically obtained by
- * receiving a CUpti_BuffersCallbackCompleteFunc callback. Stop iterating
- * the buffer when an error occurs.
+ * receiving a CUpti_BuffersCallbackCompleteFunc callback.
  *
  * An example of typical usage:
  * \code
@@ -6943,8 +11024,6 @@ CUptiResult CUPTIAPI cuptiActivityGetNumDroppedRecords(CUcontext context, uint32
  *      }
  *      else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED)
  *          break;
- *      else if (status == CUPTI_ERROR_INVALID_KIND)
- *          break;
  *      else {
  *          goto Error;
  *      }
@@ -6955,7 +11034,7 @@ CUptiResult CUPTIAPI cuptiActivityGetNumDroppedRecords(CUcontext context, uint32
  * \param record Inputs the previous record returned by
  * cuptiActivityGetNextRecord and returns the next activity record
  * from the buffer. If input value is NULL, returns the first activity
- * record in the buffer. Records of certain kinds like CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL
+ * record in the buffer. Records of kind CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL
  * may contain invalid (0) timestamps, indicating that no timing information could
  * be collected for lack of device memory.
  * \param validBufferSizeBytes The number of valid bytes in the buffer.
@@ -6964,7 +11043,6 @@ CUptiResult CUPTIAPI cuptiActivityGetNumDroppedRecords(CUcontext context, uint32
  * \retval CUPTI_ERROR_NOT_INITIALIZED
  * \retval CUPTI_ERROR_MAX_LIMIT_REACHED if no more records in the buffer
  * \retval CUPTI_ERROR_INVALID_PARAMETER if \p buffer is NULL.
- * \retval CUPTI_ERROR_INVALID_KIND if activity record is either incomplete or invalid
  */
 CUptiResult CUPTIAPI cuptiActivityGetNextRecord(uint8_t* buffer, size_t validBufferSizeBytes,
                                                 CUpti_Activity **record);
@@ -7061,7 +11139,7 @@ CUptiResult CUPTIAPI cuptiActivityRegisterCallbacks(CUpti_BuffersCallbackRequest
  *
  * If \p context is NULL, the global activity records (i.e. those not
  * associated with a particular stream) are flushed (in this case no
- * streams are synchronized).  If \p context is a valid CUcontext and
+ * streams are synchonized).  If \p context is a valid CUcontext and
  * \p streamId is 0, the buffers of all streams of this context are
  * flushed.  Otherwise, the buffers of the specified stream in this
  * context is flushed.
@@ -7075,7 +11153,7 @@ CUptiResult CUPTIAPI cuptiActivityRegisterCallbacks(CUpti_BuffersCallbackRequest
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_NOT_INITIALIZED
- * \retval CUPTI_ERROR_CUPTI_ERROR_INVALID_OPERATION if not preceded
+ * \retval CUPTI_ERROR_CUPTI_ERROR_INVALID_OPERATION if not preceeded
  * by a successful call to cuptiActivityRegisterCallbacks
  * \retval CUPTI_ERROR_UNKNOWN an internal error occurred
  *
@@ -7101,11 +11179,11 @@ CUptiResult CUPTIAPI cuptiActivityFlush(CUcontext context, uint32_t streamId, ui
  * to be delivered.
  *
  * Behavior of the function based on the input flag:
- * (-) ::For default flush i.e. when flag is set as 0, it returns all the
+ * - ::For default flush i.e. when flag is set as 0, it returns all the
  * activity buffers which have all the activity records completed, buffers need not
  * to be full though. It doesn't return buffers which have one or more incomplete
  * records. Default flush can be done at a regular interval in a separate thread.
- * (-) ::For forced flush i.e. when flag CUPTI_ACTIVITY_FLAG_FLUSH_FORCED is passed
+ * - ::For forced flush i.e. when flag CUPTI_ACTIVITY_FLAG_FLUSH_FORCED is passed
  * to the function, it returns all the activity buffers including the ones which have
  * one or more incomplete activity records. It's suggested for clients to do the
  * force flush before the termination of the profiling session to allow remaining
@@ -7118,7 +11196,7 @@ CUptiResult CUPTIAPI cuptiActivityFlush(CUcontext context, uint32_t streamId, ui
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_NOT_INITIALIZED
- * \retval CUPTI_ERROR_INVALID_OPERATION if not preceded by a
+ * \retval CUPTI_ERROR_INVALID_OPERATION if not preceeded by a
  * successful call to cuptiActivityRegisterCallbacks
  * \retval CUPTI_ERROR_UNKNOWN an internal error occurred
  *
@@ -7308,7 +11386,7 @@ CUptiResult CUPTIAPI cuptiDeviceSupported(CUdevice dev, int *support);
  */
 typedef enum {
   /**
-   * No virtualization mode is associated with the device
+   * No virtualization mode isassociated with the device
    * i.e. it's a baremetal GPU
    */
   CUPTI_DEVICE_VIRTUALIZATION_MODE_NONE = 0,
@@ -7386,7 +11464,7 @@ CUptiResult CUPTIAPI cuptiFinalize(void);
  * This function notifies CUPTI that the calling thread is entering an external API region.
  * When a CUPTI activity API record is created while within an external API region and
  * CUPTI_ACTIVITY_KIND_EXTERNAL_CORRELATION is enabled, the activity API record will
- * be preceded by a CUpti_ActivityExternalCorrelation record for each \ref CUpti_ExternalCorrelationKind.
+ * be preceeded by a CUpti_ActivityExternalCorrelation record for each \ref CUpti_ExternalCorrelationKind.
  *
  * \param kind The kind of external API activities should be correlated with.
  * \param id External correlation id.
@@ -7438,7 +11516,7 @@ CUptiResult CUPTIAPI cuptiActivityEnableLatencyTimestamps(uint8_t enable);
  * thread based on certain heuristics.
  *
  * This API is used to control the flush period of the worker thread. This setting will
- * override the CUPTI heuristics. Setting time to zero disables the periodic flush and
+ * override the CUPTI heurtistics. Setting time to zero disables the periodic flush and
  * restores the default behavior.
  *
  * Periodic flush can return only those activity buffers which are full and have all the
@@ -7447,7 +11525,7 @@ CUptiResult CUPTIAPI cuptiActivityEnableLatencyTimestamps(uint8_t enable);
  * It's allowed to use the API \ref cuptiActivityFlushAll to flush the data on-demand, even
  * when client sets the periodic flush.
  *
- * \param time flush period in milliseconds (ms)
+ * \param time flush period in msec
  *
  * \retval CUPTI_SUCCESS
  * \retval CUPTI_ERROR_NOT_INITIALIZED
@@ -7513,22 +11591,6 @@ typedef uint64_t (CUPTIAPI *CUpti_TimestampCallbackFunc)(void);
  */
 CUptiResult CUPTIAPI cuptiActivityRegisterTimestampCallback(CUpti_TimestampCallbackFunc funcTimestamp);
 
-/**
- * \brief Controls the collection of records for device launched graphs.
- *
- * This API is used to control the collection of records for device launched graphs.
- * Default value is 0, i.e. these records are not collected. This API needs
- * to be called before initialization of CUDA and this setting should not be
- * changed during the profiling session.
- *
- * \param enable is a boolean, denoting whether these records should be
- * collected
- *
- * \retval CUPTI_SUCCESS
- * \retval CUPTI_ERROR_NOT_INITIALIZED
- */
-CUptiResult CUPTIAPI cuptiActivityEnableDeviceGraph(uint8_t enable);
-
 /** @} */ /* END CUPTI_ACTIVITY_API */
 
 #if defined(__GNUC__) && defined(CUPTI_LIB)
@@ -7538,8 +11600,5 @@ CUptiResult CUPTIAPI cuptiActivityEnableDeviceGraph(uint8_t enable);
 #if defined(__cplusplus)
 }
 #endif
-
-// Including deprecated structures of CUPTI_ACTIVITY_API
-#include "cupti_activity_deprecated.h"
 
 #endif /*_CUPTI_ACTIVITY_H_*/

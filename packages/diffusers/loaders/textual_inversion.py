@@ -38,6 +38,7 @@ TEXT_INVERSION_NAME_SAFE = "learned_embeds.safetensors"
 def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs):
     cache_dir = kwargs.pop("cache_dir", None)
     force_download = kwargs.pop("force_download", False)
+    resume_download = kwargs.pop("resume_download", None)
     proxies = kwargs.pop("proxies", None)
     local_files_only = kwargs.pop("local_files_only", None)
     token = kwargs.pop("token", None)
@@ -71,6 +72,7 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
                         weights_name=weight_name or TEXT_INVERSION_NAME_SAFE,
                         cache_dir=cache_dir,
                         force_download=force_download,
+                        resume_download=resume_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
                         token=token,
@@ -91,6 +93,7 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
                     weights_name=weight_name or TEXT_INVERSION_NAME,
                     cache_dir=cache_dir,
                     force_download=force_download,
+                    resume_download=resume_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
                     token=token,
@@ -305,7 +308,9 @@ class TextualInversionLoaderMixin:
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-
+            resume_download:
+                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
+                of Diffusers.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -497,19 +502,19 @@ class TextualInversionLoaderMixin:
         # load embeddings of text_encoder 1 (CLIP ViT-L/14)
         pipeline.load_textual_inversion(
             state_dict["clip_l"],
-            tokens=["<s0>", "<s1>"],
+            token=["<s0>", "<s1>"],
             text_encoder=pipeline.text_encoder,
             tokenizer=pipeline.tokenizer,
         )
         # load embeddings of text_encoder 2 (CLIP ViT-G/14)
         pipeline.load_textual_inversion(
             state_dict["clip_g"],
-            tokens=["<s0>", "<s1>"],
+            token=["<s0>", "<s1>"],
             text_encoder=pipeline.text_encoder_2,
             tokenizer=pipeline.tokenizer_2,
         )
 
-        # Unload explicitly from both text encoders and tokenizers
+        # Unload explicitly from both text encoders abd tokenizers
         pipeline.unload_textual_inversion(
             tokens=["<s0>", "<s1>"], text_encoder=pipeline.text_encoder, tokenizer=pipeline.tokenizer
         )
@@ -561,8 +566,6 @@ class TextualInversionLoaderMixin:
                 tokenizer._added_tokens_encoder[token.content] = last_special_token_id + key_id
                 key_id += 1
         tokenizer._update_trie()
-        # set correct total vocab size after removing tokens
-        tokenizer._update_total_vocab_size()
 
         # Delete from text encoder
         text_embedding_dim = text_encoder.get_input_embeddings().embedding_dim

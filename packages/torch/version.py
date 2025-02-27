@@ -1,9 +1,8 @@
 from typing import Optional
 
 __all__ = ['__version__', 'debug', 'cuda', 'git_version', 'hip']
-__version__ = '2.6.0+cu124'
+__version__ = '2.4.1+cu121'
 debug = False
-cuda: Optional[str] = '12.4'
-git_version = '2236df1770800ffea5697b11b0bb0d910b2e59e1'
+cuda: Optional[str] = '12.1'
+git_version = '38b96d3399a695e704ed39b60dac733c3fbf20e2'
 hip: Optional[str] = None
-xpu: Optional[str] = None

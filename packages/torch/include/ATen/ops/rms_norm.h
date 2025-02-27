@@ -13,7 +13,7 @@
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
 #include <c10/util/Deprecated.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 
 
@@ -22,26 +22,9 @@
 namespace at {
 
 
-// aten::rms_norm(Tensor input, SymInt[] normalized_shape, Tensor? weight=None, float? eps=None) -> Tensor
+// aten::rms_norm(Tensor input, int[] normalized_shape, Tensor? weight=None, float? eps=None) -> Tensor
 inline at::Tensor rms_norm(const at::Tensor & input, at::IntArrayRef normalized_shape, const ::std::optional<at::Tensor> & weight={}, ::std::optional<double> eps=::std::nullopt) {
-    return at::_ops::rms_norm::call(input, c10::fromIntArrayRefSlow(normalized_shape), weight, eps);
-}
-namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
-  at::Tensor rms_norm(const at::Tensor & input, at::IntArrayRef normalized_shape, const ::std::optional<at::Tensor> & weight={}, ::std::optional<double> eps=::std::nullopt) {
-    return at::_ops::rms_norm::call(input, c10::fromIntArrayRefSlow(normalized_shape), weight, eps);
-  }
-}
-
-// aten::rms_norm(Tensor input, SymInt[] normalized_shape, Tensor? weight=None, float? eps=None) -> Tensor
-inline at::Tensor rms_norm_symint(const at::Tensor & input, c10::SymIntArrayRef normalized_shape, const ::std::optional<at::Tensor> & weight={}, ::std::optional<double> eps=::std::nullopt) {
     return at::_ops::rms_norm::call(input, normalized_shape, weight, eps);
-}
-namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
-  at::Tensor rms_norm(const at::Tensor & input, c10::SymIntArrayRef normalized_shape, const ::std::optional<at::Tensor> & weight={}, ::std::optional<double> eps=::std::nullopt) {
-    return at::_ops::rms_norm::call(input, normalized_shape, weight, eps);
-  }
 }
 
 }

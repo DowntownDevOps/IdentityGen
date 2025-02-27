@@ -1,4 +1,5 @@
-r"""Computation of graph non-randomness"""
+r""" Computation of graph non-randomness
+"""
 
 import math
 
@@ -50,7 +51,7 @@ def non_randomness(G, k=None, weight="weight"):
     NetworkXException
         if the input graph is not connected.
     NetworkXError
-        if the input graph contains self-loops or if graph has no edges.
+        if the input graph contains self-loops.
 
     Examples
     --------
@@ -73,9 +74,6 @@ def non_randomness(G, k=None, weight="weight"):
     """
     import numpy as np
 
-    # corner case: graph has no edges
-    if nx.is_empty(G):
-        raise nx.NetworkXError("non_randomness not applicable to empty graphs")
     if not nx.is_connected(G):
         raise nx.NetworkXException("Non connected graph.")
     if len(list(nx.selfloop_edges(G))) > 0:

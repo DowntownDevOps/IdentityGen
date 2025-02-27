@@ -313,24 +313,6 @@ typedef enum {
  */
 CUptiResult CUPTIAPI cuptiGetResultString(CUptiResult result, const char **str);
 
-/**
- * @brief Get the descriptive message corresponding to error codes returned
- * by CUPTI.
- * 
- * Return the descriptive error message for a CUptiResult in \p *str.
- * \note \b Thread-safety: this function is thread safe.
- * 
- * \param result The result to get the descriptive error message for
- * \param str Returns the error message string
- * 
- * \retval CUPTI_SUCCESS on success
- * \retval CUPTI_ERROR_INVALID_PARAMETER if \p str is NULL or \p
- * result is not a valid CUptiResult
- * 
- */
-
-CUptiResult CUPTIAPI cuptiGetErrorMessage(CUptiResult result, const char **str);
-
 /** @} */ /* END CUPTI_RESULT_API */
 
 #if defined(__GNUC__) && defined(CUPTI_LIB)

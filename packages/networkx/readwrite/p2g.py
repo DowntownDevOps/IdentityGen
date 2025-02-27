@@ -31,7 +31,6 @@ edges. Observe that node labeled "c" has an outgoing edge to
 itself. Indeed, self-loops are allowed. Node index starts from 0.
 
 """
-
 import networkx as nx
 from networkx.utils import open_file
 

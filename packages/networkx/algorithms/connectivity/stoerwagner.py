@@ -1,7 +1,6 @@
 """
 Stoer-Wagner minimum cut algorithm.
 """
-
 from itertools import islice
 
 import networkx as nx

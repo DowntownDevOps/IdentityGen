@@ -33,7 +33,7 @@
 #include <ATen/ops/_compute_linear_combination_cpu_dispatch.h>
 #include <ATen/ops/_convert_indices_from_coo_to_csr_cpu_dispatch.h>
 #include <ATen/ops/_convert_indices_from_csr_to_coo_cpu_dispatch.h>
-#include <ATen/ops/_convert_weight_to_int4pack_for_cpu_cpu_dispatch.h>
+#include <ATen/ops/_convert_weight_to_int4pack_cpu_dispatch.h>
 #include <ATen/ops/_ctc_loss_cpu_dispatch.h>
 #include <ATen/ops/_ctc_loss_backward_cpu_dispatch.h>
 #include <ATen/ops/_cummax_helper_cpu_dispatch.h>
@@ -41,7 +41,6 @@
 #include <ATen/ops/_dirichlet_grad_cpu_dispatch.h>
 #include <ATen/ops/_efficientzerotensor_cpu_dispatch.h>
 #include <ATen/ops/_embedding_bag_cpu_dispatch.h>
-#include <ATen/ops/_embedding_bag_backward_cpu_dispatch.h>
 #include <ATen/ops/_embedding_bag_dense_backward_cpu_dispatch.h>
 #include <ATen/ops/_embedding_bag_forward_only_cpu_dispatch.h>
 #include <ATen/ops/_embedding_bag_per_sample_weights_backward_cpu_dispatch.h>
@@ -68,7 +67,6 @@
 #include <ATen/ops/_histogramdd_from_bin_tensors_cpu_dispatch.h>
 #include <ATen/ops/_index_put_impl_cpu_dispatch.h>
 #include <ATen/ops/_int_mm_cpu_dispatch.h>
-#include <ATen/ops/_jagged_to_padded_dense_forward_cpu_dispatch.h>
 #include <ATen/ops/_linalg_det_cpu_dispatch.h>
 #include <ATen/ops/_linalg_eigh_cpu_dispatch.h>
 #include <ATen/ops/_linalg_eigvals_cpu_dispatch.h>
@@ -91,7 +89,6 @@
 #include <ATen/ops/_nested_tensor_from_mask_cpu_dispatch.h>
 #include <ATen/ops/_nested_tensor_from_mask_left_aligned_cpu_dispatch.h>
 #include <ATen/ops/_nested_view_from_buffer_cpu_dispatch.h>
-#include <ATen/ops/_padded_dense_to_jagged_forward_cpu_dispatch.h>
 #include <ATen/ops/_pdist_backward_cpu_dispatch.h>
 #include <ATen/ops/_pdist_forward_cpu_dispatch.h>
 #include <ATen/ops/_prelu_kernel_cpu_dispatch.h>
@@ -133,7 +130,7 @@
 #include <ATen/ops/_upsample_nearest_exact3d_cpu_dispatch.h>
 #include <ATen/ops/_upsample_nearest_exact3d_backward_cpu_dispatch.h>
 #include <ATen/ops/_validate_compressed_sparse_indices_cpu_dispatch.h>
-#include <ATen/ops/_weight_int4pack_mm_for_cpu_cpu_dispatch.h>
+#include <ATen/ops/_weight_int4pack_mm_cpu_dispatch.h>
 #include <ATen/ops/_weight_int8pack_mm_cpu_dispatch.h>
 #include <ATen/ops/_weight_norm_interface_cpu_dispatch.h>
 #include <ATen/ops/_weight_norm_interface_backward_cpu_dispatch.h>
@@ -163,6 +160,7 @@
 #include <ATen/ops/arange_cpu_dispatch.h>
 #include <ATen/ops/argmax_cpu_dispatch.h>
 #include <ATen/ops/argmin_cpu_dispatch.h>
+#include <ATen/ops/argsort_cpu_dispatch.h>
 #include <ATen/ops/as_strided_cpu_dispatch.h>
 #include <ATen/ops/asin_cpu_dispatch.h>
 #include <ATen/ops/asinh_cpu_dispatch.h>

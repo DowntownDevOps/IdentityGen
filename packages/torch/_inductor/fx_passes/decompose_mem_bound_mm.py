@@ -7,9 +7,9 @@ from torch import Tensor
 from torch._dynamo.utils import counters
 
 from .. import config
+
 from ..pattern_matcher import Arg, CallFunction, Match, register_graph_pattern
 from .split_cat import construct_pattern_matcher_pass
-
 
 aten = torch.ops.aten
 log = logging.getLogger(__name__)
@@ -20,17 +20,17 @@ MAX_OTHER_DIMENSION_DECOMPOSITION = 32
 
 min_first_dimension_decomposition = MIN_FIRST_DIMENSION_DECOMPOSITION
 max_other_dimention_decomposition = MAX_OTHER_DIMENSION_DECOMPOSITION
-if "decompose_mm_pass" in config.post_grad_fusion_options:
+if "decompose_mem_bound_mm" in config.post_grad_fusion_options:
     min_first_dimension_decomposition = config.post_grad_fusion_options[
-        "decompose_mm_pass"
+        "decompose_mem_bound_mm"
     ].get("min_first_dimension_decomposition", MIN_FIRST_DIMENSION_DECOMPOSITION)
     max_other_dimention_decomposition = config.post_grad_fusion_options[
-        "decompose_mm_pass"
+        "decompose_mem_bound_mm"
     ].get("max_other_dimention_decomposition", MAX_OTHER_DIMENSION_DECOMPOSITION)
 
 
-def check_device(a: Tensor, b: Tensor, device="cuda") -> bool:
-    return (a.device.type == b.device.type) and (b.device.type == device)
+def check_device(a: Tensor, b: Tensor) -> bool:
+    return a.is_cuda and b.is_cuda
 
 
 def realize_inputs(inputs: List[torch.fx.Node]):
@@ -45,9 +45,11 @@ def should_decompose_bmm(mat1, mat2) -> bool:
         mat2 = mat2.meta["val"]
     else:
         return False
-    if len(mat1.shape) != 3 or len(mat2.shape) != 3:
+    if not check_device(mat1, mat2):
         return False
-    if check_device(mat1, mat2, device="cuda"):
+    else:
+        if len(mat1.shape) != 3 or len(mat2.shape) != 3:
+            return False
         if mat1.shape[0] < min_first_dimension_decomposition:
             return False
         # 2 of m, n, k must be <= MAX_OTHER_DIMENSION_DECOMPOSITION
@@ -55,11 +57,7 @@ def should_decompose_bmm(mat1, mat2) -> bool:
             mat1.shape[2] < max_other_dimention_decomposition
         ) + (mat2.shape[2] < max_other_dimention_decomposition) < 2:
             return False
-        return True
-    elif check_device(mat1, mat2, device="cpu"):
-        if mat1.shape[0] == 1 and mat2.shape[0] == 1:
-            return True
-    return False
+    return True
 
 
 def should_decompose_mm(mat1, mat2) -> bool:
@@ -68,18 +66,13 @@ def should_decompose_mm(mat1, mat2) -> bool:
         mat2 = mat2.meta["val"]
     else:
         return False
-    if len(mat1.shape) != 2 or len(mat2.shape) != 2:
-        return False
     return (
-        check_device(mat1, mat2, device="cuda")
+        check_device(mat1, mat2)
+        and len(mat1.shape) == 2
+        and len(mat2.shape) == 2
         and mat1.shape[0] >= min_first_dimension_decomposition
         and mat2.shape[0] < max_other_dimention_decomposition
         and mat2.shape[1] < max_other_dimention_decomposition
-    ) or (
-        check_device(mat1, mat2, device="cpu")
-        and mat1.shape[0] == 1
-        and mat2.shape[0] <= 64
-        and mat2.shape[1] <= 16
     )
 
 
@@ -105,9 +98,7 @@ def print_decompose_pattern(match: Match, inputs: List[torch.fx.Node]):
 )
 def decompose_bmm(match: Match, mat1: torch.fx.Node, mat2: torch.fx.Node):
     def repl(mat1, mat2):
-        return torch.sum(mat1[:, :, :, None] * mat2[:, None, :, :], dim=-2).to(
-            mat1.dtype
-        )
+        return torch.sum(mat1[:, :, :, None] * mat2[:, None, :, :], dim=-2)
 
     if should_decompose_bmm(mat1, mat2):
         counters["inductor"]["decompose_bmm"] += 1
@@ -128,9 +119,7 @@ def decompose_addmm(
     mat3: torch.fx.Node,
 ):
     def repl(mat1, mat2, mat3):
-        return (
-            torch.sum(mat2[:, :, None] * mat3[None, :, :], dim=-2).to(mat2.dtype) + mat1
-        )
+        return torch.sum(mat2[:, :, None] * mat3[None, :, :], dim=-2) + mat1
 
     if should_decompose_mm(mat2, mat3):
         counters["inductor"]["decompose_addmm"] += 1
@@ -150,7 +139,7 @@ def decompose_mm(
     mat2: torch.fx.Node,
 ):
     def repl(mat1, mat2):
-        return torch.sum(mat1[:, :, None] * mat2[None, :, :], dim=-2).to(mat1.dtype)
+        return torch.sum(mat1[:, :, None] * mat2[None, :, :], dim=-2)
 
     if should_decompose_mm(mat1, mat2):
         counters["inductor"]["decompose_mm"] += 1

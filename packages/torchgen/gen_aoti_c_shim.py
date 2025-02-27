@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 import textwrap
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from torchgen.api.types import DispatcherSignature
 from torchgen.api.types.signatures import CppSignature, CppSignatureGroup
+
 from torchgen.context import method_with_native_function
 from torchgen.model import (
     Argument,
@@ -22,11 +21,6 @@ from torchgen.model import (
     Type,
 )
 from torchgen.utils import mapMaybe
-
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
 
 base_type_to_c_type = {
     BaseTy.Tensor: "AtenTensorHandle",
@@ -75,10 +69,7 @@ base_type_to_callsite_expr = {
 
 
 # convert args to C types, names in declarations, and expressions in function bodies
-def convert_arg_type_and_name(  # type: ignore[return]
-    typ: Type,
-    name: str,
-) -> tuple[list[str], list[str], list[str], list[str]]:
+def convert_arg_type_and_name(typ: Type, name: str) -> Tuple[List[str], List[str], List[str], List[str]]:  # type: ignore[return]
     if isinstance(typ, BaseType):
         if typ.name in base_type_to_c_type:
             return (
@@ -118,14 +109,14 @@ def convert_arg_type_and_name(  # type: ignore[return]
                 new_aten_types.append(f"::std::optional<{aten_type}>")
                 base_type = aten_type[len("c10::ArrayRef<") : -1]
                 new_callsite_exprs.append(
-                    f"pointer_to_optional_list<{base_type}>({names[j]}, {names[j + 1]})"
+                    f"pointer_to_optional_list<{base_type}>({names[j]}, {names[j+1]})"
                 )
                 j += 2
             elif aten_type == "c10::Device":
                 # Device is passed as device_type + device_index
                 new_aten_types.append("::std::optional<c10::Device>")
                 new_callsite_exprs.append(
-                    f"pointer_to_optional_device({names[j]}, {names[j + 1]})"
+                    f"pointer_to_optional_device({names[j]}, {names[j+1]})"
                 )
                 j += 2
             else:
@@ -176,12 +167,12 @@ def convert_arg_type_and_name(  # type: ignore[return]
         )
 
 
-def zip_type_and_name(types: list[str], names: list[str]) -> list[str]:
+def zip_type_and_name(types: List[str], names: List[str]) -> List[str]:
     return [typ + " " + name for typ, name in zip(types, names)]
 
 
 # Generate argument declarations and callsite expressions
-def gen_arguments(flat_arguments: Sequence[Argument]) -> tuple[list[str], list[str]]:
+def gen_arguments(flat_arguments: Sequence[Argument]) -> Tuple[List[str], List[str]]:
     types = []
     new_names = []
     callsite_exprs = []
@@ -198,7 +189,7 @@ def gen_arguments(flat_arguments: Sequence[Argument]) -> tuple[list[str], list[s
 # Return values are passed out as pointer arguments because all the C shim functions
 # are expected to return AOTITorchError.
 # Generate returns as declarations and callsite expressions
-def gen_returns(schema: FunctionSchema) -> tuple[list[str], list[str]]:
+def gen_returns(schema: FunctionSchema) -> Tuple[List[str], List[str]]:
     types = []
     names = []
     for idx, ret in enumerate(schema.returns):
@@ -225,14 +216,13 @@ def gen_returns(schema: FunctionSchema) -> tuple[list[str], list[str]]:
     for name in [
         "_scaled_dot_product_flash_attention",
         "_scaled_dot_product_efficient_attention",
-        "_scaled_dot_product_cudnn_attention",
         "convolution_backward",
     ]:
         if name in unambiguous_name:
             ret_pointer_can_be_null = True
             break
 
-    callsite_exprs: list[str] = []
+    callsite_exprs: List[str] = []
     for idx, ret in enumerate(schema.returns):
         tmp = "tmp_result" if len(names) == 1 else f"std::get<{idx}>(tmp_result)"
         assert isinstance(ret.type, BaseType)
@@ -246,12 +236,12 @@ def gen_returns(schema: FunctionSchema) -> tuple[list[str], list[str]]:
 
 
 # gen.py generates header first and then src, so caching the result here to avoid duplicate work
-declaration_definition_cache: dict[tuple[str, str, str], tuple[str, str]] = {}
+declaration_definition_cache: Dict[Tuple[str, str, str], Tuple[str, str]] = {}
 
 
 def gen_declaration_and_definition(
     schema: FunctionSchema, device: str, backend_call: str
-) -> tuple[str, str]:
+) -> Tuple[str, str]:
     func_name = schema.name.unambiguous_name()
 
     global declaration_definition_cache
@@ -264,7 +254,7 @@ def gen_declaration_and_definition(
         args, callsite_exprs = gen_arguments(
             [*schema.arguments.out, *schema.arguments.flat_non_out]
         )
-        ret_assignments: list[str] = []
+        ret_assignments: List[str] = []
     else:
         args, callsite_exprs = gen_arguments(schema.arguments.flat_all)
         # ignore return values for inplace ops
@@ -294,7 +284,7 @@ def gen_declaration_and_definition(
 
 
 def gen_static_dispatch_backend_call_signature(
-    sig: CppSignature | DispatcherSignature,
+    sig: Union[CppSignature, DispatcherSignature],
     f: NativeFunction,
 ) -> CppSignature:
     sig = DispatcherSignature.from_schema(f.func)
@@ -320,11 +310,10 @@ def gen_static_dispatch_backend_call(
 
 def get_backend_index_for_aoti(
     func: NativeFunction,
-    func_group_mapping: dict[OperatorName, NativeFunctionsGroup],
+    func_group_mapping: Dict[OperatorName, NativeFunctionsGroup],
     dispatch_key: DispatchKey,
-    backend_indices: dict[DispatchKey, BackendIndex],
-    extend_aoti_c_shim: bool,
-) -> BackendIndex | None:
+    backend_indices: Dict[DispatchKey, BackendIndex],
+) -> Optional[BackendIndex]:
     backend_index = None
     if backend_indices[dispatch_key].has_kernel(func) or (
         func.structured_delegate is not None
@@ -334,37 +323,30 @@ def get_backend_index_for_aoti(
         )
     ):
         backend_index = backend_indices[dispatch_key]
-    else:
-        # for the extend out-of-tree kernels, we don't need to
-        # duplicatly create C shim wrappers for other dispatch keys
-        if extend_aoti_c_shim:
-            return backend_index
-
-        elif backend_indices[DispatchKey.CompositeExplicitAutograd].has_kernel(func):
-            # We need to create C shim wrappers for CompositeExplicitAutograd kernels
-            backend_index = backend_indices[DispatchKey.CompositeExplicitAutograd]
-        elif backend_indices[
+    elif backend_indices[DispatchKey.CompositeExplicitAutograd].has_kernel(func):
+        # We need to create C shim wrappers for CompositeExplicitAutograd kernels
+        backend_index = backend_indices[DispatchKey.CompositeExplicitAutograd]
+    elif backend_indices[DispatchKey.CompositeExplicitAutogradNonFunctional].has_kernel(
+        func
+    ):
+        # We need to create C shim wrappers for CompositeExplicitAutogradNonFunctional kernels
+        backend_index = backend_indices[
             DispatchKey.CompositeExplicitAutogradNonFunctional
-        ].has_kernel(func):
-            # We need to create C shim wrappers for CompositeExplicitAutogradNonFunctional kernels
-            backend_index = backend_indices[
-                DispatchKey.CompositeExplicitAutogradNonFunctional
-            ]
-        elif backend_indices[DispatchKey.CompositeImplicitAutograd].has_kernel(func):
-            backend_index = backend_indices[DispatchKey.CompositeImplicitAutograd]
+        ]
+    elif backend_indices[DispatchKey.CompositeImplicitAutograd].has_kernel(func):
+        backend_index = backend_indices[DispatchKey.CompositeImplicitAutograd]
 
     return backend_index
 
 
 def get_header_for_aoti(
     func: NativeFunction,
-    func_group_mapping: dict[OperatorName, NativeFunctionsGroup],
+    func_group_mapping: Dict[OperatorName, NativeFunctionsGroup],
     dispatch_key: DispatchKey,
-    backend_indices: dict[DispatchKey, BackendIndex],
-    extend_aoti_c_shim: bool,
-) -> str | None:
+    backend_indices: Dict[DispatchKey, BackendIndex],
+) -> Optional[str]:
     backend_index = get_backend_index_for_aoti(
-        func, func_group_mapping, dispatch_key, backend_indices, extend_aoti_c_shim
+        func, func_group_mapping, dispatch_key, backend_indices
     )
     return (
         None
@@ -383,14 +365,13 @@ def get_fallback_op_name(func: NativeFunction) -> str:
 
 def gen_c_shim(
     func: NativeFunction,
-    func_group_mapping: dict[OperatorName, NativeFunctionsGroup],
+    func_group_mapping: Dict[OperatorName, NativeFunctionsGroup],
     dispatch_key: DispatchKey,
-    backend_indices: dict[DispatchKey, BackendIndex],
+    backend_indices: Dict[DispatchKey, BackendIndex],
     header: bool,
-    extend_aoti_c_shim: bool,
-) -> str | None:
+) -> Optional[str]:
     backend_index = get_backend_index_for_aoti(
-        func, func_group_mapping, dispatch_key, backend_indices, extend_aoti_c_shim
+        func, func_group_mapping, dispatch_key, backend_indices
     )
     if backend_index is None:
         return None
@@ -418,52 +399,46 @@ def gen_c_shim(
 
 @dataclass(frozen=True)
 class ShimGenerator:
-    func_group_mapping: dict[OperatorName, NativeFunctionsGroup]
+    func_group_mapping: Dict[OperatorName, NativeFunctionsGroup]
     dispatch_key: DispatchKey
-    backend_indices: dict[DispatchKey, BackendIndex]
+    backend_indices: Dict[DispatchKey, BackendIndex]
     header: bool  # True to generate .h and False to generate .cpp
-    extend_aoti_c_shim: bool
 
     @method_with_native_function
     def __call__(
         self,
         func: NativeFunction,
-    ) -> str | None:
+    ) -> Optional[str]:
         result = gen_c_shim(
             func,
             self.func_group_mapping,
             self.dispatch_key,
             self.backend_indices,
             self.header,
-            self.extend_aoti_c_shim,
         )
         return result
 
 
 def gen_aoti_c_shim(
     native_functions: Sequence[NativeFunction],
-    func_group_mapping: dict[OperatorName, NativeFunctionsGroup],
+    func_group_mapping: Dict[OperatorName, NativeFunctionsGroup],
     dispatch_key: DispatchKey,
-    backend_indices: dict[DispatchKey, BackendIndex],
+    backend_indices: Dict[DispatchKey, BackendIndex],
     header: bool,
-    extend_aoti_c_shim: bool,
     includes: str = "",
 ) -> str:
     body = "\n".join(
         list(
             mapMaybe(
                 ShimGenerator(
-                    func_group_mapping,
-                    dispatch_key,
-                    backend_indices,
-                    header,
-                    extend_aoti_c_shim,
+                    func_group_mapping, dispatch_key, backend_indices, header
                 ),
                 native_functions,
             )
         )
     )
     device = dispatch_key.lower()
+
     warning = """
 // WARNING: THIS FILE IS AUTOGENERATED BY torchgen. DO NOT MODIFY BY HAND.
 // See https://github.com/pytorch/pytorch/blob/7e86a7c0155295539996e0cf422883571126073e/torchgen/gen.py#L2424-L2436 for details"""
@@ -491,7 +466,7 @@ extern "C" {{
         return f"""
 {warning}
 
-#include <torch/csrc/inductor/aoti_torch/generated/{"extend/" if extend_aoti_c_shim else ""}c_shim_{device}.h>
+#include <torch/csrc/inductor/aoti_torch/generated/c_shim_{device}.h>
 #include <torch/csrc/inductor/aoti_torch/utils.h>
 
 #ifndef AT_PER_OPERATOR_HEADERS

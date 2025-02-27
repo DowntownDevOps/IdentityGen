@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2018 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -55,7 +55,7 @@
 #define __UNDEF_CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS_CUDA_RUNTIME_H__
 #endif
 
-#define EXCLUDE_FROM_RTC
+#if !defined(__CUDACC_RTC__)
 #if defined(__GNUC__)
 #if defined(__clang__) || (!defined(__PGIC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)))
 #pragma GCC diagnostic push
@@ -67,12 +67,13 @@
 #pragma warning(push)
 #pragma warning(disable: 4820)
 #endif
+#endif
+
 #ifdef __QNX__
 #if (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
 typedef unsigned size_t;
 #endif
 #endif
-#undef EXCLUDE_FROM_RTC
 /*******************************************************************************
 *                                                                              *
 *                                                                              *
@@ -141,10 +142,9 @@ struct  __device_builtin__ __nv_lambda_preheader_injection { };
 #endif
 /** \endcond impl_private */
 
-#define EXCLUDE_FROM_RTC
 #if defined(__cplusplus) && !defined(__CUDACC_RTC__)
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && (_MSC_VER >= 1900))
+#if __cplusplus >= 201103
 #include <utility>
 #endif
 
@@ -217,7 +217,7 @@ static __inline__ __host__ cudaError_t cudaLaunchKernel(
 }
 
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && (_MSC_VER >= 1900)) || defined(__DOXYGEN_ONLY__)
+#if __cplusplus >= 201103 || defined(__DOXYGEN_ONLY__)
 /**
  * \brief Launches a CUDA function with launch-time configuration
  *
@@ -633,37 +633,6 @@ static __inline__ __host__ cudaError_t cudaMallocManaged(
 )
 {
   return ::cudaMallocManaged((void**)(void*)devPtr, size, flags);
-}
-
-/**
- * \brief Advise about the usage of a given memory range.
- *
- * This is an alternate spelling for cudaMemAdvise made available through operator overloading.
- *
- * \sa ::cudaMemAdvise,
- * \ref ::cudaMemAdvise(const void* devPtr, size_t count, enum cudaMemoryAdvise advice, struct cudaMemLocation location)  "cudaMemAdvise (C API)"
- */
-template<class T>
-cudaError_t cudaMemAdvise(
-  T                      *devPtr,
-  size_t                 count,
-  enum cudaMemoryAdvise  advice,
-  struct cudaMemLocation location
-)
-{
-  return ::cudaMemAdvise_v2((const void *)devPtr, count, advice, location);
-}
-
-template<class T>
-static __inline__ __host__ cudaError_t cudaMemPrefetchAsync(
-  T                       *devPtr,
-  size_t                  count,
-  struct cudaMemLocation  location,
-  unsigned int            flags,
-  cudaStream_t            stream = 0
-)
-{
-  return ::cudaMemPrefetchAsync_v2((const void *)devPtr, count, location, flags, stream);
 }
 
 /**
@@ -1414,7 +1383,7 @@ static __inline__ __host__ cudaError_t CUDARTAPI cudaGraphExecUpdate(cudaGraphEx
     return status;
 }
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && (_MSC_VER >= 1900))
+#if __cplusplus >= 201103
 
 /**
  * \brief Creates a user object by wrapping a C++ object
@@ -1584,23 +1553,12 @@ static __inline__ __host__ cudaError_t cudaFuncSetCacheConfig(
 }
 
 template<class T>
-static __inline__ 
-__CUDA_DEPRECATED 
-__host__ cudaError_t cudaFuncSetSharedMemConfig(
+static __inline__ __host__ cudaError_t cudaFuncSetSharedMemConfig(
   T                        *func,
   enum cudaSharedMemConfig  config
 )
 {
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#elif defined(_MSC_VER)
-#pragma warning(suppress: 4996)    
-#endif
   return ::cudaFuncSetSharedMemConfig((const void*)func, config);
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
 }
 
 #endif // __CUDACC__
@@ -2294,37 +2252,6 @@ static __inline__ __host__ cudaError_t cudaFuncSetAttribute(
 }
 
 /**
- * \brief Returns the function name for a device entry function pointer.
- *
- * Returns in \p **name the function name associated with the symbol \p func .
- * The function name is returned as a null-terminated string. This API may
- * return a mangled name if the function is not declared as having C linkage.
- * If \p **name is NULL, ::cudaErrorInvalidValue is returned. If \p func is
- * not a device entry function, ::cudaErrorInvalidDeviceFunction is returned.
- *
- * \param name - The returned name of the function
- * \param func - The function pointer to retrieve name for
- *
- * \return
- * ::cudaSuccess,
- * ::cudaErrorInvalidValue,
- * ::cudaErrorInvalidDeviceFunction
- * \notefnerr
- * \note_init_rt
- * \note_callback
- *
- * \ref ::cudaFuncGetName(const char **name, const void *func) "cudaFuncGetName (C API)"
- */
-template<class T>
-static __inline__ __host__ cudaError_t CUDARTAPI cudaFuncGetName(
-  const char **name,
-  const T *func
-)
-{
-  return ::cudaFuncGetName(name, (const void *)func);
-}
-
-/**
  * \brief Get pointer to device kernel that matches entry function \p entryFuncAddr
   *
   * Returns in \p kernelPtr the device kernel corresponding to the entry function \p entryFuncAddr.
@@ -2363,7 +2290,6 @@ static  __inline__ __host__ cudaError_t cudaGetKernel(
 #endif
 #endif
 
-#undef EXCLUDE_FROM_RTC
 #undef __CUDA_DEPRECATED
 
 #if defined(__UNDEF_CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS_CUDA_RUNTIME_H__)

@@ -1,8 +1,11 @@
 #pragma once
 
 #include <ATen/core/ivalue.h>
+#include <atomic>
 
-namespace torch::distributed::rpc {
+namespace torch {
+namespace distributed {
+namespace rpc {
 
 using worker_id_t = int16_t;
 using local_id_t = int64_t;
@@ -13,10 +16,6 @@ TORCH_API void disableJitRRefPickle();
 
 struct TORCH_API JitRRefPickleGuard {
   JitRRefPickleGuard();
-  JitRRefPickleGuard(JitRRefPickleGuard&& other) = delete;
-  JitRRefPickleGuard(const JitRRefPickleGuard&) = delete;
-  JitRRefPickleGuard& operator=(const JitRRefPickleGuard&) = delete;
-  JitRRefPickleGuard& operator=(JitRRefPickleGuard&&) = delete;
   ~JitRRefPickleGuard();
 };
 
@@ -39,9 +38,7 @@ struct TORCH_API GloballyUniqueId final {
 
   static constexpr int kLocalIdBits = 48;
 
-  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   const worker_id_t createdOn_;
-  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   const local_id_t localId_;
 };
 
@@ -64,4 +61,6 @@ struct TORCH_API SerializedPyObj final {
   std::vector<at::Tensor> tensors_;
 };
 
-} // namespace torch::distributed::rpc
+} // namespace rpc
+} // namespace distributed
+} // namespace torch

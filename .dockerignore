@@ -1,0 +1,14 @@
+# Exclude everything
+*
+
+# Then explicitly allow only what's needed
+!Dockerfile
+!requirements.txt
+
+# Exclude common large directories
+.git/
+models/
+packages/
+storage/
+__pycache__/
+*.pyc 

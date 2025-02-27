@@ -1,7 +1,6 @@
 """
 Operations on graphs including union, intersection, difference.
 """
-
 import networkx as nx
 
 __all__ = [
@@ -346,8 +345,7 @@ def compose(G, H):
     Normally, color attribute values of nodes of GcomposeH come from H. We can workaround this as follows:
 
     >>> node_data = {
-    ...     n: G.nodes[n]["color"] + " " + H.nodes[n]["color"]
-    ...     for n in G.nodes & H.nodes
+    ...     n: G.nodes[n]["color"] + " " + H.nodes[n]["color"] for n in G.nodes & H.nodes
     ... }
     >>> nx.set_node_attributes(GcomposeH, node_data, "color")
     >>> print(GcomposeH.nodes[0]["color"])

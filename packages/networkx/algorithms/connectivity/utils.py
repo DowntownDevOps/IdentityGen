@@ -1,7 +1,6 @@
 """
 Utilities for connectivity package
 """
-
 import networkx as nx
 
 __all__ = ["build_auxiliary_node_connectivity", "build_auxiliary_edge_connectivity"]

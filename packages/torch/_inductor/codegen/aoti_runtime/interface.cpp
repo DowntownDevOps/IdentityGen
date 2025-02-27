@@ -1,7 +1,8 @@
-// Definition of AOTI runtime interface functions
-
+#include <torch/csrc/inductor/aoti_runtime/arrayref_tensor.h>
 #include <torch/csrc/inductor/aoti_runtime/interface.h>
 #include <torch/csrc/inductor/aoti_runtime/model_container.h>
+#include <torch/csrc/inductor/aoti_runtime/scalar_to_tensor.h>
+#include <torch/csrc/inductor/aoti_runtime/thread_local.h>
 
 #include <iostream>
 #include <sstream>
@@ -156,15 +157,6 @@ AOTIRuntimeError AOTInductorModelContainerGetConstantFromFolded(
   auto* container =
       reinterpret_cast<torch::aot_inductor::AOTInductorModelContainer*>(container_handle);
   CONVERT_EXCEPTION_TO_ERROR_CODE({ *from_folded = container->constant_from_folded(idx); })
-}
-
-AOTIRuntimeError AOTInductorModelContainerGetConstantType(
-    AOTInductorModelContainerHandle container_handle,
-    size_t idx,
-    int32_t* type) {
-  auto* container =
-      reinterpret_cast<torch::aot_inductor::AOTInductorModelContainer*>(container_handle);
-  CONVERT_EXCEPTION_TO_ERROR_CODE({ *type = container->constant_type(idx); })
 }
 
 AOTIRuntimeError AOTInductorModelContainerGetConstantDtype(

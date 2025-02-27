@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -47,16 +47,11 @@
  * Users Notice.
  */
 
-//NOTE: For NVRTC, these declarations have been moved into the compiler (to reduce compile time)
-#define EXCLUDE_FROM_RTC
-
 #if !defined(__SM_32_ATOMIC_FUNCTIONS_H__)
 #define __SM_32_ATOMIC_FUNCTIONS_H__
 
 #if defined(__CUDACC_RTC__)
 #define __SM_32_ATOMIC_FUNCTIONS_DECL__ __device__
-#elif defined(_NVHPC_CUDA)
-#define __SM_32_ATOMIC_FUNCTIONS_DECL__ extern __device__ __cudart_builtin__
 #else /* !__CUDACC_RTC__ */
 #define __SM_32_ATOMIC_FUNCTIONS_DECL__ static __inline__ __device__
 #endif /* __CUDACC_RTC__ */
@@ -73,12 +68,38 @@
 
 #include "cuda_runtime_api.h"
 
-#if !defined(__CUDA_ARCH__) && !defined(_NVHPC_CUDA)
-#define __DEF_IF_HOST { }
-#else  /* !__CUDA_ARCH__ && !_NVHPC_CUDA */
-#define __DEF_IF_HOST ;
-#endif /* __CUDA_ARCH__ || _NVHPC_CUDA */
+#if defined(_NVHPC_CUDA)
+#undef __device_builtin__
+#define __device_builtin__ __location__(device) __location__(host)
+#endif /* _NVHPC_CUDA */
 
+#ifndef __CUDA_ARCH__
+#define __DEF_IF_HOST { }
+#else  /* !__CUDA_ARCH__ */
+#define __DEF_IF_HOST ;
+#endif /* __CUDA_ARCH__ */
+
+
+#ifdef __CUDA_ARCH__
+extern "C"
+{
+extern __device__ __device_builtin__ long long __illAtomicMin(long long *address, long long val);
+extern __device__ __device_builtin__ long long __illAtomicMax(long long *address, long long val);
+extern __device__ __device_builtin__ long long __llAtomicAnd(long long *address, long long val);
+extern __device__ __device_builtin__ long long __llAtomicOr(long long *address, long long val);
+extern __device__ __device_builtin__ long long __llAtomicXor(long long *address, long long val);
+extern __device__ __device_builtin__ unsigned long long __ullAtomicMin(unsigned long long *address, unsigned long long val);
+extern __device__ __device_builtin__ unsigned long long __ullAtomicMax(unsigned long long *address, unsigned long long val);
+extern __device__ __device_builtin__ unsigned long long __ullAtomicAnd(unsigned long long *address, unsigned long long val);
+extern __device__ __device_builtin__ unsigned long long __ullAtomicOr (unsigned long long *address, unsigned long long val);
+extern __device__ __device_builtin__ unsigned long long __ullAtomicXor(unsigned long long *address, unsigned long long val);
+}
+#endif /* __CUDA_ARCH__ */
+
+#if defined(_NVHPC_CUDA)
+#undef __device_builtin__
+#define __device_builtin__
+#endif /* _NVHPC_CUDA */
 
 /*******************************************************************************
 *                                                                              *
@@ -118,5 +139,3 @@ __SM_32_ATOMIC_FUNCTIONS_DECL__ unsigned long long atomicXor(unsigned long long 
 #endif /* !__CUDACC_RTC__  && defined(__CUDA_ARCH__) */
 
 #endif /* !__SM_32_ATOMIC_FUNCTIONS_H__ */
-
-#undef EXCLUDE_FROM_RTC

@@ -166,7 +166,7 @@ std::vector<int> THPUtils_unpackIntTuple(PyObject* arg);
 
 TORCH_PYTHON_API void THPUtils_addPyMethodDefs(
     std::vector<PyMethodDef>& vector,
-    const PyMethodDef* methods);
+    PyMethodDef* methods);
 
 int THPUtils_getCallable(PyObject* arg, PyObject** result);
 

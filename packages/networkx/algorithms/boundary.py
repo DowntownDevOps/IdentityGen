@@ -8,7 +8,6 @@ A node boundary of a set *S* of nodes is the set of (out-)neighbors of
 nodes in *S* that are outside *S*.
 
 """
-
 from itertools import chain
 
 import networkx as nx

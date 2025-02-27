@@ -109,18 +109,6 @@ class HfQuantizer(ABC):
         """
         return missing_keys
 
-    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]:
-        """
-        Override this method if you want to adjust the `update_expected_keys`.
-
-        Args:
-            expected_keys (`List[str]`, *optional*):
-                The list of the expected keys in the initialized model.
-            loaded_keys (`List[str]`, *optional*):
-                The list of the loaded keys in the checkpoint.
-        """
-        return expected_keys
-
     def get_special_dtypes_update(self, model, torch_dtype: "torch.dtype") -> Dict[str, "torch.dtype"]:
         """
         returns dtypes for modules that are not quantized - used for the computation of the device_map in case
@@ -206,40 +194,20 @@ class HfQuantizer(ABC):
         """
         return self._process_model_after_weight_loading(model, **kwargs)
 
-    def dequantize(self, model):
-        """
-        Potentially dequantize the model to retrive the original model, with some loss in accuracy / performance.
-        Note not all quantization schemes support this.
-        """
-        model = self._dequantize(model)
-
-        # Delete quantizer and quantization config
-        del model.hf_quantizer
-        del model.config.quantization_config
-        del model.config._pre_quantization_dtype
-        model.is_quantized = False
-
-        return model
-
-    def _dequantize(self, model):
-        raise NotImplementedError(
-            f"{self.quantization_config.quant_method} has no implementation of `dequantize`, please raise an issue on GitHub."
-        )
-
-    @property
-    def is_qat_trainable(self) -> bool:
-        """Flag indicating whether the quantized model can carry out quantization aware training"""
-        return False
+    @abstractmethod
+    def _process_model_before_weight_loading(self, model, **kwargs):
+        ...
 
     @abstractmethod
-    def _process_model_before_weight_loading(self, model, **kwargs): ...
-
-    @abstractmethod
-    def _process_model_after_weight_loading(self, model, **kwargs): ...
-
-    @abstractmethod
-    def is_serializable(self, safe_serialization=None): ...
+    def _process_model_after_weight_loading(self, model, **kwargs):
+        ...
 
     @property
     @abstractmethod
-    def is_trainable(self): ...
+    def is_serializable(self):
+        ...
+
+    @property
+    @abstractmethod
+    def is_trainable(self):
+        ...

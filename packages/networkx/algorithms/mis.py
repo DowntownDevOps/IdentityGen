@@ -2,7 +2,6 @@
 Algorithm to find a maximal (not maximum) independent set.
 
 """
-
 import networkx as nx
 from networkx.utils import not_implemented_for, py_random_state
 

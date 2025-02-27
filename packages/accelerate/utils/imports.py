@@ -16,13 +16,13 @@ import importlib
 import importlib.metadata
 import os
 import warnings
-from functools import lru_cache, wraps
+from functools import lru_cache
 
 import torch
 from packaging import version
 from packaging.version import parse
 
-from .environment import parse_flag_from_env, patch_environment, str_to_bool
+from .environment import parse_flag_from_env, str_to_bool
 from .versions import compare_versions, is_torch_version
 
 
@@ -81,32 +81,16 @@ def get_ccl_version():
     return importlib.metadata.version("oneccl_bind_pt")
 
 
-def is_import_timer_available():
-    return _is_package_available("import_timer")
-
-
 def is_pynvml_available():
-    return _is_package_available("pynvml") or _is_package_available("pynvml", "nvidia-ml-py")
-
-
-def is_pytest_available():
-    return _is_package_available("pytest")
+    return _is_package_available("pynvml")
 
 
 def is_msamp_available():
     return _is_package_available("msamp", "ms-amp")
 
 
-def is_schedulefree_available():
-    return _is_package_available("schedulefree")
-
-
 def is_transformer_engine_available():
-    return _is_package_available("transformer_engine", "transformer-engine")
-
-
-def is_lomo_available():
-    return _is_package_available("lomo_optim")
+    return _is_package_available("transformer_engine")
 
 
 def is_fp8_available():
@@ -118,10 +102,39 @@ def is_cuda_available():
     Checks if `cuda` is available via an `nvml-based` check which won't trigger the drivers and leave cuda
     uninitialized.
     """
-    with patch_environment(PYTORCH_NVML_BASED_CUDA_CHECK="1"):
+    pytorch_nvml_based_cuda_check_previous_value = os.environ.get("PYTORCH_NVML_BASED_CUDA_CHECK")
+    try:
+        os.environ["PYTORCH_NVML_BASED_CUDA_CHECK"] = str(1)
         available = torch.cuda.is_available()
+    finally:
+        if pytorch_nvml_based_cuda_check_previous_value:
+            os.environ["PYTORCH_NVML_BASED_CUDA_CHECK"] = pytorch_nvml_based_cuda_check_previous_value
+        else:
+            os.environ.pop("PYTORCH_NVML_BASED_CUDA_CHECK", None)
 
     return available
+
+
+@lru_cache
+def is_tpu_available(check_device=True):
+    "Checks if `torch_xla` is installed and potentially if a TPU is in the environment"
+    warnings.warn(
+        "`is_tpu_available` is deprecated and will be removed in v0.27.0. "
+        "Please use the `is_torch_xla_available` instead.",
+        FutureWarning,
+    )
+    # Due to bugs on the amp series GPUs, we disable torch-xla on them
+    if is_cuda_available():
+        return False
+    if check_device:
+        if _tpu_available:
+            try:
+                # Will raise a RuntimeError if no XLA configuration is found
+                _ = xm.xla_device()
+                return True
+            except RuntimeError:
+                return False
+    return _tpu_available
 
 
 @lru_cache
@@ -149,7 +162,11 @@ def is_deepspeed_available():
 
 
 def is_pippy_available():
-    return is_torch_version(">=", "2.4.0")
+    package_exists = _is_package_available("pippy", "torchpippy")
+    if package_exists:
+        pippy_version = version.parse(importlib.metadata.version("torchpippy"))
+        return compare_versions(pippy_version, ">", "0.1.1")
+    return False
 
 
 def is_bf16_available(ignore_tpu=False):
@@ -158,8 +175,6 @@ def is_bf16_available(ignore_tpu=False):
         return not ignore_tpu
     if is_cuda_available():
         return torch.cuda.is_bf16_supported()
-    if is_mps_available():
-        return False
     return True
 
 
@@ -179,34 +194,17 @@ def is_8bit_bnb_available():
     return False
 
 
-def is_bnb_available(min_version=None):
-    package_exists = _is_package_available("bitsandbytes")
-    if package_exists and min_version is not None:
-        bnb_version = version.parse(importlib.metadata.version("bitsandbytes"))
-        return compare_versions(bnb_version, ">=", min_version)
-    else:
-        return package_exists
-
-
-def is_bitsandbytes_multi_backend_available():
-    if not is_bnb_available():
-        return False
-    import bitsandbytes as bnb
-
-    return "multi_backend" in getattr(bnb, "features", set())
-
-
-def is_torchvision_available():
-    return _is_package_available("torchvision")
+def is_bnb_available():
+    return _is_package_available("bitsandbytes")
 
 
 def is_megatron_lm_available():
     if str_to_bool(os.environ.get("ACCELERATE_USE_MEGATRON_LM", "False")) == 1:
-        if importlib.util.find_spec("megatron") is not None:
+        package_exists = importlib.util.find_spec("megatron") is not None
+        if package_exists:
             try:
-                megatron_version = parse(importlib.metadata.version("megatron-core"))
-                if compare_versions(megatron_version, ">=", "0.8.0"):
-                    return importlib.util.find_spec(".training", "megatron")
+                megatron_version = parse(importlib.metadata.version("megatron-lm"))
+                return compare_versions(megatron_version, ">=", "2.2.0")
             except Exception as e:
                 warnings.warn(f"Parse Megatron version failed. Exception:{e}")
                 return False
@@ -226,10 +224,6 @@ def is_peft_available():
 
 def is_timm_available():
     return _is_package_available("timm")
-
-
-def is_triton_available():
-    return _is_package_available("triton")
 
 
 def is_aim_available():
@@ -258,6 +252,11 @@ def is_boto3_available():
 
 def is_rich_available():
     if _is_package_available("rich"):
+        if "ACCELERATE_DISABLE_RICH" in os.environ:
+            warnings.warn(
+                "`ACCELERATE_DISABLE_RICH` is deprecated and will be removed in v0.22.0 and deactivated by default. Please use `ACCELERATE_ENABLE_RICH` if you wish to use `rich`."
+            )
+            return not parse_flag_from_env("ACCELERATE_DISABLE_RICH", False)
         return parse_flag_from_env("ACCELERATE_ENABLE_RICH", False)
     return False
 
@@ -291,16 +290,11 @@ def is_mlflow_available():
     return False
 
 
-def is_mps_available(min_version="1.12"):
-    "Checks if MPS device is available. The minimum version required is 1.12."
-    # With torch 1.12, you can use torch.backends.mps
-    # With torch 2.0.0, you can use torch.mps
-    return is_torch_version(">=", min_version) and torch.backends.mps.is_available() and torch.backends.mps.is_built()
+def is_mps_available():
+    return is_torch_version(">=", "1.12") and torch.backends.mps.is_available() and torch.backends.mps.is_built()
 
 
 def is_ipex_available():
-    "Checks if ipex is installed."
-
     def get_major_and_minor_from_version(full_version):
         return str(version.parse(full_version).major) + "." + str(version.parse(full_version).minor)
 
@@ -325,45 +319,30 @@ def is_ipex_available():
 
 @lru_cache
 def is_mlu_available(check_device=False):
-    """
-    Checks if `mlu` is available via an `cndev-based` check which won't trigger the drivers and leave mlu
-    uninitialized.
-    """
+    "Checks if `torch_mlu` is installed and potentially if a MLU is in the environment"
     if importlib.util.find_spec("torch_mlu") is None:
         return False
 
+    import torch
     import torch_mlu  # noqa: F401
-
-    with patch_environment(PYTORCH_CNDEV_BASED_MLU_CHECK="1"):
-        available = torch.mlu.is_available()
-
-    return available
-
-
-@lru_cache
-def is_musa_available(check_device=False):
-    "Checks if `torch_musa` is installed and potentially if a MUSA is in the environment"
-    if importlib.util.find_spec("torch_musa") is None:
-        return False
-
-    import torch_musa  # noqa: F401
 
     if check_device:
         try:
-            # Will raise a RuntimeError if no MUSA is found
-            _ = torch.musa.device_count()
-            return torch.musa.is_available()
+            # Will raise a RuntimeError if no MLU is found
+            _ = torch.mlu.device_count()
+            return torch.mlu.is_available()
         except RuntimeError:
             return False
-    return hasattr(torch, "musa") and torch.musa.is_available()
+    return hasattr(torch, "mlu") and torch.mlu.is_available()
 
 
 @lru_cache
 def is_npu_available(check_device=False):
     "Checks if `torch_npu` is installed and potentially if a NPU is in the environment"
-    if importlib.util.find_spec("torch_npu") is None:
+    if importlib.util.find_spec("torch") is None or importlib.util.find_spec("torch_npu") is None:
         return False
 
+    import torch
     import torch_npu  # noqa: F401
 
     if check_device:
@@ -378,20 +357,19 @@ def is_npu_available(check_device=False):
 
 @lru_cache
 def is_xpu_available(check_device=False):
-    """
-    Checks if XPU acceleration is available either via `intel_extension_for_pytorch` or via stock PyTorch (>=2.4) and
-    potentially if a XPU is in the environment
-    """
-
     "check if user disables it explicitly"
     if not parse_flag_from_env("ACCELERATE_USE_XPU", default=True):
         return False
-
+    "Checks if `intel_extension_for_pytorch` is installed and potentially if a XPU is in the environment"
     if is_ipex_available():
-        import intel_extension_for_pytorch  # noqa: F401
-    else:
-        if is_torch_version("<=", "2.3"):
+        import torch
+
+        if is_torch_version("<=", "1.12"):
             return False
+    else:
+        return False
+
+    import intel_extension_for_pytorch  # noqa: F401
 
     if check_device:
         try:
@@ -405,48 +383,3 @@ def is_xpu_available(check_device=False):
 
 def is_dvclive_available():
     return _is_package_available("dvclive")
-
-
-def is_torchdata_available():
-    return _is_package_available("torchdata")
-
-
-# TODO: Remove this function once stateful_dataloader is a stable feature in torchdata.
-def is_torchdata_stateful_dataloader_available():
-    package_exists = _is_package_available("torchdata")
-    if package_exists:
-        torchdata_version = version.parse(importlib.metadata.version("torchdata"))
-        return compare_versions(torchdata_version, ">=", "0.8.0")
-    return False
-
-
-# TODO: Rework this into `utils.deepspeed` and migrate the "core" chunks into `accelerate.deepspeed`
-def deepspeed_required(func):
-    """
-    A decorator that ensures the decorated function is only called when deepspeed is enabled.
-    """
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from accelerate.state import AcceleratorState
-        from accelerate.utils.dataclasses import DistributedType
-
-        if AcceleratorState._shared_state != {} and AcceleratorState().distributed_type != DistributedType.DEEPSPEED:
-            raise ValueError(
-                "DeepSpeed is not enabled, please make sure that an `Accelerator` is configured for `deepspeed` "
-                "before calling this function."
-            )
-        return func(*args, **kwargs)
-
-    return wrapper
-
-
-def is_weights_only_available():
-    # Weights only with allowlist was added in 2.4.0
-    # ref: https://github.com/pytorch/pytorch/pull/124331
-    return is_torch_version(">=", "2.4.0")
-
-
-def is_numpy_available(min_version="1.25.0"):
-    numpy_version = parse(importlib.metadata.version("numpy"))
-    return compare_versions(numpy_version, ">=", min_version)

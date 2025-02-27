@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import PIL.Image
 import torch
@@ -25,17 +25,13 @@ from transformers import (
 )
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import FromSingleFileMixin, SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import (
-    USE_PEFT_BACKEND,
     is_torch_xla_available,
     logging,
     replace_example_docstring,
-    scale_lora_layers,
-    unscale_lora_layers,
 )
 from ...utils.torch_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
@@ -66,27 +62,13 @@ EXAMPLE_DOC_STRING = """
         >>> pipe = pipe.to(device)
 
         >>> url = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
-        >>> init_image = load_image(url).resize((1024, 1024))
+        >>> init_image = load_image(url).resize((512, 512))
 
         >>> prompt = "cat wizard, gandalf, lord of the rings, detailed, fantasy, cute, adorable, Pixar, Disney, 8k"
 
         >>> images = pipe(prompt=prompt, image=init_image, strength=0.95, guidance_scale=7.5).images[0]
         ```
 """
-
-
-# Copied from diffusers.pipelines.flux.pipeline_flux.calculate_shift
-def calculate_shift(
-    image_seq_len,
-    base_seq_len: int = 256,
-    max_seq_len: int = 4096,
-    base_shift: float = 0.5,
-    max_shift: float = 1.16,
-):
-    m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
-    b = base_shift - m * base_seq_len
-    mu = image_seq_len * m + b
-    return mu
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
@@ -112,7 +94,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    r"""
+    """
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -163,7 +145,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingleFileMixin):
+class StableDiffusion3Img2ImgPipeline(DiffusionPipeline):
     r"""
     Args:
         transformer ([`SD3Transformer2DModel`]):
@@ -232,16 +214,12 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         )
         self.tokenizer_max_length = self.tokenizer.model_max_length
         self.default_sample_size = self.transformer.config.sample_size
-        self.patch_size = (
-            self.transformer.config.patch_size if hasattr(self, "transformer") and self.transformer is not None else 2
-        )
 
     # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline._get_t5_prompt_embeds
     def _get_t5_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
         num_images_per_prompt: int = 1,
-        max_sequence_length: int = 256,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ):
@@ -253,11 +231,7 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
 
         if self.text_encoder_3 is None:
             return torch.zeros(
-                (
-                    batch_size * num_images_per_prompt,
-                    self.tokenizer_max_length,
-                    self.transformer.config.joint_attention_dim,
-                ),
+                (batch_size, self.tokenizer_max_length, self.transformer.config.joint_attention_dim),
                 device=device,
                 dtype=dtype,
             )
@@ -265,7 +239,7 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         text_inputs = self.tokenizer_3(
             prompt,
             padding="max_length",
-            max_length=max_sequence_length,
+            max_length=self.tokenizer_max_length,
             truncation=True,
             add_special_tokens=True,
             return_tensors="pt",
@@ -276,8 +250,8 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not torch.equal(text_input_ids, untruncated_ids):
             removed_text = self.tokenizer_3.batch_decode(untruncated_ids[:, self.tokenizer_max_length - 1 : -1])
             logger.warning(
-                "The following part of your input was truncated because `max_sequence_length` is set to "
-                f" {max_sequence_length} tokens: {removed_text}"
+                "The following part of your input was truncated because CLIP can only handle sequences up to"
+                f" {self.tokenizer_max_length} tokens: {removed_text}"
             )
 
         prompt_embeds = self.text_encoder_3(text_input_ids.to(device))[0]
@@ -366,8 +340,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
         negative_pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
         clip_skip: Optional[int] = None,
-        max_sequence_length: int = 256,
-        lora_scale: Optional[float] = None,
     ):
         r"""
 
@@ -413,21 +385,8 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
                 the output of the pre-final layer will be used for computing the prompt embeddings.
-            lora_scale (`float`, *optional*):
-                A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.
         """
         device = device or self._execution_device
-
-        # set lora scale so that monkey patched LoRA
-        # function of text encoder can correctly access it
-        if lora_scale is not None and isinstance(self, SD3LoraLoaderMixin):
-            self._lora_scale = lora_scale
-
-            # dynamically adjust the LoRA scale
-            if self.text_encoder is not None and USE_PEFT_BACKEND:
-                scale_lora_layers(self.text_encoder, lora_scale)
-            if self.text_encoder_2 is not None and USE_PEFT_BACKEND:
-                scale_lora_layers(self.text_encoder_2, lora_scale)
 
         prompt = [prompt] if isinstance(prompt, str) else prompt
         if prompt is not None:
@@ -461,7 +420,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             t5_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=prompt_3,
                 num_images_per_prompt=num_images_per_prompt,
-                max_sequence_length=max_sequence_length,
                 device=device,
             )
 
@@ -515,10 +473,7 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             negative_clip_prompt_embeds = torch.cat([negative_prompt_embed, negative_prompt_2_embed], dim=-1)
 
             t5_negative_prompt_embed = self._get_t5_prompt_embeds(
-                prompt=negative_prompt_3,
-                num_images_per_prompt=num_images_per_prompt,
-                max_sequence_length=max_sequence_length,
-                device=device,
+                prompt=negative_prompt_3, num_images_per_prompt=num_images_per_prompt, device=device
             )
 
             negative_clip_prompt_embeds = torch.nn.functional.pad(
@@ -531,16 +486,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], dim=-1
             )
 
-        if self.text_encoder is not None:
-            if isinstance(self, SD3LoraLoaderMixin) and USE_PEFT_BACKEND:
-                # Retrieve the original scale by scaling back the LoRA layers
-                unscale_lora_layers(self.text_encoder, lora_scale)
-
-        if self.text_encoder_2 is not None:
-            if isinstance(self, SD3LoraLoaderMixin) and USE_PEFT_BACKEND:
-                # Retrieve the original scale by scaling back the LoRA layers
-                unscale_lora_layers(self.text_encoder_2, lora_scale)
-
         return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
     def check_inputs(
@@ -548,8 +493,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         prompt,
         prompt_2,
         prompt_3,
-        height,
-        width,
         strength,
         negative_prompt=None,
         negative_prompt_2=None,
@@ -559,17 +502,7 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         pooled_prompt_embeds=None,
         negative_pooled_prompt_embeds=None,
         callback_on_step_end_tensor_inputs=None,
-        max_sequence_length=None,
     ):
-        if (
-            height % (self.vae_scale_factor * self.patch_size) != 0
-            or width % (self.vae_scale_factor * self.patch_size) != 0
-        ):
-            raise ValueError(
-                f"`height` and `width` have to be divisible by {self.vae_scale_factor * self.patch_size} but are {height} and {width}."
-                f"You can use height {height - height % (self.vae_scale_factor * self.patch_size)} and width {width - width % (self.vae_scale_factor * self.patch_size)}."
-            )
-
         if strength < 0 or strength > 1:
             raise ValueError(f"The value of strength should in [0.0, 1.0] but is {strength}")
 
@@ -640,9 +573,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."
             )
 
-        if max_sequence_length is not None and max_sequence_length > 512:
-            raise ValueError(f"`max_sequence_length` cannot be greater than 512 but is {max_sequence_length}")
-
     def get_timesteps(self, num_inference_steps, strength, device):
         # get the original timestep using init_timestep
         init_timestep = min(num_inference_steps * strength, num_inference_steps)
@@ -661,6 +591,8 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             )
 
         image = image.to(device=device, dtype=dtype)
+        if image.shape[1] == self.vae.config.latent_channels:
+            init_latents = image
 
         batch_size = batch_size * num_images_per_prompt
         if image.shape[1] == self.vae.config.latent_channels:
@@ -709,10 +641,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         return self._guidance_scale
 
     @property
-    def joint_attention_kwargs(self):
-        return self._joint_attention_kwargs
-
-    @property
     def clip_skip(self):
         return self._clip_skip
 
@@ -738,12 +666,10 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         prompt: Union[str, List[str]] = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         prompt_3: Optional[Union[str, List[str]]] = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
         image: PipelineImageInput = None,
         strength: float = 0.6,
         num_inference_steps: int = 50,
-        sigmas: Optional[List[float]] = None,
+        timesteps: List[int] = None,
         guidance_scale: float = 7.0,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         negative_prompt_2: Optional[Union[str, List[str]]] = None,
@@ -757,12 +683,9 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         negative_pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
-        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         clip_skip: Optional[int] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
-        max_sequence_length: int = 256,
-        mu: Optional[float] = None,
     ):
         r"""
         Function invoked when calling the pipeline for generation.
@@ -784,11 +707,11 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             num_inference_steps (`int`, *optional*, defaults to 50):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
-            sigmas (`List[float]`, *optional*):
-                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
-                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
-                will be used.
-            guidance_scale (`float`, *optional*, defaults to 7.0):
+            timesteps (`List[int]`, *optional*):
+                Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
+                in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
+                passed will be used. Must be in descending order.
+            guidance_scale (`float`, *optional*, defaults to 5.0):
                 Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
                 `guidance_scale` is defined as `w` of equation 2. of [Imagen
                 Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
@@ -831,12 +754,8 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 The output format of the generate image. Choose between
                 [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
             return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`~pipelines.stable_diffusion_3.StableDiffusion3PipelineOutput`] instead of
-                a plain tuple.
-            joint_attention_kwargs (`dict`, *optional*):
-               A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
-                `self.processor` in
-                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
+                Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead
+                of a plain tuple.
             callback_on_step_end (`Callable`, *optional*):
                 A function that calls at the end of each denoising steps during the inference. The function is called
                 with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,
@@ -846,26 +765,20 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
                 `._callback_tensor_inputs` attribute of your pipeline class.
-            max_sequence_length (`int` defaults to 256): Maximum sequence length to use with the `prompt`.
-            mu (`float`, *optional*): `mu` value used for `dynamic_shifting`.
 
         Examples:
 
         Returns:
-            [`~pipelines.stable_diffusion_3.StableDiffusion3PipelineOutput`] or `tuple`:
-            [`~pipelines.stable_diffusion_3.StableDiffusion3PipelineOutput`] if `return_dict` is True, otherwise a
+            [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] or `tuple`:
+            [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] if `return_dict` is True, otherwise a
             `tuple`. When returning a tuple, the first element is a list with the generated images.
         """
-        height = height or self.default_sample_size * self.vae_scale_factor
-        width = width or self.default_sample_size * self.vae_scale_factor
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
             prompt,
             prompt_2,
             prompt_3,
-            height,
-            width,
             strength,
             negative_prompt=negative_prompt,
             negative_prompt_2=negative_prompt_2,
@@ -875,12 +788,10 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             pooled_prompt_embeds=pooled_prompt_embeds,
             negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
-            max_sequence_length=max_sequence_length,
         )
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
-        self._joint_attention_kwargs = joint_attention_kwargs
         self._interrupt = False
 
         # 2. Define call parameters
@@ -892,10 +803,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             batch_size = prompt_embeds.shape[0]
 
         device = self._execution_device
-
-        lora_scale = (
-            self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
-        )
 
         (
             prompt_embeds,
@@ -917,8 +824,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             device=device,
             clip_skip=self.clip_skip,
             num_images_per_prompt=num_images_per_prompt,
-            max_sequence_length=max_sequence_length,
-            lora_scale=lora_scale,
         )
 
         if self.do_classifier_free_guidance:
@@ -926,29 +831,12 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             pooled_prompt_embeds = torch.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
 
         # 3. Preprocess image
-        image = self.image_processor.preprocess(image, height=height, width=width)
+        image = self.image_processor.preprocess(image)
 
         # 4. Prepare timesteps
-        scheduler_kwargs = {}
-        if self.scheduler.config.get("use_dynamic_shifting", None) and mu is None:
-            image_seq_len = (int(height) // self.vae_scale_factor // self.transformer.config.patch_size) * (
-                int(width) // self.vae_scale_factor // self.transformer.config.patch_size
-            )
-            mu = calculate_shift(
-                image_seq_len,
-                self.scheduler.config.base_image_seq_len,
-                self.scheduler.config.max_image_seq_len,
-                self.scheduler.config.base_shift,
-                self.scheduler.config.max_shift,
-            )
-            scheduler_kwargs["mu"] = mu
-        elif mu is not None:
-            scheduler_kwargs["mu"] = mu
-        timesteps, num_inference_steps = retrieve_timesteps(
-            self.scheduler, num_inference_steps, device, sigmas=sigmas, **scheduler_kwargs
-        )
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, device, timesteps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength, device)
-        latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
+        latent_timestep = timesteps[:1].repeat(batch_size * num_inference_steps)
 
         # 5. Prepare latent variables
         if latents is None:
@@ -980,7 +868,6 @@ class StableDiffusion3Img2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                     timestep=timestep,
                     encoder_hidden_states=prompt_embeds,
                     pooled_projections=pooled_prompt_embeds,
-                    joint_attention_kwargs=self.joint_attention_kwargs,
                     return_dict=False,
                 )[0]
 

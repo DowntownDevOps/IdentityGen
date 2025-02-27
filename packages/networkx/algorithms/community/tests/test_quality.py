@@ -2,7 +2,6 @@
 module.
 
 """
-
 import pytest
 
 import networkx as nx

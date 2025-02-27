@@ -1,16 +1,3 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 from typing import List, Union
 
 import numpy as np
@@ -36,8 +23,6 @@ if is_tf_available():
     from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES
 
 if is_torch_available():
-    import torch
-
     from ..models.auto.modeling_auto import MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES
 
 logger = logging.get_logger(__name__)
@@ -122,12 +107,12 @@ class ImageClassificationPipeline(Pipeline):
             postprocess_params["function_to_apply"] = function_to_apply
         return preprocess_params, {}, postprocess_params
 
-    def __call__(self, inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None, **kwargs):
+    def __call__(self, images: Union[str, List[str], "Image.Image", List["Image.Image"]], **kwargs):
         """
         Assign labels to the image(s) passed as inputs.
 
         Args:
-            inputs (`str`, `List[str]`, `PIL.Image` or `List[PIL.Image]`):
+            images (`str`, `List[str]`, `PIL.Image` or `List[PIL.Image]`):
                 The pipeline handles three types of images:
 
                 - A string containing a http link pointing to an image
@@ -169,18 +154,11 @@ class ImageClassificationPipeline(Pipeline):
             - **label** (`str`) -- The label identified by the model.
             - **score** (`int`) -- The score attributed by the model for that label.
         """
-        # After deprecation of this is completed, remove the default `None` value for `images`
-        if "images" in kwargs:
-            inputs = kwargs.pop("images")
-        if inputs is None:
-            raise ValueError("Cannot call the image-classification pipeline without an inputs argument!")
-        return super().__call__(inputs, **kwargs)
+        return super().__call__(images, **kwargs)
 
     def preprocess(self, image, timeout=None):
         image = load_image(image, timeout=timeout)
         model_inputs = self.image_processor(images=image, return_tensors=self.framework)
-        if self.framework == "pt":
-            model_inputs = model_inputs.to(self.torch_dtype)
         return model_inputs
 
     def _forward(self, model_inputs):
@@ -189,9 +167,9 @@ class ImageClassificationPipeline(Pipeline):
 
     def postprocess(self, model_outputs, function_to_apply=None, top_k=5):
         if function_to_apply is None:
-            if self.model.config.problem_type == "single_label_classification" or self.model.config.num_labels == 1:
+            if self.model.config.problem_type == "multi_label_classification" or self.model.config.num_labels == 1:
                 function_to_apply = ClassificationFunction.SIGMOID
-            elif self.model.config.problem_type == "multi_label_classification" or self.model.config.num_labels > 1:
+            elif self.model.config.problem_type == "single_label_classification" or self.model.config.num_labels > 1:
                 function_to_apply = ClassificationFunction.SOFTMAX
             elif hasattr(self.model.config, "function_to_apply") and function_to_apply is None:
                 function_to_apply = self.model.config.function_to_apply
@@ -202,10 +180,7 @@ class ImageClassificationPipeline(Pipeline):
             top_k = self.model.config.num_labels
 
         outputs = model_outputs["logits"][0]
-        if self.framework == "pt" and outputs.dtype in (torch.bfloat16, torch.float16):
-            outputs = outputs.to(torch.float32).numpy()
-        else:
-            outputs = outputs.numpy()
+        outputs = outputs.numpy()
 
         if function_to_apply == ClassificationFunction.SIGMOID:
             scores = sigmoid(outputs)

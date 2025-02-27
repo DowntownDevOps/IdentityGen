@@ -590,6 +590,27 @@ CUptiResult CUPTIAPI cuptiDeviceGetAttribute(CUdevice device,
                                              void *value);
 
 /**
+ * \brief Read a device timestamp.
+ *
+ * Returns the device timestamp in \p *timestamp. The timestamp is
+ * reported in nanoseconds and indicates the time since the device was
+ * last reset.
+ * \note \b Thread-safety: this function is thread safe.
+ *
+ * \param context A context on the device from which to get the timestamp
+ * \param timestamp Returns the device timestamp
+ *
+ * \retval CUPTI_SUCCESS
+ * \retval CUPTI_ERROR_NOT_INITIALIZED
+ * \retval CUPTI_ERROR_INVALID_CONTEXT
+ * \retval CUPTI_ERROR_INVALID_PARAMETER is \p timestamp is NULL
+
+ * **DEPRECATED** This API is deprecated as of CUDA 11.3
+ */
+CUptiResult CUPTIAPI cuptiDeviceGetTimestamp(CUcontext context,
+                                             uint64_t *timestamp);
+
+/**
  * \brief Get the number of domains for a device.
  *
  * Returns the number of domains in \p numDomains for a device.

@@ -6,18 +6,16 @@
 #include <c10/core/Stream.h>
 #include <c10/util/Registry.h>
 
-#include <c10/core/Allocator.h>
-
-#include <c10/util/python_stub.h>
 #include <ATen/detail/AcceleratorHooksInterface.h>
 
 #include <string>
-C10_DIAGNOSTIC_PUSH_AND_IGNORED_IF_DEFINED("-Wunused-parameter")
+
 namespace at {
 class Context;
 }
 
 namespace at {
+
 constexpr const char* MTIA_HELP =
     "The MTIA backend requires MTIA extension for PyTorch;"
     "this error has occurred because you are trying "
@@ -31,7 +29,7 @@ struct TORCH_API MTIAHooksInterface : AcceleratorHooksInterface {
 
   ~MTIAHooksInterface() override = default;
 
-  void init() const override {
+  virtual void initMTIA() const {
     // Avoid logging here, since MTIA needs init devices first then it will know
     // how many devices are available. Make it as no-op if mtia extension is not
     // dynamically loaded.
@@ -90,35 +88,11 @@ struct TORCH_API MTIAHooksInterface : AcceleratorHooksInterface {
   virtual void setCurrentStream(const c10::Stream& stream) const {
     FAIL_MTIAHOOKS_FUNC(__func__);
   }
-
-  bool isPinnedPtr(const void* data) const override {
-    return false;
-  }
-
-  Allocator* getPinnedMemoryAllocator() const override {
-    FAIL_MTIAHOOKS_FUNC(__func__);
-    return nullptr;
-  }
-
-  virtual PyObject* memoryStats(DeviceIndex device) const {
-    FAIL_MTIAHOOKS_FUNC(__func__);
-    return nullptr;
-  }
-
-  virtual PyObject* getDeviceCapability(DeviceIndex device) const {
-    FAIL_MTIAHOOKS_FUNC(__func__);
-    return nullptr;
-  }
-
-  virtual void emptyCache() const {
-    FAIL_MTIAHOOKS_FUNC(__func__);
-  }
-
 };
 
 struct TORCH_API MTIAHooksArgs {};
 
-TORCH_DECLARE_REGISTRY(MTIAHooksRegistry, MTIAHooksInterface, MTIAHooksArgs);
+C10_DECLARE_REGISTRY(MTIAHooksRegistry, MTIAHooksInterface, MTIAHooksArgs);
 #define REGISTER_MTIA_HOOKS(clsname) \
   C10_REGISTER_CLASS(MTIAHooksRegistry, clsname, clsname)
 
@@ -127,4 +101,3 @@ TORCH_API const MTIAHooksInterface& getMTIAHooks();
 TORCH_API bool isMTIAHooksBuilt();
 } // namespace detail
 } // namespace at
-C10_DIAGNOSTIC_POP()

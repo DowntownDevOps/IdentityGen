@@ -1,5 +1,4 @@
 """Load centrality."""
-
 from operator import itemgetter
 
 import networkx as nx

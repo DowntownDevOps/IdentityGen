@@ -170,11 +170,10 @@ inline __device__  cudaError_t CUDARTAPI __cudaCDP2OccupancyMaxActiveBlocksPerMu
 
 #define cudaStreamGraphTailLaunch             (cudaStream_t)0x0100000000000000
 #define cudaStreamGraphFireAndForget          (cudaStream_t)0x0200000000000000
-#define cudaStreamGraphFireAndForgetAsSibling (cudaStream_t)0x0300000000000000
 
 #ifdef __CUDA_INTERNAL_USE_CDP2
-#define cudaStreamTailLaunch                ((cudaStream_t)0x3) /**< Per-grid stream with a tail launch semantics. Only applicable when used with CUDA Dynamic Parallelism. */
-#define cudaStreamFireAndForget             ((cudaStream_t)0x4) /**< Per-grid stream with a fire-and-forget synchronization behavior. Only applicable when used with CUDA Dynamic Parallelism. */
+#define cudaStreamTailLaunch                ((cudaStream_t)0x3) /**< Per-grid stream with a fire-and-forget synchronization behavior. Only applicable when used with CUDA Dynamic Parallelism. */
+#define cudaStreamFireAndForget             ((cudaStream_t)0x4) /**< Per-grid stream with a tail launch semantics. Only applicable when used with CUDA Dynamic Parallelism. */
 #endif
 
 extern "C"
@@ -191,7 +190,7 @@ extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI __cudaDeviceSynchroni
 extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaDeviceGetAttribute(int *value, enum cudaDeviceAttr attr, int device);
 extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaDeviceGetLimit(size_t *pValue, enum cudaLimit limit);
 extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaDeviceGetCacheConfig(enum cudaFuncCache *pCacheConfig);
-extern __DEPRECATED__("cudaDeviceGetSharedMemConfig deprecated") __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaDeviceGetSharedMemConfig(enum cudaSharedMemConfig *pConfig);
+extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaDeviceGetSharedMemConfig(enum cudaSharedMemConfig *pConfig);
 #if (__CUDA_ARCH__ < 900) && (defined(CUDA_FORCE_CDP1_IF_SUPPORTED) || (defined(_WIN32) && !defined(_WIN64)))
 // cudaDeviceSynchronize is removed on sm_90+
 extern __device__ __cudart_builtin__ __CDPRT_DEPRECATED(cudaDeviceSynchronize) cudaError_t CUDARTAPI cudaDeviceSynchronize(void);
@@ -296,7 +295,7 @@ static inline  __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaGraphLaun
   *
   * Get the currently running device graph id.
   * \return Returns the current device graph id, 0 if the call is outside of a device graph.
-  * \sa cudaGraphLaunch
+  * \sa cudaLaunchDevice
   */
 static inline __device__ __cudart_builtin__ cudaGraphExec_t CUDARTAPI cudaGetCurrentGraphExec(void)
 {
@@ -304,120 +303,6 @@ static inline __device__ __cudart_builtin__ cudaGraphExec_t CUDARTAPI cudaGetCur
     asm ("mov.u64 %0, %%current_graph_exec;" : "=l"(current_graph_exec));
     return (cudaGraphExec_t)current_graph_exec;
 }
-
-/**
- * \ingroup CUDART_GRAPH
- * \brief Updates the kernel parameters of the given kernel node
- *
- * Updates \p size bytes in the kernel parameters of \p node at \p offset to
- * the contents of \p value. \p node must be device-updatable, and must reside upon the same
- * device as the calling kernel.
- *
- * If this function is called for the node's immediate dependent and that dependent is configured
- * for programmatic dependent launch, then a memory fence must be invoked via __threadfence() before
- * kickoff of the dependent is triggered via ::cudaTriggerProgrammaticLaunchCompletion() to ensure
- * that the update is visible to that dependent node before it is launched.
- *
- * \param node      - The node to update
- * \param offset    - The offset into the params at which to make the update
- * \param value     - Buffer containing the params to write
- * \param size      - Size in bytes to update
- *
- * \return
- * cudaSucces,
- * cudaErrorInvalidValue
- * \notefnerr
- *
- * \sa
- * ::cudaGraphKernelNodeSetEnabled,
- * ::cudaGraphKernelNodeSetGridDim,
- * ::cudaGraphKernelNodeUpdatesApply
- */
-extern  __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaGraphKernelNodeSetParam(cudaGraphDeviceNode_t node, size_t offset, const void *value , size_t size);
-
-/**
- * \ingroup CUDART_GRAPH
- * \brief Enables or disables the given kernel node
- *
- * Enables or disables \p node based upon \p enable. If \p enable is true, the node will be enabled;
- * if it is false, the node will be disabled. Disabled nodes will act as a NOP during execution.
- * \p node must be device-updatable, and must reside upon the same device as the calling kernel.
- *
- * If this function is called for the node's immediate dependent and that dependent is configured
- * for programmatic dependent launch, then a memory fence must be invoked via __threadfence() before
- * kickoff of the dependent is triggered via ::cudaTriggerProgrammaticLaunchCompletion() to ensure
- * that the update is visible to that dependent node before it is launched.
- *
- * \param node      - The node to update
- * \param enable    - Whether to enable or disable the node
- *
- * \return
- * cudaSucces,
- * cudaErrorInvalidValue
- * \notefnerr
- *
- * \sa
- * ::cudaGraphKernelNodeSetParam,
- * ::cudaGraphKernelNodeSetGridDim,
- * ::cudaGraphKernelNodeUpdatesApply
- */
-extern  __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaGraphKernelNodeSetEnabled(cudaGraphDeviceNode_t node, bool enable);
-
-/**
- * \ingroup CUDART_GRAPH
- * \brief Updates the grid dimensions of the given kernel node
- *
- * Sets the grid dimensions of \p node to \p gridDim. \p node must be device-updatable,
- * and must reside upon the same device as thecalling kernel.
- *
- * If this function is called for the node's immediate dependent and that dependent is configured
- * for programmatic dependent launch, then a memory fence must be invoked via __threadfence() before
- * kickoff of the dependent is triggered via ::cudaTriggerProgrammaticLaunchCompletion() to ensure
- * that the update is visible to that dependent node before it is launched.
- *
- * \param node      - The node to update
- * \param gridDim   - The grid dimensions to set
- *
- * \return
- * cudaSucces,
- * cudaErrorInvalidValue
- * \notefnerr
- *
- * \sa
- * ::cudaGraphKernelNodeSetParam,
- * ::cudaGraphKernelNodeSetEnabled,
- * ::cudaGraphKernelNodeUpdatesApply
- */
-extern  __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaGraphKernelNodeSetGridDim(cudaGraphDeviceNode_t node, dim3 gridDim);
-
-/**
- * \ingroup CUDART_GRAPH
- * \brief Batch applies multiple kernel node updates
- *
- * Batch applies one or more kernel node updates based on the information provided in \p updates.
- * \p updateCount specifies the number of updates to apply. Each entry in \p updates must specify
- * a node to update, the type of update to apply, and the parameters for that type of update. See
- * the documentation for ::cudaGraphKernelNodeUpdate for more detail.
- *
- * If this function is called for the node's immediate dependent and that dependent is configured
- * for programmatic dependent launch, then a memory fence must be invoked via __threadfence() before
- * kickoff of the dependent is triggered via ::cudaTriggerProgrammaticLaunchCompletion() to ensure
- * that the update is visible to that dependent node before it is launched.
- *
- * \param updates     - The updates to apply
- * \param updateCount - The number of updates to apply
- *
- * \return
- * cudaSucces,
- * cudaErrorInvalidValue
- * \notefnerr
- *
- * \sa
- * ::cudaGraphKernelNodeSetParam,
- * ::cudaGraphKernelNodeSetEnabled,
- * ::cudaGraphKernelNodeSetGridDim
- */
-extern  __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaGraphKernelNodeUpdatesApply(const cudaGraphKernelNodeUpdate *updates, size_t updateCount);
 
 /**
   * \ingroup CUDART_EXECUTION
@@ -456,14 +341,6 @@ static inline __device__ __cudart_builtin__ void CUDARTAPI cudaGridDependencySyn
     asm volatile("griddepcontrol.wait;":::"memory");
 }
 
-/**
-  * \ingroup CUDART_GRAPH
-  * \brief Sets the condition value associated with a conditional node.
-  *
-  * Sets the condition value associated with a conditional node.
-  * \sa cudaGraphConditionalHandleCreate
-  */
-extern __device__ __cudart_builtin__ void CUDARTAPI cudaGraphSetConditional(cudaGraphConditionalHandle handle, unsigned int value);
 
 //// CG API
 extern __device__ __cudart_builtin__ unsigned long long CUDARTAPI cudaCGGetIntrinsicHandle(enum cudaCGScope scope);
@@ -701,32 +578,6 @@ extern __device__ __cudart_builtin__ void * CUDARTAPI cudaGetParameterBuffer(siz
 #endif
 
 
-#ifdef __CUDA_INTERNAL_USE_CDP2
-static __inline__ __device__ __cudart_builtin__ void * CUDARTAPI cudaGetParameterBufferV2(void *func, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize)
-{
-    return __cudaCDP2GetParameterBufferV2(func, gridDimension, blockDimension, sharedMemSize);
-}
-#else
-extern __device__ __cudart_builtin__ void * CUDARTAPI cudaGetParameterBufferV2(void *func, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize);
-#endif
-
-
-#ifdef __CUDA_INTERNAL_USE_CDP2
-static __inline__ __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDevice_ptsz(void *func, void *parameterBuffer, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize, cudaStream_t stream)
-{
-    return __cudaCDP2LaunchDevice_ptsz(func, parameterBuffer, gridDimension, blockDimension, sharedMemSize, stream);
-}
-
-static __inline__ __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDeviceV2_ptsz(void *parameterBuffer, cudaStream_t stream)
-{
-    return __cudaCDP2LaunchDeviceV2_ptsz(parameterBuffer, stream);
-}
-#else
-extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDevice_ptsz(void *func, void *parameterBuffer, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize, cudaStream_t stream);
-extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDeviceV2_ptsz(void *parameterBuffer, cudaStream_t stream);
-#endif
-
-
 /**
  * \ingroup CUDART_EXECUTION
  * \brief Launches a specified kernel
@@ -753,6 +604,32 @@ extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDeviceV2_pt
  *
  * \sa cudaGetParameterBuffer
  */
+#ifdef __CUDA_INTERNAL_USE_CDP2
+static __inline__ __device__ __cudart_builtin__ void * CUDARTAPI cudaGetParameterBufferV2(void *func, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize)
+{
+    return __cudaCDP2GetParameterBufferV2(func, gridDimension, blockDimension, sharedMemSize);
+}
+#else
+extern __device__ __cudart_builtin__ void * CUDARTAPI cudaGetParameterBufferV2(void *func, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize);
+#endif
+
+
+#ifdef __CUDA_INTERNAL_USE_CDP2
+static __inline__ __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDevice_ptsz(void *func, void *parameterBuffer, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize, cudaStream_t stream)
+{
+    return __cudaCDP2LaunchDevice_ptsz(func, parameterBuffer, gridDimension, blockDimension, sharedMemSize, stream);
+}
+
+static __inline__ __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDeviceV2_ptsz(void *parameterBuffer, cudaStream_t stream)
+{
+    return __cudaCDP2LaunchDeviceV2_ptsz(parameterBuffer, stream);
+}
+#else
+extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDevice_ptsz(void *func, void *parameterBuffer, dim3 gridDimension, dim3 blockDimension, unsigned int sharedMemSize, cudaStream_t stream);
+extern __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaLaunchDeviceV2_ptsz(void *parameterBuffer, cudaStream_t stream);
+#endif
+
+
 #if defined(CUDA_API_PER_THREAD_DEFAULT_STREAM) && defined(__CUDA_ARCH__)
     // When compiling for the device and per thread default stream is enabled, add
     // a static inline redirect to the per thread stream entry points.
@@ -847,37 +724,6 @@ template <typename T> static __inline__ __device__ __cudart_builtin__ cudaError_
 template <typename T> static __inline__ __device__ __cudart_builtin__ cudaError_t cudaOccupancyMaxActiveBlocksPerMultiprocessor(int *numBlocks, T func, int blockSize, size_t dynamicSmemSize);
 template <typename T> static __inline__ __device__ __cudart_builtin__ cudaError_t cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(int *numBlocks, T func, int blockSize, size_t dynamicSmemSize, unsigned int flags);
 
-/**
- * \ingroup CUDART_GRAPH
- * \brief Updates the kernel parameters of the given kernel node
- *
- * Updates the kernel parameters of \p node at \p offset to \p value. \p node must be
- * device-updatable, and must reside upon the same device as the calling kernel.
- *
- * If this function is called for the node's immediate dependent and that dependent is configured
- * for programmatic dependent launch, then a memory fence must be invoked via __threadfence() before
- * kickoff of the dependent is triggered via ::cudaTriggerProgrammaticLaunchCompletion() to ensure
- * that the update is visible to that dependent node before it is launched.
- *
- * \param node      - The node to update
- * \param offset    - The offset into the params at which to make the update
- * \param value     - Parameter value to write
- *
- * \return
- * cudaSucces,
- * cudaErrorInvalidValue
- * \notefnerr
- *
- * \sa
- * ::etblGraphKernelNodeSetEnabled,
- * ::etblGraphKernelNodeSetGridDim,
- * ::etblGraphKernelNodeUpdatesApply
- */
-template <typename T>
-static __inline__ __device__ __cudart_builtin__ cudaError_t CUDARTAPI cudaGraphKernelNodeSetParam(cudaGraphDeviceNode_t node, size_t offset, const T &value)
-{
-    return cudaGraphKernelNodeSetParam(node, offset, &value, sizeof(T));
-}
 
 #endif // !defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 350)
 #endif /* defined(__cplusplus) && defined(__CUDACC__) */

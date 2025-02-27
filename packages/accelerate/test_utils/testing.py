@@ -14,7 +14,6 @@
 
 import asyncio
 import inspect
-import io
 import os
 import shutil
 import subprocess
@@ -41,23 +40,16 @@ from ..utils import (
     is_datasets_available,
     is_deepspeed_available,
     is_dvclive_available,
-    is_import_timer_available,
     is_mlu_available,
     is_mps_available,
-    is_musa_available,
     is_npu_available,
     is_pandas_available,
     is_pippy_available,
-    is_schedulefree_available,
     is_tensorboard_available,
     is_timm_available,
     is_torch_version,
     is_torch_xla_available,
-    is_torchdata_stateful_dataloader_available,
-    is_torchvision_available,
-    is_transformer_engine_available,
     is_transformers_available,
-    is_triton_available,
     is_wandb_available,
     is_xpu_available,
     str_to_bool,
@@ -69,20 +61,16 @@ def get_backend():
         return "xla", torch.cuda.device_count(), torch.cuda.memory_allocated
     elif is_cuda_available():
         return "cuda", torch.cuda.device_count(), torch.cuda.memory_allocated
-    elif is_mps_available(min_version="2.0"):
-        return "mps", 1, torch.mps.current_allocated_memory
     elif is_mps_available():
-        return "mps", 1, lambda: 0
+        return "mps", 1, torch.mps.current_allocated_memory()
     elif is_mlu_available():
         return "mlu", torch.mlu.device_count(), torch.mlu.memory_allocated
-    elif is_musa_available():
-        return "musa", torch.musa.device_count(), torch.musa.memory_allocated
     elif is_npu_available():
         return "npu", torch.npu.device_count(), torch.npu.memory_allocated
     elif is_xpu_available():
         return "xpu", torch.xpu.device_count(), torch.xpu.memory_allocated
     else:
-        return "cpu", 1, lambda: 0
+        return "cpu", 1, 0
 
 
 torch_device, device_count, memory_allocated_func = get_backend()
@@ -107,7 +95,7 @@ def get_launch_command(**kwargs) -> list:
     return command
 
 
-DEFAULT_LAUNCH_COMMAND = get_launch_command(num_processes=device_count, monitor_interval=0.1)
+DEFAULT_LAUNCH_COMMAND = get_launch_command(num_processes=device_count)
 
 
 def parse_flag_from_env(key, default=False):
@@ -186,13 +174,6 @@ def require_mlu(test_case):
     return unittest.skipUnless(is_mlu_available(), "test require a MLU")(test_case)
 
 
-def require_musa(test_case):
-    """
-    Decorator marking a test that requires MUSA. These tests are skipped when there are no MUSA available.
-    """
-    return unittest.skipUnless(is_musa_available(), "test require a MUSA")(test_case)
-
-
 def require_npu(test_case):
     """
     Decorator marking a test that requires NPU. These tests are skipped when there are no NPU available.
@@ -227,30 +208,9 @@ def require_transformers(test_case):
 
 def require_timm(test_case):
     """
-    Decorator marking a test that requires timm. These tests are skipped when they are not.
+    Decorator marking a test that requires transformers. These tests are skipped when they are not.
     """
     return unittest.skipUnless(is_timm_available(), "test requires the timm library")(test_case)
-
-
-def require_torchvision(test_case):
-    """
-    Decorator marking a test that requires torchvision. These tests are skipped when they are not.
-    """
-    return unittest.skipUnless(is_torchvision_available(), "test requires the torchvision library")(test_case)
-
-
-def require_triton(test_case):
-    """
-    Decorator marking a test that requires triton. These tests are skipped when they are not.
-    """
-    return unittest.skipUnless(is_triton_available(), "test requires the triton library")(test_case)
-
-
-def require_schedulefree(test_case):
-    """
-    Decorator marking a test that requires schedulefree. These tests are skipped when they are not.
-    """
-    return unittest.skipUnless(is_schedulefree_available(), "test requires the schedulefree library")(test_case)
 
 
 def require_bnb(test_case):
@@ -332,6 +292,13 @@ def require_deepspeed(test_case):
     return unittest.skipUnless(is_deepspeed_available(), "test requires DeepSpeed")(test_case)
 
 
+def require_fsdp(test_case):
+    """
+    Decorator marking a test that requires FSDP installed. These tests are skipped when FSDP isn't installed
+    """
+    return unittest.skipUnless(is_torch_version(">=", "1.12.0"), "test requires torch version >= 1.12.0")(test_case)
+
+
 def require_torch_min_version(test_case=None, version=None):
     """
     Decorator marking that a test requires a particular torch version to be tested. These tests are skipped when an
@@ -392,22 +359,6 @@ def require_pippy(test_case):
     return unittest.skipUnless(is_pippy_available(), "test requires pippy")(test_case)
 
 
-def require_import_timer(test_case):
-    """
-    Decorator marking a test that requires tuna interpreter installed. These tests are skipped when tuna isn't
-    installed
-    """
-    return unittest.skipUnless(is_import_timer_available(), "test requires tuna interpreter")(test_case)
-
-
-def require_transformer_engine(test_case):
-    """
-    Decorator marking a test that requires transformers engine installed. These tests are skipped when transformers
-    engine isn't installed
-    """
-    return unittest.skipUnless(is_transformer_engine_available(), "test requires transformers engine")(test_case)
-
-
 _atleast_one_tracker_available = (
     any([is_wandb_available(), is_tensorboard_available()]) and not is_comet_ml_available()
 )
@@ -421,18 +372,6 @@ def require_trackers(test_case):
     return unittest.skipUnless(
         _atleast_one_tracker_available,
         "test requires at least one tracker to be available and for `comet_ml` to not be installed",
-    )(test_case)
-
-
-def require_torchdata_stateful_dataloader(test_case):
-    """
-    Decorator marking a test that requires torchdata.stateful_dataloader.
-
-    These tests are skipped when torchdata with stateful_dataloader module isn't installed.
-
-    """
-    return unittest.skipUnless(
-        is_torchdata_stateful_dataloader_available(), "test requires torchdata.stateful_dataloader"
     )(test_case)
 
 
@@ -664,19 +603,3 @@ def assert_exception(exception_class: Exception, msg: str = None) -> bool:
             assert msg in str(e), f"Expected message '{msg}' to be in exception but got '{str(e)}'"
     if was_ran:
         raise AssertionError(f"Expected exception of type {exception_class} but ran without issue.")
-
-
-def capture_call_output(func, *args, **kwargs):
-    """
-    Takes in a `func` with `args` and `kwargs` and returns the captured stdout as a string
-    """
-    captured_output = io.StringIO()
-    original_stdout = sys.stdout
-    try:
-        sys.stdout = captured_output
-        func(*args, **kwargs)
-    except Exception as e:
-        raise e
-    finally:
-        sys.stdout = original_stdout
-    return captured_output.getvalue()

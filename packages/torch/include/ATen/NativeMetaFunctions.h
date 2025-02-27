@@ -50,7 +50,6 @@
 #include <ATen/ops/_convert_indices_from_coo_to_csr_meta.h>
 #include <ATen/ops/_convert_indices_from_csr_to_coo_meta.h>
 #include <ATen/ops/_convert_weight_to_int4pack_meta.h>
-#include <ATen/ops/_convert_weight_to_int4pack_for_cpu_meta.h>
 #include <ATen/ops/_convolution_meta.h>
 #include <ATen/ops/_convolution_double_backward_meta.h>
 #include <ATen/ops/_convolution_mode_meta.h>
@@ -136,7 +135,6 @@
 #include <ATen/ops/_foreach_pow_meta.h>
 #include <ATen/ops/_foreach_reciprocal_meta.h>
 #include <ATen/ops/_foreach_round_meta.h>
-#include <ATen/ops/_foreach_rsqrt_meta.h>
 #include <ATen/ops/_foreach_sigmoid_meta.h>
 #include <ATen/ops/_foreach_sign_meta.h>
 #include <ATen/ops/_foreach_sin_meta.h>
@@ -211,11 +209,8 @@
 #include <ATen/ops/_nested_compute_contiguous_strides_offsets_meta.h>
 #include <ATen/ops/_nested_from_padded_meta.h>
 #include <ATen/ops/_nested_from_padded_and_nested_example_meta.h>
-#include <ATen/ops/_nested_from_padded_tensor_meta.h>
 #include <ATen/ops/_nested_get_jagged_dummy_meta.h>
 #include <ATen/ops/_nested_get_lengths_meta.h>
-#include <ATen/ops/_nested_get_max_seqlen_meta.h>
-#include <ATen/ops/_nested_get_min_seqlen_meta.h>
 #include <ATen/ops/_nested_get_offsets_meta.h>
 #include <ATen/ops/_nested_get_ragged_idx_meta.h>
 #include <ATen/ops/_nested_get_values_meta.h>
@@ -257,11 +252,9 @@
 #include <ATen/ops/_reshape_from_tensor_meta.h>
 #include <ATen/ops/_resize_output_meta.h>
 #include <ATen/ops/_rowwise_prune_meta.h>
-#include <ATen/ops/_safe_softmax_meta.h>
 #include <ATen/ops/_sample_dirichlet_meta.h>
 #include <ATen/ops/_saturate_weight_to_fp16_meta.h>
 #include <ATen/ops/_scaled_dot_product_attention_math_meta.h>
-#include <ATen/ops/_scaled_dot_product_attention_math_for_mps_meta.h>
 #include <ATen/ops/_scaled_dot_product_cudnn_attention_meta.h>
 #include <ATen/ops/_scaled_dot_product_cudnn_attention_backward_meta.h>
 #include <ATen/ops/_scaled_dot_product_efficient_attention_meta.h>
@@ -270,8 +263,6 @@
 #include <ATen/ops/_scaled_dot_product_flash_attention_backward_meta.h>
 #include <ATen/ops/_scaled_dot_product_flash_attention_for_cpu_meta.h>
 #include <ATen/ops/_scaled_dot_product_flash_attention_for_cpu_backward_meta.h>
-#include <ATen/ops/_scaled_dot_product_fused_attention_overrideable_meta.h>
-#include <ATen/ops/_scaled_dot_product_fused_attention_overrideable_backward_meta.h>
 #include <ATen/ops/_scaled_mm_meta.h>
 #include <ATen/ops/_segment_reduce_backward_meta.h>
 #include <ATen/ops/_shape_as_tensor_meta.h>
@@ -315,7 +306,6 @@
 #include <ATen/ops/_sparse_sum_meta.h>
 #include <ATen/ops/_sparse_sum_backward_meta.h>
 #include <ATen/ops/_spdiags_meta.h>
-#include <ATen/ops/_spsolve_meta.h>
 #include <ATen/ops/_stack_meta.h>
 #include <ATen/ops/_standard_gamma_meta.h>
 #include <ATen/ops/_standard_gamma_grad_meta.h>
@@ -358,8 +348,6 @@
 #include <ATen/ops/_unpack_dual_meta.h>
 #include <ATen/ops/_unsafe_index_meta.h>
 #include <ATen/ops/_unsafe_index_put_meta.h>
-#include <ATen/ops/_unsafe_masked_index_meta.h>
-#include <ATen/ops/_unsafe_masked_index_put_accumulate_meta.h>
 #include <ATen/ops/_unsafe_view_meta.h>
 #include <ATen/ops/_upsample_bicubic2d_aa_meta.h>
 #include <ATen/ops/_upsample_bicubic2d_aa_backward_meta.h>
@@ -384,14 +372,11 @@
 #include <ATen/ops/_values_copy_meta.h>
 #include <ATen/ops/_version_meta.h>
 #include <ATen/ops/_weight_int4pack_mm_meta.h>
-#include <ATen/ops/_weight_int4pack_mm_for_cpu_meta.h>
 #include <ATen/ops/_weight_int8pack_mm_meta.h>
 #include <ATen/ops/_weight_norm_meta.h>
 #include <ATen/ops/_weight_norm_differentiable_backward_meta.h>
 #include <ATen/ops/_weight_norm_interface_meta.h>
 #include <ATen/ops/_weight_norm_interface_backward_meta.h>
-#include <ATen/ops/_wrapped_linear_prepack_meta.h>
-#include <ATen/ops/_wrapped_quantized_linear_prepacked_meta.h>
 #include <ATen/ops/abs_meta.h>
 #include <ATen/ops/absolute_meta.h>
 #include <ATen/ops/acos_meta.h>

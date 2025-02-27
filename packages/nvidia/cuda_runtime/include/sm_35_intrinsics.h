@@ -97,8 +97,18 @@
 
 
 #if !defined(__SM_35_INTRINSICS_H__)
+
 #define __SM_35_INTRINSICS_H__
 
+
+
+/**********************************************************************************
+
+* All sm_35 intrinsics are supported by sm_32 so simply include its header file   *
+
+**********************************************************************************/
+
+#include "sm_32_intrinsics.h"
 
 
 

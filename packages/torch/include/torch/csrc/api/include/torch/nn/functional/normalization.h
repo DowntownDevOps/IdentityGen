@@ -5,7 +5,9 @@
 #include <torch/nn/options/normalization.h>
 #include <torch/types.h>
 
-namespace torch::nn::functional {
+namespace torch {
+namespace nn {
+namespace functional {
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 namespace detail {
@@ -15,7 +17,7 @@ inline Tensor normalize(
     int64_t dim,
     double eps,
     std::optional<Tensor> out) {
-  if (out == std::nullopt) {
+  if (out == c10::nullopt) {
     auto denom = input.norm(p, dim, true).clamp_min(eps).expand_as(input);
     return input / denom;
   } else {
@@ -113,7 +115,7 @@ inline Tensor local_response_norm(
               /*padding=*/0,
               /*ceil_mode=*/false,
               /*count_include_pad=*/true,
-              /*divisor_override=*/std::nullopt)
+              /*divisor_override=*/c10::nullopt)
               .squeeze(1);
   } else {
     auto sizes = input.sizes();
@@ -130,7 +132,7 @@ inline Tensor local_response_norm(
               /*padding=*/0,
               /*ceil_mode=*/false,
               /*count_include_pad=*/true,
-              /*divisor_override=*/std::nullopt)
+              /*divisor_override=*/c10::nullopt)
               .squeeze(1);
     div = div.view(sizes);
   }
@@ -204,4 +206,6 @@ inline Tensor group_norm(
       options.eps());
 }
 
-} // namespace torch::nn::functional
+} // namespace functional
+} // namespace nn
+} // namespace torch

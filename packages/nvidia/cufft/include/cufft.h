@@ -74,11 +74,11 @@ extern "C" {
 #endif
 
 #define CUFFT_VER_MAJOR 11
-#define CUFFT_VER_MINOR 2
-#define CUFFT_VER_PATCH 1
-#define CUFFT_VER_BUILD 3
+#define CUFFT_VER_MINOR 0
+#define CUFFT_VER_PATCH 2
+#define CUFFT_VER_BUILD 54
 
-#define CUFFT_VERSION 11201
+#define CUFFT_VERSION 11002
 
 // CUFFT API function return values
 typedef enum cufftResult_t {
@@ -309,23 +309,6 @@ cufftResult CUFFTAPI cufftGetVersion(int *version);
 
 cufftResult CUFFTAPI cufftGetProperty(libraryPropertyType type,
                                       int *value);
-
-//
-// Set/Get PlanProperty APIs configures per-plan behavior 
-//
-typedef enum cufftProperty_t {
-    NVFFT_PLAN_PROPERTY_INT64_PATIENT_JIT = 0x1
-} cufftProperty;
-
-cufftResult CUFFTAPI cufftSetPlanPropertyInt64(cufftHandle plan, 
-                                               cufftProperty property, 
-                                               const long long int inputValueInt);
-
-cufftResult CUFFTAPI cufftGetPlanPropertyInt64(cufftHandle plan, 
-                                               cufftProperty property, 
-                                               long long int* returnPtrValue);
-
-cufftResult CUFFTAPI cufftResetPlanProperty(cufftHandle plan, cufftProperty property);
 
 #ifdef __cplusplus
 }

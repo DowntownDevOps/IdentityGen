@@ -1,7 +1,9 @@
 #include <ATen/core/Tensor.h>
 #include <ATen/native/DispatchStub.h>
 
-namespace at::native {
+namespace at {
+
+namespace native {
 
 enum class ADAM_MODE : uint8_t { ORIGINAL = 0, ADAMW = 1 };
 
@@ -22,6 +24,7 @@ using fused_adam_fn = void (*)(
     const float* grad_scale_ptr,
     const ADAM_MODE);
 
-DECLARE_DISPATCH(fused_adam_fn, fused_adam_stub)
+DECLARE_DISPATCH(fused_adam_fn, fused_adam_stub);
 
-} // namespace at::native
+}
+}

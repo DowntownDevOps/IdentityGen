@@ -13,7 +13,7 @@
 #include <c10/core/Storage.h>
 #include <c10/core/TensorOptions.h>
 #include <c10/util/Deprecated.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 
 
@@ -27,7 +27,7 @@ inline at::Tensor fft_fftn(const at::Tensor & self, at::OptionalIntArrayRef s=::
     return at::_ops::fft_fftn::call(self, s.has_value() ? ::std::make_optional(c10::fromIntArrayRefSlow(*s)) : ::std::nullopt, dim, norm);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor fft_fftn(const at::Tensor & self, at::OptionalIntArrayRef s=::std::nullopt, at::OptionalIntArrayRef dim=::std::nullopt, ::std::optional<c10::string_view> norm=::std::nullopt) {
     return at::_ops::fft_fftn::call(self, s.has_value() ? ::std::make_optional(c10::fromIntArrayRefSlow(*s)) : ::std::nullopt, dim, norm);
   }
@@ -38,7 +38,7 @@ inline at::Tensor fft_fftn_symint(const at::Tensor & self, at::OptionalSymIntArr
     return at::_ops::fft_fftn::call(self, s, dim, norm);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor fft_fftn(const at::Tensor & self, at::OptionalSymIntArrayRef s=::std::nullopt, at::OptionalIntArrayRef dim=::std::nullopt, ::std::optional<c10::string_view> norm=::std::nullopt) {
     return at::_ops::fft_fftn::call(self, s, dim, norm);
   }
@@ -49,7 +49,7 @@ inline at::Tensor & fft_fftn_out(at::Tensor & out, const at::Tensor & self, at::
     return at::_ops::fft_fftn_out::call(self, s.has_value() ? ::std::make_optional(c10::fromIntArrayRefSlow(*s)) : ::std::nullopt, dim, norm, out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor & fft_fftn_out(at::Tensor & out, const at::Tensor & self, at::OptionalIntArrayRef s=::std::nullopt, at::OptionalIntArrayRef dim=::std::nullopt, ::std::optional<c10::string_view> norm=::std::nullopt) {
     return at::_ops::fft_fftn_out::call(self, s.has_value() ? ::std::make_optional(c10::fromIntArrayRefSlow(*s)) : ::std::nullopt, dim, norm, out);
   }
@@ -60,7 +60,7 @@ inline at::Tensor & fft_fftn_outf(const at::Tensor & self, at::OptionalIntArrayR
     return at::_ops::fft_fftn_out::call(self, s.has_value() ? ::std::make_optional(c10::fromIntArrayRefSlow(*s)) : ::std::nullopt, dim, norm, out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, int64_t>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, int64_t>::value>>
   at::Tensor & fft_fftn_outf(const at::Tensor & self, at::OptionalIntArrayRef s, at::OptionalIntArrayRef dim, ::std::optional<c10::string_view> norm, at::Tensor & out) {
     return at::_ops::fft_fftn_out::call(self, s.has_value() ? ::std::make_optional(c10::fromIntArrayRefSlow(*s)) : ::std::nullopt, dim, norm, out);
   }
@@ -71,7 +71,7 @@ inline at::Tensor & fft_fftn_symint_out(at::Tensor & out, const at::Tensor & sel
     return at::_ops::fft_fftn_out::call(self, s, dim, norm, out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor & fft_fftn_out(at::Tensor & out, const at::Tensor & self, at::OptionalSymIntArrayRef s=::std::nullopt, at::OptionalIntArrayRef dim=::std::nullopt, ::std::optional<c10::string_view> norm=::std::nullopt) {
     return at::_ops::fft_fftn_out::call(self, s, dim, norm, out);
   }
@@ -82,7 +82,7 @@ inline at::Tensor & fft_fftn_symint_outf(const at::Tensor & self, at::OptionalSy
     return at::_ops::fft_fftn_out::call(self, s, dim, norm, out);
 }
 namespace symint {
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, c10::SymInt>>>
+  template <typename T, typename = std::enable_if_t<std::is_same<T, c10::SymInt>::value>>
   at::Tensor & fft_fftn_outf(const at::Tensor & self, at::OptionalSymIntArrayRef s, at::OptionalIntArrayRef dim, ::std::optional<c10::string_view> norm, at::Tensor & out) {
     return at::_ops::fft_fftn_out::call(self, s, dim, norm, out);
   }

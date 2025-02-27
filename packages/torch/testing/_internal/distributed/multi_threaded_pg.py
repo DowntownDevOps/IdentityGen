@@ -1,4 +1,4 @@
-# mypy: allow-untyped-defs
+# mypy: ignore-errors
 
 import sys
 import threading
@@ -123,11 +123,13 @@ class AllReduce:
     @torch.no_grad()
     def work(self, data):
         for i in range(len(data[0])):
+            tensors = []
             # use rank0 as the device for sum
             rank_0_device = data[0][i].device
             # collect all data to the list and make them
             # all on rank 0 device
-            tensors = [data[src_rank][i].to(rank_0_device) for src_rank in range(0, len(data))]
+            for src_rank in range(0, len(data)):
+                tensors.append(data[src_rank][i].to(rank_0_device))
 
             # now mimic reduce across all ranks
             res = _reduce_ops[self.op](tensors)
@@ -463,6 +465,7 @@ class WorldData:
     tags_to_pg: Dict[str, List[dist.ProcessGroup]]
     pg_to_tag: Dict[dist.ProcessGroup, str]
     pg_coalesce_state: Dict[dist.ProcessGroup, List[Union[_CollOp, P2POp]]]
+    pg_default_device: Dict[dist.ProcessGroup, torch.device]
 
 
 class ThreadLocalWorld:
@@ -470,7 +473,7 @@ class ThreadLocalWorld:
 
     def _get_world(self) -> WorldData:
         if not hasattr(ThreadLocalWorld._world, "world"):
-            ThreadLocalWorld._world.world = WorldData(None, {}, {}, {}, {}, 0, {}, {}, {})
+            ThreadLocalWorld._world.world = WorldData(None, {}, {}, {}, {}, 0, {}, {}, {}, {})
         return ThreadLocalWorld._world.world
 
     @property
@@ -516,6 +519,10 @@ class ThreadLocalWorld:
     @property
     def pg_coalesce_state(self) -> Dict[dist.ProcessGroup, List[Union[_CollOp, P2POp]]]:
         return self._get_world().pg_coalesce_state
+
+    @property
+    def pg_default_device(self) -> Dict[dist.ProcessGroup, torch.device]:
+        return self._get_world().pg_default_device
 
 
 _old_pg_world = None

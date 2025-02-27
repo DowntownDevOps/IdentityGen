@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -49,13 +49,6 @@
 
 #if !defined(__SM_20_ATOMIC_FUNCTIONS_HPP__)
 #define __SM_20_ATOMIC_FUNCTIONS_HPP__
-
-#if defined(__CUDA_ARCH__) || defined(_NVHPC_CUDA)
-extern "C"
-{
-extern __device__ __device_builtin__ float __fAtomicAdd(float *address, float val);
-}
-#endif /* __CUDA_ARCH__ */
 
 #if defined(__CUDACC_RTC__)
 #define __SM_20_ATOMIC_FUNCTIONS_DECL__ __device__

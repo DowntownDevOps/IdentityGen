@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2023   NVIDIA Corporation.  All rights reserved.
+ * Copyright 2011-2020   NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO LICENSEE:
  *
@@ -550,17 +550,6 @@ typedef enum
 } CUpti_Profiler_Support_Level;
 
 /**
- * \brief Profiler API types
- */
-typedef enum
-{
-    CUPTI_PROFILER_RANGE_PROFILING = 0,       //!< CUPTI APIs for range based profiling (cuptiProfiler*)
-    CUPTI_PROFILER_PC_SAMPLING,               //!< CUPTI APIs collecting pc sampling data (cuptiPcSampling*)
-    CUPTI_PROFILER_SASS_METRICS,              //!< CUPTI APIs collecting SASS metrics data (cuptiSassMetrics*)
-    CUPTI_PROFILER_UNKNOWN
-} CUpti_Profiler_API;
-
-/**
  * \brief Params for cuptiProfilerDeviceSupported
  */
 typedef struct
@@ -577,9 +566,8 @@ typedef struct
     CUpti_Profiler_Support_Level confidentialCompute; //!< [out] SUPPORTED if confidential compute is not enabled, UNSUPPORTED otherwise
     CUpti_Profiler_Support_Level cmp;                 //!< [out] SUPPORTED if not NVIDIA Crypto Mining Processors (CMP), UNSUPPORTED otherwise
     CUpti_Profiler_Support_Level wsl;                 //!< [out] SUPPORTED if WSL supported, UNSUPPORTED otherwise
-    CUpti_Profiler_API     api;                       //!< [in] the CUPTI API type for which device support will be checked
 } CUpti_Profiler_DeviceSupported_Params;
-#define CUpti_Profiler_DeviceSupported_Params_STRUCT_SIZE CUPTI_PROFILER_STRUCT_SIZE(CUpti_Profiler_DeviceSupported_Params, api)
+#define CUpti_Profiler_DeviceSupported_Params_STRUCT_SIZE CUPTI_PROFILER_STRUCT_SIZE(CUpti_Profiler_DeviceSupported_Params, confidentialCompute)
 
 /**
  * \brief Query device compatibility with Profiling API

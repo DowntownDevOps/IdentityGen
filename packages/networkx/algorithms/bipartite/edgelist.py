@@ -22,7 +22,6 @@ Arbitrary data::
 
 For each edge (u, v) the node u is assigned to part 0 and the node v to part 1.
 """
-
 __all__ = ["generate_edgelist", "write_edgelist", "parse_edgelist", "read_edgelist"]
 
 import networkx as nx
@@ -220,7 +219,7 @@ def parse_edgelist(
         if not len(line):
             continue
         # split line, should have 2 or more
-        s = line.rstrip("\n").split(delimiter)
+        s = line.strip().split(delimiter)
         if len(s) < 2:
             continue
         u = s.pop(0)

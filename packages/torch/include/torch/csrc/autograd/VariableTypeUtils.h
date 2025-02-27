@@ -29,7 +29,8 @@
 #endif
 #endif
 
-namespace torch::autograd {
+namespace torch {
+namespace autograd {
 enum class can_mutate_inplace_result {
   success,
   non_default_backward_view,
@@ -93,8 +94,7 @@ inline void check_inplace(at::ITensorListRef tensors, bool requires_grad) {
 }
 
 inline void throw_error_out_requires_grad(const char* name) {
-  TORCH_CHECK(
-      false,
+  AT_ERROR(
       name,
       "(): functions with out=... arguments don't support automatic differentiation, "
       "but one of the arguments requires grad.");
@@ -217,7 +217,7 @@ inline at::Tensor as_view(
           tensor,
           diff_view_meta->get_backward_view().chain(
               base, tensor, std::move(view_func), std::move(rev_view_func)),
-          std::nullopt,
+          c10::nullopt,
           /*shared_view_info*/ true,
           creation_meta,
           allow_tensor_metadata_change);
@@ -225,7 +225,7 @@ inline at::Tensor as_view(
       return make_variable_differentiable_view(
           tensor,
           ViewInfo(base, std::move(view_func), std::move(rev_view_func)),
-          std::nullopt,
+          c10::nullopt,
           /*shared_view_info*/ true,
           creation_meta,
           allow_tensor_metadata_change);
@@ -398,7 +398,7 @@ namespace {
 // call in this functor so it can be passed to c10::BoxedKernel::makeFromFunctor
 class WrapperFunctor final : public c10::OperatorKernel {
  public:
-  WrapperFunctor(JitDecompInterface* impl) : impl_(impl) {}
+  WrapperFunctor(JitDecompInterface* impl) : impl_(impl){};
 
   void operator()(
       const c10::OperatorHandle& op,
@@ -413,7 +413,7 @@ class WrapperFunctor final : public c10::OperatorKernel {
 
 template <class Return, class... Args>
 Return run_jit_decomposition_with_args_for_jvp(
-    std::string_view name,
+    c10::string_view name,
     const c10::OperatorHandle& opHandle,
     c10::DispatchKeySet dispatchKeySet,
     Args&&... args) {
@@ -438,4 +438,5 @@ Return run_jit_decomposition_with_args_for_jvp(
 
 } // namespace impl
 
-} // namespace torch::autograd
+} // namespace autograd
+} // namespace torch

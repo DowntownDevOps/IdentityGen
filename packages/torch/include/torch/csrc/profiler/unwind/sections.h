@@ -16,7 +16,7 @@ static std::string demangle(const std::string& mangled_name) {
       abi::__cxa_demangle(mangled_name.c_str(), nullptr, nullptr, &status);
   if (status == 0) {
     std::string demangled_name(realname);
-    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
+    // NOLINTNEXTLINE
     free(realname);
     return demangled_name;
   } else {
@@ -57,7 +57,11 @@ struct Sections {
   Section symtab;
   Section strtab;
 
-  const char* readString(CheckedLexer& data, uint64_t encoding, bool is_64bit) {
+  const char* readString(
+      CheckedLexer& data,
+      uint64_t encoding,
+      bool is_64bit,
+      uint64_t str_offsets_base) {
     switch (encoding) {
       case DW_FORM_string: {
         return data.readCString();
@@ -77,7 +81,7 @@ struct Sections {
     return is_64bit ? data.read<uint64_t>() : data.read<uint32_t>();
   }
 
-  std::optional<uint64_t> findDebugInfoOffset(uint64_t address) {
+  unwind::optional<uint64_t> findDebugInfoOffset(uint64_t address) {
     return debug_info_offsets_.find(address);
   }
   size_t compilationUnitCount() {
@@ -90,7 +94,7 @@ struct Sections {
     debug_info_offsets_.add(start, debug_info_offset, false);
     debug_info_offsets_.add(end, std::nullopt, false);
   }
-  std::optional<std::string> findSubprogramName(uint64_t address) {
+  optional<std::string> findSubprogramName(uint64_t address) {
     if (auto e = symbol_table_.find(address)) {
       return demangle(strtab.string(*e));
     }

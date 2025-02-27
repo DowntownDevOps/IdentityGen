@@ -4,7 +4,7 @@
 
 #include <ATen/core/ivalue.h>
 #include <ATen/core/jit_type_base.h>
-#include <optional>
+#include <c10/util/Optional.h>
 
 
 namespace torch::jit {
@@ -85,9 +85,10 @@ struct TORCH_API ClassType : public NamedType {
       return true;
     }
     if (auto user_rhs = rhs.castRaw<ClassType>()) {
-      const auto& lhs_name = name();
-      const auto& rhs_name = user_rhs->name();
-      return lhs_name.has_value() && lhs_name == rhs_name &&
+      const auto& lhs_name = name().value();
+      const auto& rhs_name = user_rhs->name().value();
+
+      return lhs_name == rhs_name &&
           this->compilation_unit() == user_rhs->compilation_unit();
     }
     return false;
@@ -159,7 +160,7 @@ struct TORCH_API ClassType : public NamedType {
       }
       slot++;
     }
-    return std::nullopt;
+    return c10::nullopt;
   }
   size_t getAttributeSlot(const std::string& name) const {
     if (auto r = findAttributeSlot(name)) {
@@ -340,10 +341,10 @@ struct TORCH_API ClassType : public NamedType {
   const std::vector<torch::jit::Function*>& getForwardPreHooks() const;
 
   void checkForwardPreHookSchema(
-      size_t pre_hook_idx,
+      int pre_hook_idx,
       const FunctionSchema& pre_hook_schema) const;
   void checkForwardHookSchema(
-      size_t hook_idx,
+      int hook_idx,
       const FunctionSchema& hook_schema) const;
 
   void addMethod(torch::jit::Function* method);
@@ -389,15 +390,14 @@ struct TORCH_API ClassType : public NamedType {
       std::string doc_string = "",
       std::vector<std::string> unresolved_class_attributes = {});
 
-  std::string annotation_str_impl(
-      [[maybe_unused]] const TypePrinter& printer = nullptr) const override {
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return name()->qualifiedName();
+  std::string annotation_str_impl(C10_UNUSED const TypePrinter& printer = nullptr) const override {
+    const auto& n = name().value();
+    return n.qualifiedName();
   }
 
   void addAttribute(ClassAttribute classAttribute);
-  std::string getForwardPreHookErrorMessage(size_t pre_hook_idx) const;
-  std::string getForwardHookErrorMessage(size_t hook_idx) const;
+  std::string getForwardPreHookErrorMessage(int pre_hook_idx) const;
+  std::string getForwardHookErrorMessage(int hook_idx) const;
 
   // Mapping of attribute names -> their type.
   // NOTE: this does not contain methods, which are stored in the module

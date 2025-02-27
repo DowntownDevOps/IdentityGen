@@ -1,5 +1,4 @@
 """Functions for computing dominating sets in a graph."""
-
 from itertools import chain
 
 import networkx as nx

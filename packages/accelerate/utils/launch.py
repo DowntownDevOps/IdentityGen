@@ -16,6 +16,7 @@ import argparse
 import os
 import subprocess
 import sys
+import warnings
 from ast import literal_eval
 from shutil import which
 from typing import Any, Dict, List, Tuple
@@ -26,10 +27,8 @@ from ..commands.config.config_args import SageMakerConfig
 from ..utils import (
     DynamoBackend,
     PrecisionType,
-    is_fp8_available,
     is_ipex_available,
     is_mlu_available,
-    is_musa_available,
     is_npu_available,
     is_torch_xla_available,
     is_xpu_available,
@@ -68,23 +67,10 @@ def _get_mpirun_args():
     mpirun_version = subprocess.check_output([mpi_app, "--version"])
 
     if b"Open MPI" in mpirun_version:
-        return mpi_app, "--hostfile", "-n", "--npernode", "--bind-to"
+        return mpi_app, "--hostfile", "-n", "--npernode"
     else:
         # Intel MPI and MVAPICH both use the same arg names
-        return mpi_app, "-f", "-n", "-ppn", ""
-
-
-def setup_fp8_env(args: argparse.Namespace, current_env: Dict[str, str]):
-    """
-    Setup the FP8 environment variables.
-    """
-    prefix = "ACCELERATE_"
-    for arg in vars(args):
-        if arg.startswith("fp8_"):
-            value = getattr(args, arg)
-            if value is not None:
-                current_env[f"{prefix}{arg.upper()}"] = str(getattr(args, arg))
-    return current_env
+        return mpi_app, "-f", "-n", "-ppn"
 
 
 def prepare_simple_launcher_cmd_env(args: argparse.Namespace) -> Tuple[List[str], Dict[str, str]]:
@@ -96,23 +82,14 @@ def prepare_simple_launcher_cmd_env(args: argparse.Namespace) -> Tuple[List[str]
         raise ValueError("--module and --no_python cannot be used together")
 
     if args.mpirun_hostfile is not None:
-        mpi_app_name, hostfile_arg, num_proc_arg, proc_per_node_arg, bind_to_arg = _get_mpirun_args()
+        mpi_app_name, hostfile_arg, num_proc_arg, proc_per_node_arg = _get_mpirun_args()
         mpirun_ccl = getattr(args, "mpirun_ccl", None)
-        bind_to = getattr(args, "bind-to", "socket")
         num_machines = args.num_machines
         num_processes = getattr(args, "num_processes", None)
         nproc_per_node = str(num_processes // num_machines) if num_processes and num_machines else "1"
-        cmd += [
-            mpi_app_name,
-            hostfile_arg,
-            args.mpirun_hostfile,
-            proc_per_node_arg,
-            nproc_per_node,
-        ]
+        cmd += [mpi_app_name, hostfile_arg, args.mpirun_hostfile, proc_per_node_arg, nproc_per_node]
         if num_processes:
             cmd += [num_proc_arg, str(num_processes)]
-        if bind_to_arg:
-            cmd += [bind_to_arg, bind_to]
     if not args.no_python:
         cmd.append(sys.executable)
         if args.module:
@@ -129,8 +106,6 @@ def prepare_simple_launcher_cmd_env(args: argparse.Namespace) -> Tuple[List[str]
             current_env["ZE_AFFINITY_MASK"] = args.gpu_ids
         elif is_mlu_available():
             current_env["MLU_VISIBLE_DEVICES"] = args.gpu_ids
-        elif is_musa_available():
-            current_env["MUSA_VISIBLE_DEVICES"] = args.gpu_ids
         elif is_npu_available():
             current_env["ASCEND_RT_VISIBLE_DEVICES"] = args.gpu_ids
         else:
@@ -140,7 +115,7 @@ def prepare_simple_launcher_cmd_env(args: argparse.Namespace) -> Tuple[List[str]
         current_env["MASTER_PORT"] = str(args.main_process_port)
 
         if args.mpirun_hostfile is not None:
-            current_env["CCL_WORKER_COUNT"] = str(mpirun_ccl)
+            current_env["CCL_WORKER_COUNT"] = mpirun_ccl
     elif args.num_processes > 1:
         current_env["MASTER_ADDR"] = args.main_process_ip if args.main_process_ip is not None else "127.0.0.1"
         current_env["MASTER_PORT"] = str(args.main_process_port) if args.main_process_port is not None else "29500"
@@ -153,12 +128,6 @@ def prepare_simple_launcher_cmd_env(args: argparse.Namespace) -> Tuple[List[str]
         )
 
     current_env["ACCELERATE_MIXED_PRECISION"] = str(mixed_precision)
-    if args.mixed_precision.lower() == "fp8":
-        if not is_fp8_available():
-            raise RuntimeError(
-                "FP8 is not available on this machine. Please ensure that either Transformer Engine or MSAMP is installed."
-            )
-        current_env = setup_fp8_env(args, current_env)
 
     try:
         dynamo_backend = DynamoBackend(args.dynamo_backend.upper())
@@ -231,8 +200,6 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
             current_env["ZE_AFFINITY_MASK"] = gpu_ids
         elif is_mlu_available():
             current_env["MLU_VISIBLE_DEVICES"] = gpu_ids
-        elif is_musa_available():
-            current_env["MUSA_VISIBLE_DEVICES"] = gpu_ids
         elif is_npu_available():
             current_env["ASCEND_RT_VISIBLE_DEVICES"] = gpu_ids
         else:
@@ -244,12 +211,6 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
         raise ValueError(f"Unknown mixed_precision mode: {mixed_precision}. Choose between {PrecisionType.list()}.")
 
     current_env["ACCELERATE_MIXED_PRECISION"] = str(mixed_precision)
-    if args.mixed_precision.lower() == "fp8":
-        if not is_fp8_available():
-            raise RuntimeError(
-                "FP8 is not available on this machine. Please ensure that either Transformer Engine or MSAMP is installed."
-            )
-        current_env = setup_fp8_env(args, current_env)
 
     try:
         dynamo_backend = DynamoBackend(args.dynamo_backend.upper())
@@ -274,6 +235,13 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
             current_env["FSDP_AUTO_WRAP_POLICY"] = str(args.fsdp_auto_wrap_policy)
         if args.fsdp_transformer_layer_cls_to_wrap is not None:
             current_env["FSDP_TRANSFORMER_CLS_TO_WRAP"] = str(args.fsdp_transformer_layer_cls_to_wrap)
+        if args.fsdp_backward_prefetch_policy is not None:
+            warnings.warn(
+                "`fsdp_backward_prefetch_policy` is deprecated and will be removed in version 0.27.0 of 🤗 Accelerate. Use"
+                " `fsdp_backward_prefetch` instead",
+                FutureWarning,
+            )
+            args.fsdp_backward_prefetch = args.fsdp_backward_prefetch_policy
         if args.fsdp_backward_prefetch is not None:
             current_env["FSDP_BACKWARD_PREFETCH"] = str(args.fsdp_backward_prefetch)
         if args.fsdp_state_dict_type is not None:
@@ -282,7 +250,6 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
         current_env["FSDP_USE_ORIG_PARAMS"] = str(args.fsdp_use_orig_params).lower()
         current_env["FSDP_CPU_RAM_EFFICIENT_LOADING"] = str(args.fsdp_cpu_ram_efficient_loading).lower()
         current_env["FSDP_SYNC_MODULE_STATES"] = str(args.fsdp_sync_module_states).lower()
-        current_env["FSDP_ACTIVATION_CHECKPOINTING"] = str(args.fsdp_activation_checkpointing).lower()
 
     if args.use_megatron_lm:
         prefix = "MEGATRON_LM_"
@@ -393,8 +360,6 @@ def prepare_deepspeed_cmd_env(args: argparse.Namespace) -> Tuple[List[str], Dict
             current_env["ZE_AFFINITY_MASK"] = gpu_ids
         elif is_mlu_available():
             current_env["MLU_VISIBLE_DEVICES"] = gpu_ids
-        elif is_musa_available():
-            current_env["MUSA_VISIBLE_DEVICES"] = gpu_ids
         elif is_npu_available():
             current_env["ASCEND_RT_VISIBLE_DEVICES"] = gpu_ids
         else:
@@ -408,12 +373,6 @@ def prepare_deepspeed_cmd_env(args: argparse.Namespace) -> Tuple[List[str], Dict
 
     current_env["PYTHONPATH"] = env_var_path_add("PYTHONPATH", os.path.abspath("."))
     current_env["ACCELERATE_MIXED_PRECISION"] = str(mixed_precision)
-    if args.mixed_precision.lower() == "fp8":
-        if not is_fp8_available():
-            raise RuntimeError(
-                "FP8 is not available on this machine. Please ensure that either Transformer Engine or MSAMP is installed."
-            )
-        current_env = setup_fp8_env(args, current_env)
     current_env["ACCELERATE_CONFIG_DS_FIELDS"] = str(args.deepspeed_fields_from_accelerate_config).lower()
     current_env["ACCELERATE_USE_DEEPSPEED"] = "true"
     if args.zero_stage is not None:
@@ -434,8 +393,6 @@ def prepare_deepspeed_cmd_env(args: argparse.Namespace) -> Tuple[List[str], Dict
         current_env["ACCELERATE_DEEPSPEED_CONFIG_FILE"] = str(args.deepspeed_config_file)
     if args.enable_cpu_affinity:
         current_env["ACCELERATE_CPU_AFFINITY"] = "1"
-    if args.deepspeed_moe_layer_cls_names is not None:
-        current_env["ACCELERATE_DEEPSPEED_MOE_LAYER_CLS_NAMES"] = str(args.deepspeed_moe_layer_cls_names)
     return cmd, current_env
 
 
@@ -552,12 +509,6 @@ def prepare_sagemager_args_inputs(
         "ACCELERATE_DYNAMO_USE_DYNAMIC": str(args.dynamo_use_dynamic),
         "ACCELERATE_SAGEMAKER_DISTRIBUTED_TYPE": sagemaker_config.distributed_type.value,
     }
-    if args.mixed_precision.lower() == "fp8":
-        if not is_fp8_available():
-            raise RuntimeError(
-                "FP8 is not available on this machine. Please ensure that either Transformer Engine or MSAMP is installed."
-            )
-        environment = setup_fp8_env(args, environment)
     # configure distribution set up
     distribution = None
     if sagemaker_config.distributed_type == SageMakerDistributedType.DATA_PARALLEL:
@@ -659,7 +610,6 @@ class PrepareForLaunch:
         elif self.distributed_type in (
             DistributedType.MULTI_GPU,
             DistributedType.MULTI_MLU,
-            DistributedType.MULTI_MUSA,
             DistributedType.MULTI_NPU,
             DistributedType.MULTI_XPU,
             DistributedType.MULTI_CPU,

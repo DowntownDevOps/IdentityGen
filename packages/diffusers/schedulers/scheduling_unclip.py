@@ -320,10 +320,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
         pred_prev_sample = pred_prev_sample + variance
 
         if not return_dict:
-            return (
-                pred_prev_sample,
-                pred_original_sample,
-            )
+            return (pred_prev_sample,)
 
         return UnCLIPSchedulerOutput(prev_sample=pred_prev_sample, pred_original_sample=pred_original_sample)
 

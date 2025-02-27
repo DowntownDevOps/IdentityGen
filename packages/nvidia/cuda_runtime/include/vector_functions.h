@@ -50,10 +50,6 @@
 #if !defined(__VECTOR_FUNCTIONS_H__)
 #define __VECTOR_FUNCTIONS_H__
 
-/* NOTE: For NVRTC, these declarations have been moved into the compiler 
-   (to reduce compile time) */
-#define EXCLUDE_FROM_RTC
-
 /*******************************************************************************
 *                                                                              *
 *                                                                              *
@@ -175,7 +171,5 @@ __VECTOR_FUNCTIONS_DECL__ double4 make_double4(double x, double y, double z, dou
 #if !defined(__CUDACC_RTC__)
 #include "vector_functions.hpp"
 #endif /* !__CUDACC_RTC__ */
-
-#undef EXCLUDE_FROM_RTC
 
 #endif /* !__VECTOR_FUNCTIONS_H__ */

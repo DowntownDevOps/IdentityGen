@@ -1,4 +1,6 @@
-"""Maximum weight clique test suite."""
+"""Maximum weight clique test suite.
+
+"""
 
 import pytest
 

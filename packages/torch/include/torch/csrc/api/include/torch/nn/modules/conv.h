@@ -17,7 +17,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace torch::nn {
+namespace torch {
+namespace nn {
 
 /// Base class for all (dimension-specialized) convolution modules.
 template <size_t D, typename Derived>
@@ -349,7 +350,7 @@ class TORCH_API ConvTranspose1dImpl
   explicit ConvTranspose1dImpl(ConvTranspose1dOptions options_);
   Tensor forward(
       const Tensor& input,
-      const std::optional<at::IntArrayRef>& output_size = std::nullopt);
+      const std::optional<at::IntArrayRef>& output_size = c10::nullopt);
 
  protected:
   FORWARD_HAS_DEFAULT_ARGS({1, AnyValue(std::optional<at::IntArrayRef>())})
@@ -391,7 +392,7 @@ class TORCH_API ConvTranspose2dImpl
   explicit ConvTranspose2dImpl(ConvTranspose2dOptions options_);
   Tensor forward(
       const Tensor& input,
-      const std::optional<at::IntArrayRef>& output_size = std::nullopt);
+      const std::optional<at::IntArrayRef>& output_size = c10::nullopt);
 
  protected:
   FORWARD_HAS_DEFAULT_ARGS({1, AnyValue(std::optional<at::IntArrayRef>())})
@@ -433,7 +434,7 @@ class TORCH_API ConvTranspose3dImpl
   explicit ConvTranspose3dImpl(ConvTranspose3dOptions options_);
   Tensor forward(
       const Tensor& input,
-      const std::optional<at::IntArrayRef>& output_size = std::nullopt);
+      const std::optional<at::IntArrayRef>& output_size = c10::nullopt);
 
  protected:
   FORWARD_HAS_DEFAULT_ARGS({1, AnyValue(std::optional<at::IntArrayRef>())})
@@ -446,4 +447,5 @@ class TORCH_API ConvTranspose3dImpl
 /// `ModuleHolder` to learn about PyTorch's module storage semantics.
 TORCH_MODULE(ConvTranspose3d);
 
-} // namespace torch::nn
+} // namespace nn
+} // namespace torch

@@ -1,7 +1,6 @@
 """
 Laplacian centrality measures.
 """
-
 import networkx as nx
 
 __all__ = ["laplacian_centrality"]

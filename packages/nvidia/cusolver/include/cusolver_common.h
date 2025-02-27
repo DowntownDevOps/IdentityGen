@@ -69,11 +69,16 @@ typedef __int64 int64_t;
 typedef int cusolver_int_t;
 
   #define CUSOLVER_VER_MAJOR 11
-  #define CUSOLVER_VER_MINOR 6
-  #define CUSOLVER_VER_PATCH 1
-  #define CUSOLVER_VER_BUILD 9
+  #define CUSOLVER_VER_MINOR 4
+  #define CUSOLVER_VER_PATCH 5
+  #define CUSOLVER_VER_BUILD 107
   #define CUSOLVER_VERSION                                                     \
     (CUSOLVER_VER_MAJOR * 1000 + CUSOLVER_VER_MINOR * 100 + CUSOLVER_VER_PATCH)
+
+  /*
+   * disable this macro to proceed old API
+   */
+  #define DISABLE_CUSOLVER_DEPRECATED
 
 //------------------------------------------------------------------------------
 

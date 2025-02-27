@@ -8,7 +8,7 @@ structure, dynamics, and functions of complex networks.
 See https://networkx.org for complete documentation.
 """
 
-__version__ = "3.4.2"
+__version__ = "3.3"
 
 
 # These are imported in order as listed
@@ -17,11 +17,7 @@ from networkx.lazy_imports import _lazy_import
 from networkx.exception import *
 
 from networkx import utils
-from networkx.utils import _clear_cache, _dispatchable
-
-# load_and_call entry_points, set configs
-config = utils.backends._set_configs_from_environment()
-utils.config = utils.configs.config = config  # type: ignore[attr-defined]
+from networkx.utils import _clear_cache, _dispatchable, config
 
 from networkx import classes
 from networkx.classes import filters

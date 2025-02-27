@@ -1,5 +1,6 @@
 """Generates graphs with a given eigenvector structure"""
 
+
 import networkx as nx
 from networkx.utils import np_random_state
 

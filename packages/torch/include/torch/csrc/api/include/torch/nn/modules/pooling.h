@@ -8,7 +8,8 @@
 
 #include <torch/csrc/Export.h>
 
-namespace torch::nn {
+namespace torch {
+namespace nn {
 
 /// Base class for all (dimension-specialized) avgpool modules.
 template <size_t D, typename Derived>
@@ -227,7 +228,7 @@ class TORCH_API AdaptiveMaxPoolImpl : public torch::nn::Cloneable<Derived> {
       const AdaptiveMaxPoolOptions<output_size_t>& options_)
       : options(options_) {}
 
-  void reset() override {}
+  void reset() override{};
 
   /// Pretty prints the `AdaptiveMaxPool{1,2,3}d` module into the given
   /// `stream`.
@@ -506,7 +507,7 @@ class TORCH_API MaxUnpool1dImpl : public MaxUnpoolImpl<1, MaxUnpool1dImpl> {
   Tensor forward(
       const Tensor& input,
       const Tensor& indices,
-      const std::optional<std::vector<int64_t>>& output_size = std::nullopt);
+      const std::optional<std::vector<int64_t>>& output_size = c10::nullopt);
 
  protected:
   FORWARD_HAS_DEFAULT_ARGS({2, AnyValue(std::optional<std::vector<int64_t>>())})
@@ -538,7 +539,7 @@ class TORCH_API MaxUnpool2dImpl : public MaxUnpoolImpl<2, MaxUnpool2dImpl> {
   Tensor forward(
       const Tensor& input,
       const Tensor& indices,
-      const std::optional<std::vector<int64_t>>& output_size = std::nullopt);
+      const std::optional<std::vector<int64_t>>& output_size = c10::nullopt);
 
  protected:
   FORWARD_HAS_DEFAULT_ARGS({2, AnyValue(std::optional<std::vector<int64_t>>())})
@@ -570,7 +571,7 @@ class TORCH_API MaxUnpool3dImpl : public MaxUnpoolImpl<3, MaxUnpool3dImpl> {
   Tensor forward(
       const Tensor& input,
       const Tensor& indices,
-      const std::optional<std::vector<int64_t>>& output_size = std::nullopt);
+      const std::optional<std::vector<int64_t>>& output_size = c10::nullopt);
 
  protected:
   FORWARD_HAS_DEFAULT_ARGS({2, AnyValue(std::optional<std::vector<int64_t>>())})
@@ -774,4 +775,5 @@ class TORCH_API LPPool3dImpl : public LPPoolImpl<3, LPPool3dImpl> {
 /// learn about PyTorch's module storage semantics.
 TORCH_MODULE(LPPool3d);
 
-} // namespace torch::nn
+} // namespace nn
+} // namespace torch

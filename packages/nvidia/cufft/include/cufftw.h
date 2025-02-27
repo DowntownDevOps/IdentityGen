@@ -63,19 +63,21 @@
 extern "C" {
 #endif
 
-// Transform direction
+// transform direction
 #define FFTW_FORWARD -1
 #define FFTW_INVERSE  1
 #define FFTW_BACKWARD 1
 
 // Planner flags
+
 #define FFTW_ESTIMATE           0x01
 #define FFTW_MEASURE            0x02
 #define FFTW_PATIENT            0x03
 #define FFTW_EXHAUSTIVE         0x04
 #define FFTW_WISDOM_ONLY        0x05
 
-// Algorithm restriction flags
+//Algorithm restriction flags
+
 #define FFTW_DESTROY_INPUT      0x08
 #define FFTW_PRESERVE_INPUT     0x0C
 #define FFTW_UNALIGNED          0x10
@@ -96,22 +98,24 @@ typedef void *fftw_plan;
 typedef void *fftwf_plan;
 
 typedef struct {
-  int n;
-  int is;
-  int os;
+    int n;
+    int is;
+    int os;
 } fftw_iodim;
 
 typedef fftw_iodim fftwf_iodim;
-
+    
 typedef struct {
-  ptrdiff_t n;
-  ptrdiff_t is;
-  ptrdiff_t os;
+    ptrdiff_t n;
+    ptrdiff_t is;
+    ptrdiff_t os;
 } fftw_iodim64;
 
 typedef fftw_iodim64 fftwf_iodim64;
+    
 
 // CUFFTW defines and supports the following double precision APIs
+
 
 fftw_plan CUFFTAPI fftw_plan_dft_1d(int n, 
                                     fftw_complex *in,
@@ -232,21 +236,6 @@ fftw_plan CUFFTAPI fftw_plan_guru_dft_c2r(int rank, const fftw_iodim *dims,
                                           fftw_complex *in, double *out, 
                                           unsigned flags);
 
-fftw_plan CUFFTAPI fftw_plan_guru64_dft(int rank, const fftw_iodim64* dims,
-                                        int batch_rank, const fftw_iodim64* batch_dims,
-                                        fftw_complex* in, fftw_complex* out,
-                                        int sign, unsigned flags);
-
-fftw_plan CUFFTAPI fftw_plan_guru64_dft_r2c(int rank, const fftw_iodim64* dims,
-                                            int batch_rank, const fftw_iodim64* batch_dims,
-                                            double* in, fftw_complex* out,
-                                            unsigned flags);
-
-fftw_plan CUFFTAPI fftw_plan_guru64_dft_c2r(int rank, const fftw_iodim64* dims,
-                                            int batch_rank, const fftw_iodim64* batch_dims,
-                                            fftw_complex* in, double* out,
-                                            unsigned flags);
-
 void CUFFTAPI fftw_execute(const fftw_plan plan);
 
 void CUFFTAPI fftw_execute_dft(const fftw_plan plan, 
@@ -260,7 +249,8 @@ void CUFFTAPI fftw_execute_dft_r2c(const fftw_plan plan,
 void CUFFTAPI fftw_execute_dft_c2r(const fftw_plan plan, 
                                    fftw_complex *idata,
                                    double *odata);
-
+                                   
+                                   
 // CUFFTW defines and supports the following single precision APIs
 
 fftwf_plan CUFFTAPI fftwf_plan_dft_1d(int n, 
@@ -381,21 +371,6 @@ fftwf_plan CUFFTAPI fftwf_plan_guru_dft_c2r(int rank, const fftwf_iodim *dims,
                                             fftwf_complex *in, float *out, 
                                             unsigned flags);
 
-fftwf_plan CUFFTAPI fftwf_plan_guru64_dft(int rank, const fftwf_iodim64* dims,
-                                          int batch_rank, const fftwf_iodim64* batch_dims,
-                                          fftwf_complex* in, fftwf_complex* out,
-                                          int sign, unsigned flags);
-
-fftwf_plan CUFFTAPI fftwf_plan_guru64_dft_r2c(int rank, const fftwf_iodim64* dims,
-                                              int batch_rank, const fftwf_iodim64* batch_dims,
-                                              float* in, fftwf_complex* out,
-                                              unsigned flags);
-
-fftwf_plan CUFFTAPI fftwf_plan_guru64_dft_c2r(int rank, const fftwf_iodim64* dims,
-                                              int batch_rank, const fftwf_iodim64* batch_dims,
-                                              fftwf_complex* in, float* out,
-                                              unsigned flags);
-
 void CUFFTAPI fftwf_execute(const fftw_plan plan);
 
 void CUFFTAPI fftwf_execute_dft(const fftwf_plan plan, 
@@ -410,6 +385,21 @@ void CUFFTAPI fftwf_execute_dft_c2r(const fftwf_plan plan,
                                     fftwf_complex *idata,
                                     float *odata);
 
+/// CUFFTW 64-bit Guru Interface
+/// dp
+fftw_plan CUFFTAPI fftw_plan_guru64_dft(int rank, const fftw_iodim64* dims, int batch_rank, const fftw_iodim64* batch_dims, fftw_complex* in, fftw_complex* out, int sign, unsigned flags);
+
+fftw_plan CUFFTAPI fftw_plan_guru64_dft_r2c(int rank, const fftw_iodim64* dims, int batch_rank, const fftw_iodim64* batch_dims, double* in, fftw_complex* out, unsigned flags);
+
+fftw_plan CUFFTAPI fftw_plan_guru64_dft_c2r(int rank, const fftw_iodim64* dims, int batch_rank, const fftw_iodim64* batch_dims, fftw_complex* in, double* out, unsigned flags);
+
+/// sp
+fftwf_plan CUFFTAPI fftwf_plan_guru64_dft(int rank, const fftwf_iodim64* dims, int batch_rank, const fftwf_iodim64* batch_dims, fftwf_complex* in, fftwf_complex* out, int sign, unsigned flags);
+
+fftwf_plan CUFFTAPI fftwf_plan_guru64_dft_r2c(int rank, const fftwf_iodim64* dims, int batch_rank, const fftwf_iodim64* batch_dims, float* in, fftwf_complex* out, unsigned flags);
+
+fftwf_plan CUFFTAPI fftwf_plan_guru64_dft_c2r(int rank, const fftwf_iodim64* dims, int batch_rank, const fftwf_iodim64* batch_dims, fftwf_complex* in, float* out, unsigned flags);
+
 #ifdef _WIN32
 #define _CUFFTAPI(T) T CUFFTAPI
 #else
@@ -417,7 +407,6 @@ void CUFFTAPI fftwf_execute_dft_c2r(const fftwf_plan plan,
 #endif
 
 // CUFFTW defines and supports the following support APIs
-
 _CUFFTAPI(void *) fftw_malloc(size_t n);
 
 _CUFFTAPI(void *) fftwf_malloc(size_t n);
@@ -426,15 +415,15 @@ void CUFFTAPI fftw_free(void *pointer);
 
 void CUFFTAPI fftwf_free(void *pointer);
 
-void CUFFTAPI fftw_export_wisdom_to_file(FILE * output_file);
+void CUFFTAPI fftw_export_wisdom_to_file(FILE * output_file); 
 
-void CUFFTAPI fftwf_export_wisdom_to_file(FILE * output_file);
+void CUFFTAPI fftwf_export_wisdom_to_file(FILE * output_file); 
 
-int CUFFTAPI fftw_import_wisdom_from_file(FILE * input_file);
+void CUFFTAPI fftw_import_wisdom_from_file(FILE * input_file); 
 
-int CUFFTAPI fftwf_import_wisdom_from_file(FILE * input_file);
+void CUFFTAPI fftwf_import_wisdom_from_file(FILE * input_file); 
 
-void CUFFTAPI fftw_print_plan(const fftw_plan plan);                                
+void CUFFTAPI fftw_print_plan(const fftw_plan plan);                                 
 
 void CUFFTAPI fftwf_print_plan(const fftwf_plan plan);
 

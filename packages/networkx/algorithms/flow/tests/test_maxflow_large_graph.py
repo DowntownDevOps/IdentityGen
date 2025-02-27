@@ -1,4 +1,5 @@
-"""Maximum flow algorithms test suite on large graphs."""
+"""Maximum flow algorithms test suite on large graphs.
+"""
 
 import bz2
 import importlib.resources

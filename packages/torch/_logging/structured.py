@@ -3,15 +3,12 @@ Utilities for converting data types into structured JSON for dumping.
 """
 
 import traceback
-from typing import Any, Dict, List, Sequence, Set
+from typing import Dict, Sequence
 
 import torch._logging._internal
 
 
 INTERN_TABLE: Dict[str, int] = {}
-
-
-DUMPED_FILES: Set[str] = set()
 
 
 def intern_string(s: str) -> int:
@@ -25,32 +22,16 @@ def intern_string(s: str) -> int:
     return r
 
 
-def dump_file(filename: str) -> None:
-    if "eval_with_key" not in filename:
-        return
-    if filename in DUMPED_FILES:
-        return
-    DUMPED_FILES.add(filename)
-    from torch.fx.graph_module import _loader
-
-    torch._logging._internal.trace_structured(
-        "dump_file",
-        metadata_fn=lambda: {
-            "name": filename,
-        },
-        payload_fn=lambda: _loader.get_source(filename),
-    )
-
-
-def from_traceback(tb: Sequence[traceback.FrameSummary]) -> List[Dict[str, Any]]:
-    # dict naming convention here coincides with
-    # python/combined_traceback.cpp
-    r = [
-        {
-            "line": frame.lineno,
-            "name": frame.name,
-            "filename": intern_string(frame.filename),
-        }
-        for frame in tb
-    ]
+def from_traceback(tb: Sequence[traceback.FrameSummary]) -> object:
+    r = []
+    for frame in tb:
+        # dict naming convention here coincides with
+        # python/combined_traceback.cpp
+        r.append(
+            {
+                "line": frame.lineno,
+                "name": frame.name,
+                "filename": intern_string(frame.filename),
+            }
+        )
     return r

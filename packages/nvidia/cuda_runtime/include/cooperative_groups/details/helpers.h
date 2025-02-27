@@ -369,17 +369,10 @@ namespace details {
     };
 
     namespace grid {
-        _CG_STATIC_QUALIFIER unsigned int barrier_arrive(unsigned int *bar) {
-            return details::sync_grids_arrive(bar);
-        }
-
-        _CG_STATIC_QUALIFIER void barrier_wait(unsigned int token, unsigned int *bar) {
-            details::sync_grids_wait(token, bar);
-        }
-
         _CG_STATIC_QUALIFIER void sync(unsigned int *bar) {
-            unsigned int token = details::sync_grids_arrive(bar);
-            details::sync_grids_wait(token, bar);
+            unsigned int expected = gridDim.x * gridDim.y * gridDim.z;
+
+            details::sync_grids(expected, bar);
         }
 
         _CG_STATIC_QUALIFIER unsigned long long num_blocks()
@@ -412,18 +405,6 @@ namespace details {
         _CG_STATIC_QUALIFIER dim3 block_index()
         {
             return dim3(blockIdx.x, blockIdx.y, blockIdx.z);
-        }
-
-        _CG_STATIC_QUALIFIER dim3 dim_threads()
-        {
-            return dim3(gridDim.x * blockDim.x, gridDim.y * blockDim.y, gridDim.z * blockDim.z);
-        }
-
-        _CG_STATIC_QUALIFIER dim3 thread_index()
-        {
-            return dim3(blockIdx.x * blockDim.x + threadIdx.x,
-                        blockIdx.y * blockDim.y + threadIdx.y,
-                        blockIdx.z * blockDim.z + threadIdx.z);
         }
 
 #if defined(_CG_HAS_CLUSTER_GROUP)
@@ -463,71 +444,39 @@ namespace details {
     namespace multi_grid {
         _CG_STATIC_QUALIFIER unsigned long long get_intrinsic_handle()
         {
-#if defined(__CUDACC_RDC__) || defined(__CUDACC_EWP__)
-            //this function is defined in device runtime library
-            //which requires separate compilation mode (__CUDACC_RDC__)
-            //or extended whole program mode (__CUDACC_EWP__)
             return (cudaCGGetIntrinsicHandle(cudaCGScopeMultiGrid));
-#else   /* !(__CUDACC_RDC__ || __CUDACC_EWP__) */
-            return 0;
-#endif  /* __CUDACC_RDC__ || __CUDACC_EWP__ */
         }
 
         _CG_STATIC_QUALIFIER void sync(const unsigned long long handle)
         {
-#if defined(__CUDACC_RDC__) || defined(__CUDACC_EWP__)
-            //this function is defined in device runtime library
-            //which requires separate compilation mode (__CUDACC_RDC__)
-            //or extended whole program mode (__CUDACC_EWP__)
             cudaError_t err = cudaCGSynchronize(handle, 0);
-#endif  /* __CUDACC_RDC__ || __CUDACC_EWP__ */
         }
 
         _CG_STATIC_QUALIFIER unsigned int size(const unsigned long long handle)
         {
             unsigned int numThreads = 0;
-#if defined(__CUDACC_RDC__) || defined(__CUDACC_EWP__)
-            //this function is defined in device runtime library
-            //which requires separate compilation mode (__CUDACC_RDC__)
-            //or extended whole program mode (__CUDACC_EWP__)
             cudaCGGetSize(&numThreads, NULL, handle);
-#endif  /* __CUDACC_RDC__ || __CUDACC_EWP__ */
             return numThreads;
         }
 
         _CG_STATIC_QUALIFIER unsigned int thread_rank(const unsigned long long handle)
         {
             unsigned int threadRank = 0;
-#if defined(__CUDACC_RDC__) || defined(__CUDACC_EWP__)
-            //this function is defined in device runtime library
-            //which requires separate compilation mode (__CUDACC_RDC__)
-            //or extended whole program mode (__CUDACC_EWP__)
             cudaCGGetRank(&threadRank, NULL, handle);
-#endif  /* __CUDACC_RDC__ || __CUDACC_EWP__ */
             return threadRank;
         }
 
         _CG_STATIC_QUALIFIER unsigned int grid_rank(const unsigned long long handle)
         {
             unsigned int gridRank = 0;
-#if defined(__CUDACC_RDC__) || defined(__CUDACC_EWP__)
-            //this function is defined in device runtime library
-            //which requires separate compilation mode (__CUDACC_RDC__)
-            //or extended whole program mode (__CUDACC_EWP__)
             cudaCGGetRank(NULL, &gridRank, handle);
-#endif  /* __CUDACC_RDC__ || __CUDACC_EWP__ */
             return gridRank;
         }
 
         _CG_STATIC_QUALIFIER unsigned int num_grids(const unsigned long long handle)
         {
             unsigned int numGrids = 0;
-#if defined(__CUDACC_RDC__) || defined(__CUDACC_EWP__)
-            //this function is defined in device runtime library
-            //which requires separate compilation mode (__CUDACC_RDC__)
-            //or extended whole program mode (__CUDACC_EWP__)
             cudaCGGetSize(NULL, &numGrids, handle);
-#endif  /* __CUDACC_RDC__ || __CUDACC_EWP__ */
             return numGrids;
         }
 
@@ -601,14 +550,6 @@ namespace details {
         _CG_STATIC_QUALIFIER unsigned int block_rank()
         {
             return __clusterRelativeBlockRank();
-        }
-
-        _CG_STATIC_QUALIFIER dim3 thread_index()
-        {
-            const dim3 blockIndex = block_index();
-            return dim3(blockIndex.x * blockDim.x + threadIdx.x,
-                        blockIndex.y * blockDim.y + threadIdx.y,
-                        blockIndex.z * blockDim.z + threadIdx.z);
         }
 
         _CG_STATIC_QUALIFIER unsigned int thread_rank()

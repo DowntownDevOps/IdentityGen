@@ -1,4 +1,6 @@
-"""Functions for computing clustering of pairs"""
+"""Functions for computing clustering of pairs
+
+"""
 
 import itertools
 

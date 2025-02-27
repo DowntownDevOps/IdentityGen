@@ -74,7 +74,6 @@ _(aten, _conv_depthwise2d) \
 _(aten, _convert_indices_from_coo_to_csr) \
 _(aten, _convert_indices_from_csr_to_coo) \
 _(aten, _convert_weight_to_int4pack) \
-_(aten, _convert_weight_to_int4pack_for_cpu) \
 _(aten, _convolution) \
 _(aten, _convolution_double_backward) \
 _(aten, _convolution_mode) \
@@ -194,8 +193,6 @@ _(aten, _foreach_reciprocal) \
 _(aten, _foreach_reciprocal_) \
 _(aten, _foreach_round) \
 _(aten, _foreach_round_) \
-_(aten, _foreach_rsqrt) \
-_(aten, _foreach_rsqrt_) \
 _(aten, _foreach_sigmoid) \
 _(aten, _foreach_sigmoid_) \
 _(aten, _foreach_sign) \
@@ -288,11 +285,8 @@ _(aten, _neg_view_copy) \
 _(aten, _nested_compute_contiguous_strides_offsets) \
 _(aten, _nested_from_padded) \
 _(aten, _nested_from_padded_and_nested_example) \
-_(aten, _nested_from_padded_tensor) \
 _(aten, _nested_get_jagged_dummy) \
 _(aten, _nested_get_lengths) \
-_(aten, _nested_get_max_seqlen) \
-_(aten, _nested_get_min_seqlen) \
 _(aten, _nested_get_offsets) \
 _(aten, _nested_get_ragged_idx) \
 _(aten, _nested_get_values) \
@@ -335,11 +329,9 @@ _(aten, _reshape_from_tensor) \
 _(aten, _resize_output) \
 _(aten, _resize_output_) \
 _(aten, _rowwise_prune) \
-_(aten, _safe_softmax) \
 _(aten, _sample_dirichlet) \
 _(aten, _saturate_weight_to_fp16) \
 _(aten, _scaled_dot_product_attention_math) \
-_(aten, _scaled_dot_product_attention_math_for_mps) \
 _(aten, _scaled_dot_product_cudnn_attention) \
 _(aten, _scaled_dot_product_cudnn_attention_backward) \
 _(aten, _scaled_dot_product_efficient_attention) \
@@ -348,8 +340,6 @@ _(aten, _scaled_dot_product_flash_attention) \
 _(aten, _scaled_dot_product_flash_attention_backward) \
 _(aten, _scaled_dot_product_flash_attention_for_cpu) \
 _(aten, _scaled_dot_product_flash_attention_for_cpu_backward) \
-_(aten, _scaled_dot_product_fused_attention_overrideable) \
-_(aten, _scaled_dot_product_fused_attention_overrideable_backward) \
 _(aten, _scaled_mm) \
 _(aten, _segment_reduce_backward) \
 _(aten, _shape_as_tensor) \
@@ -396,7 +386,6 @@ _(aten, _sparse_sparse_matmul) \
 _(aten, _sparse_sum) \
 _(aten, _sparse_sum_backward) \
 _(aten, _spdiags) \
-_(aten, _spsolve) \
 _(aten, _stack) \
 _(aten, _standard_gamma) \
 _(aten, _standard_gamma_grad) \
@@ -439,8 +428,6 @@ _(aten, _unique2) \
 _(aten, _unpack_dual) \
 _(aten, _unsafe_index) \
 _(aten, _unsafe_index_put) \
-_(aten, _unsafe_masked_index) \
-_(aten, _unsafe_masked_index_put_accumulate) \
 _(aten, _unsafe_view) \
 _(aten, _upsample_bicubic2d_aa) \
 _(aten, _upsample_bicubic2d_aa_backward) \
@@ -465,14 +452,11 @@ _(aten, _values) \
 _(aten, _values_copy) \
 _(aten, _version) \
 _(aten, _weight_int4pack_mm) \
-_(aten, _weight_int4pack_mm_for_cpu) \
 _(aten, _weight_int8pack_mm) \
 _(aten, _weight_norm) \
 _(aten, _weight_norm_differentiable_backward) \
 _(aten, _weight_norm_interface) \
 _(aten, _weight_norm_interface_backward) \
-_(aten, _wrapped_linear_prepack) \
-_(aten, _wrapped_quantized_linear_prepacked) \
 _(aten, abs) \
 _(aten, abs_) \
 _(aten, absolute) \
@@ -1310,7 +1294,6 @@ _(aten, rrelu_) \
 _(aten, rrelu_with_noise) \
 _(aten, rrelu_with_noise_) \
 _(aten, rrelu_with_noise_backward) \
-_(aten, rrelu_with_noise_functional) \
 _(aten, rshift) \
 _(aten, rsqrt) \
 _(aten, rsqrt_) \
@@ -1768,7 +1751,6 @@ _(attr, element) \
 _(attr, elements) \
 _(attr, ellipsis_idx) \
 _(attr, embed_dim) \
-_(attr, enable_gqa) \
 _(attr, end) \
 _(attr, end_dim) \
 _(attr, eps) \
@@ -1789,7 +1771,6 @@ _(attr, ffn_bias_2) \
 _(attr, ffn_weight_1) \
 _(attr, ffn_weight_2) \
 _(attr, filename) \
-_(attr, fill) \
 _(attr, fill_value) \
 _(attr, flat) \
 _(attr, forward) \
@@ -1874,7 +1855,6 @@ _(attr, input_lengths) \
 _(attr, input_scale) \
 _(attr, input_size) \
 _(attr, input_sizes) \
-_(attr, input_zero_point) \
 _(attr, inputs) \
 _(attr, interpolation) \
 _(attr, interpolation_mode) \
@@ -1934,7 +1914,6 @@ _(attr, max_k) \
 _(attr, max_lengths) \
 _(attr, max_norm) \
 _(attr, max_q) \
-_(attr, max_seqlen) \
 _(attr, max_seqlen_k) \
 _(attr, max_seqlen_q) \
 _(attr, max_size) \
@@ -1949,7 +1928,6 @@ _(attr, memory_format) \
 _(attr, meta) \
 _(attr, min) \
 _(attr, min_indices) \
-_(attr, min_seqlen) \
 _(attr, min_val) \
 _(attr, minlength) \
 _(attr, mode) \
@@ -2011,7 +1989,7 @@ _(attr, out3) \
 _(attr, out4) \
 _(attr, out5) \
 _(attr, out6) \
-_(attr, out_channel) \
+_(attr, out_amax) \
 _(attr, out_dim) \
 _(attr, out_dtype) \
 _(attr, out_int32) \
@@ -2033,7 +2011,6 @@ _(attr, padded) \
 _(attr, padding) \
 _(attr, padding_idx) \
 _(attr, padding_mode) \
-_(attr, padding_side) \
 _(attr, padding_value) \
 _(attr, params) \
 _(attr, path) \
@@ -2163,8 +2140,6 @@ _(attr, spacing) \
 _(attr, sparse) \
 _(attr, sparse_dim) \
 _(attr, sparse_grad) \
-_(attr, split_k) \
-_(attr, split_k_one_kernel) \
 _(attr, split_size) \
 _(attr, split_sizes) \
 _(attr, src) \
@@ -2178,7 +2153,6 @@ _(attr, step) \
 _(attr, steps) \
 _(attr, storage_offset) \
 _(attr, stride) \
-_(attr, sum_S) \
 _(attr, sum_dy) \
 _(attr, sum_dy_xmu) \
 _(attr, sumdim) \

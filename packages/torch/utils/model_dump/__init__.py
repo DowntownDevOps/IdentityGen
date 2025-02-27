@@ -64,19 +64,21 @@ Possible improvements:
       (they probably don't work at all right now).
 """
 
-import argparse
-import io
-import json
+import sys
 import os
+import io
+import pathlib
+import re
+import argparse
+import zipfile
+import json
 import pickle
 import pprint
-import re
-import sys
 import urllib.parse
-import zipfile
-from pathlib import Path
-from typing import Dict
-import warnings
+
+from typing import (
+    Dict,
+)
 
 import torch.utils.show_pickle
 
@@ -131,12 +133,15 @@ def hierarchical_pickle(data):
             }
         if typename == "torch._utils._rebuild_tensor_v2":
             assert data.state is None
-            storage, offset, size, stride, requires_grad, *_ = data.args
+            if len(data.args) == 6:
+                storage, offset, size, stride, requires_grad, hooks = data.args
+            else:
+                storage, offset, size, stride, requires_grad, hooks, metadata = data.args
             storage_info = get_storage_info(storage)
             return {"__tensor_v2__": [storage_info, offset, size, stride, requires_grad]}
         if typename == "torch._utils._rebuild_qtensor":
             assert data.state is None
-            storage, offset, size, stride, quantizer, requires_grad, *_ = data.args
+            storage, offset, size, stride, quantizer, requires_grad, hooks = data.args
             storage_info = get_storage_info(storage)
             assert isinstance(quantizer, tuple)
             assert isinstance(quantizer[0], torch.utils.show_pickle.FakeClass)
@@ -196,7 +201,7 @@ def get_model_info(
         file_size = path_or_file.stat().st_size  # type: ignore[attr-defined]
     elif isinstance(path_or_file, str):
         default_title = path_or_file
-        file_size = Path(path_or_file).stat().st_size
+        file_size = pathlib.Path(path_or_file).stat().st_size
     else:
         default_title = "buffer"
         path_or_file.seek(0, io.SEEK_END)
@@ -390,7 +395,6 @@ def get_info_and_burn_skeleton(path_or_bytesio, **kwargs):
 
 
 def main(argv, *, stdout=None):
-    warnings.warn("torch.utils.model_dump is deprecated and will be removed in a future PyTorch release.")
     parser = argparse.ArgumentParser()
     parser.add_argument("--style", choices=["json", "html"])
     parser.add_argument("--title")

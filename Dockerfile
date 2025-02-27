@@ -1,26 +1,29 @@
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
-# Install Python and pip
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3.10 \
     python3-pip \
-    wget \
+    git \
+    ninja-build \
+    cmake \
+    libcudnn9-cuda-12 \
+    libcudnn9-dev-cuda-12 \
     && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /app
 
-# Copy source code
-COPY src/ ./src/
+# Set environment variables
+ENV PYTHONPATH=/app/src:/usr/local/lib/python3.10/site-packages:/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.10/site-packages
+ENV CUDA_VISIBLE_DEVICES=0
+ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
 
 # Create necessary directories
-RUN mkdir -p /app/models /app/storage
+RUN mkdir -p /app/src /app/models /app/storage
 
-# Set Python path to include packages and app
-ENV PYTHONPATH=/packages:/app:${PYTHONPATH}
+# Expose the port
+EXPOSE 8000
 
-# Add debug script
-RUN echo '#!/bin/bash\necho "PYTHONPATH: $PYTHONPATH"\necho "Contents of /app:"\nls -la /app\necho "Contents of /app/src:"\nls -la /app/src\npython3 -c "import sys; print(sys.path)"\nexec "$@"' > /entrypoint.sh \
-    && chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["python3", "-m", "src.main"] 
+# Run the application with uvicorn
+CMD ["python3", "-m", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

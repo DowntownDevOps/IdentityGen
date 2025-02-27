@@ -52,7 +52,6 @@
 #include <ATen/ops/_efficient_attention_forward_cuda_dispatch.h>
 #include <ATen/ops/_efficientzerotensor_cuda_dispatch.h>
 #include <ATen/ops/_embedding_bag_cuda_dispatch.h>
-#include <ATen/ops/_embedding_bag_backward_cuda_dispatch.h>
 #include <ATen/ops/_embedding_bag_dense_backward_cuda_dispatch.h>
 #include <ATen/ops/_embedding_bag_forward_only_cuda_dispatch.h>
 #include <ATen/ops/_embedding_bag_per_sample_weights_backward_cuda_dispatch.h>
@@ -102,7 +101,6 @@
 #include <ATen/ops/_foreach_pow_cuda_dispatch.h>
 #include <ATen/ops/_foreach_reciprocal_cuda_dispatch.h>
 #include <ATen/ops/_foreach_round_cuda_dispatch.h>
-#include <ATen/ops/_foreach_rsqrt_cuda_dispatch.h>
 #include <ATen/ops/_foreach_sigmoid_cuda_dispatch.h>
 #include <ATen/ops/_foreach_sign_cuda_dispatch.h>
 #include <ATen/ops/_foreach_sin_cuda_dispatch.h>
@@ -148,6 +146,7 @@
 #include <ATen/ops/_padded_dense_to_jagged_forward_cuda_dispatch.h>
 #include <ATen/ops/_pdist_backward_cuda_dispatch.h>
 #include <ATen/ops/_pdist_forward_cuda_dispatch.h>
+#include <ATen/ops/_pin_memory_cuda_dispatch.h>
 #include <ATen/ops/_prelu_kernel_cuda_dispatch.h>
 #include <ATen/ops/_prelu_kernel_backward_cuda_dispatch.h>
 #include <ATen/ops/_reshape_alias_cuda_dispatch.h>
@@ -229,6 +228,7 @@
 #include <ATen/ops/arange_cuda_dispatch.h>
 #include <ATen/ops/argmax_cuda_dispatch.h>
 #include <ATen/ops/argmin_cuda_dispatch.h>
+#include <ATen/ops/argsort_cuda_dispatch.h>
 #include <ATen/ops/as_strided_cuda_dispatch.h>
 #include <ATen/ops/asin_cuda_dispatch.h>
 #include <ATen/ops/asinh_cuda_dispatch.h>
@@ -365,6 +365,7 @@
 #include <ATen/ops/index_fill_cuda_dispatch.h>
 #include <ATen/ops/index_reduce_cuda_dispatch.h>
 #include <ATen/ops/index_select_cuda_dispatch.h>
+#include <ATen/ops/is_pinned_cuda_dispatch.h>
 #include <ATen/ops/is_set_to_cuda_dispatch.h>
 #include <ATen/ops/isin_cuda_dispatch.h>
 #include <ATen/ops/isnan_cuda_dispatch.h>
@@ -469,7 +470,6 @@
 #include <ATen/ops/nll_loss_backward_cuda_dispatch.h>
 #include <ATen/ops/nll_loss_forward_cuda_dispatch.h>
 #include <ATen/ops/nonzero_cuda_dispatch.h>
-#include <ATen/ops/nonzero_static_cuda_dispatch.h>
 #include <ATen/ops/norm_cuda_dispatch.h>
 #include <ATen/ops/normal_cuda_dispatch.h>
 #include <ATen/ops/ormqr_cuda_dispatch.h>

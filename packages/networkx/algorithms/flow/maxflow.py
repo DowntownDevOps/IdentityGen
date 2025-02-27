@@ -1,7 +1,6 @@
 """
 Maximum flow (and minimum cut) algorithms on capacitated graphs.
 """
-
 import networkx as nx
 
 from .boykovkolmogorov import boykov_kolmogorov
@@ -141,9 +140,7 @@ def maximum_flow(flowG, _s, _t, capacity="capacity", flow_func=None, **kwargs):
     maximum flow by using the flow_func parameter.
 
     >>> from networkx.algorithms.flow import shortest_augmenting_path
-    >>> flow_value == nx.maximum_flow(G, "x", "y", flow_func=shortest_augmenting_path)[
-    ...     0
-    ... ]
+    >>> flow_value == nx.maximum_flow(G, "x", "y", flow_func=shortest_augmenting_path)[0]
     True
 
     """
@@ -282,9 +279,7 @@ def maximum_flow_value(flowG, _s, _t, capacity="capacity", flow_func=None, **kwa
     maximum flow by using the flow_func parameter.
 
     >>> from networkx.algorithms.flow import shortest_augmenting_path
-    >>> flow_value == nx.maximum_flow_value(
-    ...     G, "x", "y", flow_func=shortest_augmenting_path
-    ... )
+    >>> flow_value == nx.maximum_flow_value(G, "x", "y", flow_func=shortest_augmenting_path)
     True
 
     """
@@ -463,7 +458,8 @@ def minimum_cut(flowG, _s, _t, capacity="capacity", flow_func=None, **kwargs):
     partition = (set(flowG) - non_reachable, non_reachable)
     # Finally add again cutset edges to the residual network to make
     # sure that it is reusable.
-    R.add_edges_from(cutset)
+    if cutset is not None:
+        R.add_edges_from(cutset)
     return (R.graph["flow_value"], partition)
 
 
@@ -582,9 +578,7 @@ def minimum_cut_value(flowG, _s, _t, capacity="capacity", flow_func=None, **kwar
     minimum cut by using the flow_func parameter.
 
     >>> from networkx.algorithms.flow import shortest_augmenting_path
-    >>> cut_value == nx.minimum_cut_value(
-    ...     G, "x", "y", flow_func=shortest_augmenting_path
-    ... )
+    >>> cut_value == nx.minimum_cut_value(G, "x", "y", flow_func=shortest_augmenting_path)
     True
 
     """

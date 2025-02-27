@@ -81,7 +81,7 @@ class INaturalist(VisionDataset):
         if download:
             self.download()
 
-        if not self._check_exists():
+        if not self._check_integrity():
             raise RuntimeError("Dataset not found or corrupted. You can use download=True to download it")
 
         self.all_categories: List[str] = []
@@ -219,12 +219,15 @@ class INaturalist(VisionDataset):
                         return name
                 raise ValueError(f"Invalid category id {category_id} for {category_type}")
 
-    def _check_exists(self) -> bool:
+    def _check_integrity(self) -> bool:
         return os.path.exists(self.root) and len(os.listdir(self.root)) > 0
 
     def download(self) -> None:
-        if self._check_exists():
-            return
+        if self._check_integrity():
+            raise RuntimeError(
+                f"The directory {self.root} already exists. "
+                f"If you want to re-download or re-extract the images, delete the directory."
+            )
 
         base_root = os.path.dirname(self.root)
 
@@ -236,3 +239,4 @@ class INaturalist(VisionDataset):
         if not os.path.exists(orig_dir_name):
             raise RuntimeError(f"Unable to find downloaded files at {orig_dir_name}")
         os.rename(orig_dir_name, self.root)
+        print(f"Dataset version '{self.version}' has been downloaded and prepared for use")

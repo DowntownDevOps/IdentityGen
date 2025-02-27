@@ -24,7 +24,6 @@ from typing import (
 
 import torch.nn as nn
 
-
 __all__ = [
     "always_wrap_policy",
     "lambda_auto_wrap_policy",
@@ -486,7 +485,7 @@ def _wrap(module: nn.Module, wrapper_cls: Callable, **kwargs) -> nn.Module:
         # FSDP config with these attributes for this module. Currently this
         # is only used to disable mixed precision for BatchNorm when
         # auto_wrapping.
-        overrides = {**kwargs, **module._wrap_overrides}  # type: ignore[arg-type, dict-item]
+        overrides = {**kwargs, **module._wrap_overrides}  # type: ignore[arg-type]
         return wrapper_cls(module, **overrides)
 
     return wrapper_cls(module, **kwargs)

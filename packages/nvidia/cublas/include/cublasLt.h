@@ -121,7 +121,7 @@ typedef struct {
 /** Semi-opaque descriptor for cublasLtMatmul() operation details
  */
 typedef struct {
-  uint64_t data[32];
+  uint64_t data[23];
 } cublasLtMatmulDescOpaque_t;
 
 /** Opaque descriptor for cublasLtMatmul() operation details
@@ -894,30 +894,6 @@ typedef enum {
    * int32_t based on cudaDataType, default: -1
    */
   CUBLASLT_MATMUL_DESC_BIAS_DATA_TYPE = 26,
-
-  /** EXPERIMENTAL: Number of atomic synchronization chunks in the row dimension of the output matrix D.
-   *
-   * int32_t, default 0 (atomic synchronization disabled)
-   */
-  CUBLASLT_MATMUL_DESC_ATOMIC_SYNC_NUM_CHUNKS_D_ROWS = 27,
-
-  /** EXPERIMENTAL: Number of atomic synchronization chunks in the column dimension of the output matrix D.
-   *
-   * int32_t, default 0 (atomic synchronization disabled)
-   */
-  CUBLASLT_MATMUL_DESC_ATOMIC_SYNC_NUM_CHUNKS_D_COLS = 28,
-
-  /** EXPERIMENTAL: Pointer to a device array of input atomic counters consumed by a matmul.
-   *
-   * int32_t *, default: NULL
-   * */
-  CUBLASLT_MATMUL_DESC_ATOMIC_SYNC_IN_COUNTERS_POINTER = 29,
-
-  /** EXPERIMENTAL: Pointer to a device array of output atomic counters produced by a matmul.
-   *
-   * int32_t *, default: NULL
-   * */
-  CUBLASLT_MATMUL_DESC_ATOMIC_SYNC_OUT_COUNTERS_POINTER = 30,
 } cublasLtMatmulDescAttributes_t;
 
 /** Internal. Do not use directly.
@@ -1649,12 +1625,6 @@ typedef enum {
    * uint32_t
    */
   CUBLASLT_ALGO_CAP_MIN_ALIGNMENT_D_BYTES = 19,
-
-  /** EXPERIMENTAL: support for synchronization via atomic counters
-   *
-   * int32_t
-   */
-  CUBLASLT_ALGO_CAP_ATOMIC_SYNC = 20,
 } cublasLtMatmulAlgoCapAttributes_t;
 
 /** Get algo capability attribute.

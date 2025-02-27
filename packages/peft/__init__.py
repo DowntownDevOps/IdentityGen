@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.14.0"
+__version__ = "0.13.2"
 
 from .auto import (
     AutoPeftModel,
@@ -53,7 +53,6 @@ from .tuners import (
     LoraConfig,
     LoraRuntimeConfig,
     LoftQConfig,
-    EvaConfig,
     LoraModel,
     LoHaConfig,
     LoHaModel,
@@ -92,12 +91,6 @@ from .tuners import (
     HRAConfig,
     HRAModel,
     VBLoRAConfig,
-    get_eva_state_dict,
-    initialize_lora_eva_weights,
-    CPTEmbedding,
-    CPTConfig,
-    BoneConfig,
-    BoneModel,
 )
 from .utils import (
     TRANSFORMERS_MODELS_TO_PREFIX_TUNING_POSTPROCESS_MAPPING,

@@ -12,8 +12,6 @@
 #include <c10/util/TypeTraits.h>
 #include <torch/custom_class_detail.h>
 #include <torch/library.h>
-
-#include <functional>
 #include <sstream>
 
 namespace torch {
@@ -62,7 +60,7 @@ decltype(auto) init(Func&& f) {
 template <class CurClass>
 class class_ : public ::torch::detail::class_base {
   static_assert(
-      std::is_base_of_v<CustomClassHolder, CurClass>,
+      std::is_base_of<CustomClassHolder, CurClass>::value,
       "torch::class_<T> requires T to inherit from CustomClassHolder");
 
  public:
@@ -119,7 +117,7 @@ class class_ : public ::torch::detail::class_base {
                                    c10::tagged_capsule<CurClass> self,
                                    ParameterTypes... arg) {
       c10::intrusive_ptr<CurClass> classObj =
-          std::invoke(func, std::forward<ParameterTypes>(arg)...);
+          at::guts::invoke(func, std::forward<ParameterTypes>(arg)...);
       auto object = self.ivalue.toObject();
       object->setSlot(0, c10::IValue::make_capsule(classObj));
     };
@@ -306,7 +304,6 @@ class class_ : public ::torch::detail::class_base {
   ///               std::vector<std::string>{"i", "was", "deserialized"});
   ///         })
   template <typename GetStateFn, typename SetStateFn>
-  // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
   class_& def_pickle(GetStateFn&& get_state, SetStateFn&& set_state) {
     static_assert(
         c10::guts::is_stateless_lambda<std::decay_t<GetStateFn>>::value &&
@@ -325,9 +322,9 @@ class class_ : public ::torch::detail::class_base {
         typename SetStateTraits::parameter_types>;
     auto setstate_wrapper = [set_state = std::forward<SetStateFn>(set_state)](
                                 c10::tagged_capsule<CurClass> self,
-                                SetStateArg arg) {
+                                SetStateArg&& arg) {
       c10::intrusive_ptr<CurClass> classObj =
-          std::invoke(set_state, std::move(arg));
+          at::guts::invoke(set_state, std::forward<SetStateArg>(arg));
       auto object = self.ivalue.toObject();
       object->setSlot(0, c10::IValue::make_capsule(classObj));
     };
@@ -338,13 +335,11 @@ class class_ : public ::torch::detail::class_base {
 
     // type validation
     auto getstate_schema = classTypePtr->getMethod("__getstate__").getSchema();
-#ifndef STRIP_ERROR_MESSAGES
     auto format_getstate_schema = [&getstate_schema]() {
       std::stringstream ss;
       ss << getstate_schema;
       return ss.str();
     };
-#endif
     TORCH_CHECK(
         getstate_schema.arguments().size() == 1,
         "__getstate__ should take exactly one argument: self. Got: ",

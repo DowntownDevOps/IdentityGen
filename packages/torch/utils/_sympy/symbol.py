@@ -47,11 +47,8 @@ class SymT(Enum):
     # Inductor: iteration domain for blockIdx.x/blockIdx.y
     XBLOCK = auto()
     YBLOCK = auto()
-    ZBLOCK = auto()
     # Inductor: this is used solely for dynamic_reshape_indexer
     VIEW = auto()
-    # Alternate (non-modular) indexing used in halide kernels
-    HALIDE = auto()
 
 
 # Invariant: there must not be a prefix which is a prefix of another string,
@@ -71,10 +68,8 @@ prefix_str = {
     SymT.TEMPLATE_INDEX: "idx",
     SymT.XBLOCK: "x",
     SymT.YBLOCK: "y",
-    SymT.ZBLOCK: "z",
     SymT.INDIRECT: "indirect",  # false aliasing?
     SymT.VIEW: "view",
-    SymT.HALIDE: "h",
 }
 
 
@@ -87,11 +82,10 @@ def make_symbol(prefix: SymT, idx: int, **kwargs) -> sympy.Symbol:
 # that it contains Basic, rather than Symbol
 def symbol_is_type(sym: sympy.Basic, prefix: Union[SymT, Sequence[SymT]]) -> bool:
     assert isinstance(sym, sympy.Symbol)
-    name_str = sym.name.lower()  # Match capitalized names like XBLOCK, RBLOCK
     if isinstance(prefix, SymT):
-        return name_str.startswith(prefix_str[prefix])
+        return sym.name.startswith(prefix_str[prefix])
     else:
-        return name_str.startswith(tuple(prefix_str[p] for p in prefix))
+        return sym.name.startswith(tuple(prefix_str[p] for p in prefix))
 
 
 def free_symbol_is_type(e: sympy.Expr, prefix: SymT) -> bool:

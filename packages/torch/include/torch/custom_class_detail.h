@@ -6,8 +6,6 @@
 #include <c10/util/TypeTraits.h>
 #include <c10/util/irange.h>
 
-#include <functional>
-
 namespace torch {
 
 namespace detail {
@@ -49,7 +47,7 @@ struct arg {
 
   // Explicit constructor.
   explicit arg(std::string name)
-      : name_(std::move(name)), value_(std::nullopt) {}
+      : name_(std::move(name)), value_(c10::nullopt) {}
   // Assignment operator. This enables the pybind-like syntax of
   // torch::arg("name") = value.
   arg& operator=(const c10::IValue& rhs) {
@@ -82,7 +80,7 @@ struct WrapMethod<R (CurrClass::*)(Args...)> {
   WrapMethod(R (CurrClass::*m)(Args...)) : m(std::move(m)) {}
 
   R operator()(c10::intrusive_ptr<CurrClass> cur, Args... args) {
-    return std::invoke(m, *cur, args...);
+    return c10::guts::invoke(m, *cur, args...);
   }
 
   R (CurrClass::*m)(Args...);
@@ -93,7 +91,7 @@ struct WrapMethod<R (CurrClass::*)(Args...) const> {
   WrapMethod(R (CurrClass::*m)(Args...) const) : m(std::move(m)) {}
 
   R operator()(c10::intrusive_ptr<CurrClass> cur, Args... args) {
-    return std::invoke(m, *cur, args...);
+    return c10::guts::invoke(m, *cur, args...);
   }
 
   R (CurrClass::*m)(Args...) const;
@@ -104,7 +102,7 @@ template <
     typename CurClass,
     typename Func,
     std::enable_if_t<
-        std::is_member_function_pointer_v<std::decay_t<Func>>,
+        std::is_member_function_pointer<std::decay_t<Func>>::value,
         bool> = false>
 WrapMethod<Func> wrap_func(Func f) {
   return WrapMethod<Func>(std::move(f));
@@ -114,7 +112,7 @@ template <
     typename CurClass,
     typename Func,
     std::enable_if_t<
-        !std::is_member_function_pointer_v<std::decay_t<Func>>,
+        !std::is_member_function_pointer<std::decay_t<Func>>::value,
         bool> = false>
 Func wrap_func(Func f) {
   return f;
