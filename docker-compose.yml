@@ -1,0 +1,29 @@
+services:
+  character-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "2030:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+    restart: unless-stopped
+    networks:
+      - nca-network
+    command: serve
+
+volumes:
+  n8n-data:
+  minio-data:
+  mariadb-data:
+  ollama-data:
+
+networks:
+  nca-network:
+    name: nca-network-new
+    driver: bridge
