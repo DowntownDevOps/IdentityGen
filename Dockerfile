@@ -9,7 +9,25 @@ RUN apt-get update && apt-get install -y \
     cmake \
     libcudnn9-cuda-12 \
     libcudnn9-dev-cuda-12 \
+    ffmpeg \
+    imagemagick \
     && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip3 install --no-cache-dir --upgrade pip
+
+# Install moviepy first
+RUN pip3 install --no-cache-dir moviepy==1.0.3
+
+# Copy requirements file
+COPY requirements.txt /tmp/requirements.txt
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+# Verify pydantic installation
+RUN python3 -c "import pydantic; print(f'Pydantic version: {pydantic.__version__}')" && \
+    python3 -c "import pydantic_core; print(f'Pydantic-core version: {pydantic_core.__version__}')"
 
 # Set working directory
 WORKDIR /app

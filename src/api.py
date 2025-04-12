@@ -123,163 +123,148 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/characters/create_initial")
-async def create_initial_character(
-    form_data: Annotated[dict, Depends(get_form_data)]
-) -> Dict:
-    """Create a new character from either a description or existing image"""
+async def create_initial_character(request: CreateCharacterRequest) -> Dict:
+    """Create a new character from a description"""
     try:
         if model is None or character_manager is None:
             raise HTTPException(status_code=503, detail="Services not initialized")
 
-        # Validate inputs
-        if not form_data["prompt"]:
-            raise HTTPException(
-                status_code=422,
-                detail="A valid prompt string is required"
-            )
-            
-        if form_data["regenerate"] and not form_data["character_id"]:
-            raise HTTPException(
-                status_code=422,
-                detail="character_id is required when regenerate=True"
-            )
-
-        # Handle existing image if provided
-        image = None
-        if form_data["existing_image"]:
-            try:
-                contents = await form_data["existing_image"].read()
-                image = Image.open(io.BytesIO(contents))
-            except Exception as e:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Failed to process uploaded image: {str(e)}"
-                )
-            
-        if form_data["regenerate"]:
+        # Convert request to form_data format for reuse
+        form_data = {
+            "prompt": request.prompt,
+            "negative_prompt": request.negative_prompt,
+            "regenerate": request.regenerate,
+            "character_id": request.character_id,
+            "existing_image": None,  # JSON endpoint doesn't support file uploads
+            "width": request.width,
+            "height": request.height,
+            "use_default_prompt_enhancements": request.use_default_prompt_enhancements,
+            "custom_prompt_modifiers": request.custom_prompt_modifiers,
+            "use_default_negative_enhancements": request.use_default_negative_enhancements,
+            "custom_negative_modifiers": request.custom_negative_modifiers
+        }
+        
+        if request.regenerate:
             # Generate new version for existing character
             try:
                 # Get existing metadata to preserve dimensions if not specified
-                existing_metadata = character_manager.get_character_info(form_data["character_id"])
+                existing_metadata = character_manager.get_character_info(request.character_id)
                 
                 # Create generation config with custom dimensions if provided
                 # or use existing dimensions if available
                 gen_config = GenerationConfig(
-                    width=form_data.get("width", existing_metadata.get("width", 1024)),
-                    height=form_data.get("height", existing_metadata.get("height", 1024))
+                    width=request.width or existing_metadata.get("width", 1024),
+                    height=request.height or existing_metadata.get("height", 1024)
                 )
                 
                 # Add prompt enhancement options if provided
-                if form_data.get("use_default_prompt_enhancements") is not None:
-                    gen_config.use_default_prompt_enhancements = form_data["use_default_prompt_enhancements"]
+                if request.use_default_prompt_enhancements is not None:
+                    gen_config.use_default_prompt_enhancements = request.use_default_prompt_enhancements
                 
-                if form_data.get("custom_prompt_modifiers") is not None:
-                    gen_config.custom_prompt_modifiers = form_data["custom_prompt_modifiers"]
+                if request.custom_prompt_modifiers is not None:
+                    gen_config.custom_prompt_modifiers = request.custom_prompt_modifiers
                     
-                if form_data.get("use_default_negative_enhancements") is not None:
-                    gen_config.use_default_negative_enhancements = form_data["use_default_negative_enhancements"]
+                if request.use_default_negative_enhancements is not None:
+                    gen_config.use_default_negative_enhancements = request.use_default_negative_enhancements
                     
-                if form_data.get("custom_negative_modifiers") is not None:
-                    gen_config.custom_negative_modifiers = form_data["custom_negative_modifiers"]
+                if request.custom_negative_modifiers is not None:
+                    gen_config.custom_negative_modifiers = request.custom_negative_modifiers
                 
                 generated = model.generate_image(
-                    prompt=form_data["prompt"],
-                    negative_prompt=form_data.get("negative_prompt"),
+                    prompt=request.prompt,
+                    negative_prompt=request.negative_prompt,
                     gen_config=gen_config
                 )
-                metadata = character_manager.save_generated_base(form_data["character_id"], generated)
+                metadata = character_manager.save_generated_base(request.character_id, generated)
                 
                 # Store the dimensions and prompt enhancement settings in metadata
                 metadata["width"] = gen_config.width
                 metadata["height"] = gen_config.height
                 
                 # Store prompt enhancement settings if they were customized
-                if form_data.get("use_default_prompt_enhancements") is not None:
+                if request.use_default_prompt_enhancements is not None:
                     metadata["use_default_prompt_enhancements"] = gen_config.use_default_prompt_enhancements
                     
-                if form_data.get("custom_prompt_modifiers") is not None:
+                if request.custom_prompt_modifiers is not None:
                     metadata["custom_prompt_modifiers"] = gen_config.custom_prompt_modifiers
                     
-                if form_data.get("use_default_negative_enhancements") is not None:
+                if request.use_default_negative_enhancements is not None:
                     metadata["use_default_negative_enhancements"] = gen_config.use_default_negative_enhancements
                     
-                if form_data.get("custom_negative_modifiers") is not None:
+                if request.custom_negative_modifiers is not None:
                     metadata["custom_negative_modifiers"] = gen_config.custom_negative_modifiers
                     
                 character_manager._save_metadata(metadata["id"], metadata)
                 
+                # Automatically approve the base image
+                metadata = character_manager.approve_base_image(metadata["id"])
+                
                 return {
                     "status": "regenerated",
                     "character": metadata,
-                    "message": "New base image generated. Use /approve endpoint when satisfied."
+                    "message": "New base image generated and automatically approved."
                 }
             except ValueError as e:
                 raise HTTPException(status_code=404, detail=str(e))
         else:
             # Create new character
             try:
-                if image:
-                    # Use uploaded image
-                    metadata = character_manager.create_initial_character(form_data["prompt"], image)
-                    return {
-                        "status": "created",
-                        "character": metadata,
-                        "message": "Character created with uploaded image"
-                    }
-                else:
-                    # Generate initial image
-                    metadata = character_manager.create_initial_character(form_data["prompt"])
+                # Generate initial image
+                metadata = character_manager.create_initial_character(request.prompt)
+                
+                # Create generation config with custom dimensions if provided
+                gen_config = GenerationConfig(
+                    width=request.width or 1024,
+                    height=request.height or 1024
+                )
+                
+                # Add prompt enhancement options if provided
+                if request.use_default_prompt_enhancements is not None:
+                    gen_config.use_default_prompt_enhancements = request.use_default_prompt_enhancements
+                
+                if request.custom_prompt_modifiers is not None:
+                    gen_config.custom_prompt_modifiers = request.custom_prompt_modifiers
                     
-                    # Create generation config with custom dimensions if provided
-                    gen_config = GenerationConfig(
-                        width=form_data.get("width", 1024),
-                        height=form_data.get("height", 1024)
-                    )
+                if request.use_default_negative_enhancements is not None:
+                    gen_config.use_default_negative_enhancements = request.use_default_negative_enhancements
                     
-                    # Add prompt enhancement options if provided
-                    if form_data.get("use_default_prompt_enhancements") is not None:
-                        gen_config.use_default_prompt_enhancements = form_data["use_default_prompt_enhancements"]
+                if request.custom_negative_modifiers is not None:
+                    gen_config.custom_negative_modifiers = request.custom_negative_modifiers
                     
-                    if form_data.get("custom_prompt_modifiers") is not None:
-                        gen_config.custom_prompt_modifiers = form_data["custom_prompt_modifiers"]
-                        
-                    if form_data.get("use_default_negative_enhancements") is not None:
-                        gen_config.use_default_negative_enhancements = form_data["use_default_negative_enhancements"]
-                        
-                    if form_data.get("custom_negative_modifiers") is not None:
-                        gen_config.custom_negative_modifiers = form_data["custom_negative_modifiers"]
+                generated = model.generate_image(
+                    prompt=request.prompt,
+                    negative_prompt=request.negative_prompt,
+                    gen_config=gen_config
+                )
+                metadata = character_manager.save_generated_base(metadata["id"], generated)
+                
+                # Store the dimensions and prompt enhancement settings in metadata
+                metadata["width"] = gen_config.width
+                metadata["height"] = gen_config.height
+                
+                # Store prompt enhancement settings if they were customized
+                if request.use_default_prompt_enhancements is not None:
+                    metadata["use_default_prompt_enhancements"] = gen_config.use_default_prompt_enhancements
                     
-                    generated = model.generate_image(
-                        prompt=form_data["prompt"],
-                        negative_prompt=form_data.get("negative_prompt"),
-                        gen_config=gen_config
-                    )
-                    metadata = character_manager.save_generated_base(metadata["id"], generated)
+                if request.custom_prompt_modifiers is not None:
+                    metadata["custom_prompt_modifiers"] = gen_config.custom_prompt_modifiers
                     
-                    # Store the dimensions and prompt enhancement settings in metadata
-                    metadata["width"] = gen_config.width
-                    metadata["height"] = gen_config.height
+                if request.use_default_negative_enhancements is not None:
+                    metadata["use_default_negative_enhancements"] = gen_config.use_default_negative_enhancements
                     
-                    # Store prompt enhancement settings if they were customized
-                    if form_data.get("use_default_prompt_enhancements") is not None:
-                        metadata["use_default_prompt_enhancements"] = gen_config.use_default_prompt_enhancements
-                        
-                    if form_data.get("custom_prompt_modifiers") is not None:
-                        metadata["custom_prompt_modifiers"] = gen_config.custom_prompt_modifiers
-                        
-                    if form_data.get("use_default_negative_enhancements") is not None:
-                        metadata["use_default_negative_enhancements"] = gen_config.use_default_negative_enhancements
-                        
-                    if form_data.get("custom_negative_modifiers") is not None:
-                        metadata["custom_negative_modifiers"] = gen_config.custom_negative_modifiers
-                        
-                    character_manager._save_metadata(metadata["id"], metadata)
+                if request.custom_negative_modifiers is not None:
+                    metadata["custom_negative_modifiers"] = gen_config.custom_negative_modifiers
                     
-                    return {
-                        "status": "created",
-                        "character": metadata,
-                        "message": "Character created with generated image. Use /approve endpoint when satisfied."
-                    }
+                character_manager._save_metadata(metadata["id"], metadata)
+                
+                # Automatically approve the base image
+                metadata = character_manager.approve_base_image(metadata["id"])
+                
+                return {
+                    "status": "created",
+                    "character": metadata,
+                    "message": "Character created with generated image and automatically approved."
+                }
             except Exception as e:
                 raise HTTPException(
                     status_code=500,
@@ -294,27 +279,6 @@ async def create_initial_character(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
-
-@app.post("/characters/{character_id}/approve")
-async def approve_character_base(
-    character_id: str,
-    use_latest: bool = True
-) -> Dict:
-    """Approve the current base image for a character"""
-    try:
-        if character_manager is None:
-            raise HTTPException(status_code=503, detail="Services not initialized")
-            
-        metadata = character_manager.approve_base_image(character_id, use_latest)
-        return {
-            "status": "approved",
-            "character": metadata,
-            "message": "Base image approved. Ready for training data generation."
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in approve_character_base: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/characters/{character_id}")
 async def get_character_info(character_id: str) -> Dict:
@@ -807,10 +771,13 @@ async def create_character_json(request: CreateCharacterRequest) -> Dict:
                     
                 character_manager._save_metadata(metadata["id"], metadata)
                 
+                # Automatically approve the base image
+                metadata = character_manager.approve_base_image(metadata["id"])
+                
                 return {
                     "status": "regenerated",
                     "character": metadata,
-                    "message": "New base image generated. Use /approve endpoint when satisfied."
+                    "message": "New base image generated and automatically approved."
                 }
             except ValueError as e:
                 raise HTTPException(status_code=404, detail=str(e))
@@ -865,10 +832,13 @@ async def create_character_json(request: CreateCharacterRequest) -> Dict:
                     
                 character_manager._save_metadata(metadata["id"], metadata)
                 
+                # Automatically approve the base image
+                metadata = character_manager.approve_base_image(metadata["id"])
+                
                 return {
                     "status": "created",
                     "character": metadata,
-                    "message": "Character created with generated image. Use /approve endpoint when satisfied."
+                    "message": "Character created with generated image and automatically approved."
                 }
             except Exception as e:
                 raise HTTPException(

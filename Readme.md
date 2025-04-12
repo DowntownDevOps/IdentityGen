@@ -56,6 +56,21 @@ LORA_MODELS_PATH=/app/storage/lora_models
 OUTPUT_PATH=/app/storage/outputs
 ```
 
+## 🔌 Service Ports
+
+The following services are exposed on these ports:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Character Generator | 2035 | Main API for character generation |
+| n8n | 2678 | Workflow automation platform |
+| MinIO | 2000, 2001 | Object storage (API, Console) |
+| Kokoro TTS | 2880 | Text-to-speech service |
+| MariaDB | 2306 | Database service |
+| NCA Toolkit | 2080 | No-code toolkit interface |
+| Ollama | 2030 | LLM service |
+| Weaviate | 2500 | Vector database |
+
 ## 📚 API Usage
 
 ### Health Check

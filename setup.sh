@@ -24,6 +24,15 @@ if [ ! -f "models/checkpoints/sd_xl_base_1.0.safetensors" ]; then
     python3 scripts/download_models_prereq.py
 fi
 
+# Check if Llama 3 model exists in Ollama
+echo "🔍 Checking for Llama 3 model in Ollama..."
+if ! docker exec ollama ollama list | grep -q "llama3"; then
+    echo "📥 Pulling Llama 3 model for Ollama..."
+    docker exec ollama ollama pull llama3
+else
+    echo "✅ Llama 3 model already exists in Ollama."
+fi
+
 # Download packages if they don't exist
 if [ ! -d "packages/torch" ]; then
     echo "📥 Downloading required packages..."

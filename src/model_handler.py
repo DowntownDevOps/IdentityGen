@@ -269,14 +269,18 @@ class StableDiffusionHandler:
         else:
             # Use default modifiers
             modifiers = [
-                "single character only",
-                "full body from head to toe",
-                "full body, standing straight ahead",
-                "arms extended out to the sides in a Vitruvian pose",
-                "symmetrical, one set of arms and legs",
-                "pure white background",
-                "professional photography",
-                "photorealistic"
+                "person, human character",
+                "full body portrait",
+                "standing pose",
+                "natural pose",
+                "realistic human features",
+                "detailed facial features",
+                "natural skin texture",
+                "professional portrait photography",
+                "high quality",
+                "photorealistic",
+                "8k uhd",
+                "sharp focus"
             ]
             
         # Combine the main description with the modifiers
