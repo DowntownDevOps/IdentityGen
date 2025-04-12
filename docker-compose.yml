@@ -3,6 +3,149 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    runtime: nvidia
+    ports:
+      - "2035:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./storage/base_characters:/app/storage/base_characters
+      - ./storage/lora_models:/app/storage/lora_models  
+      - ./storage/outputs:/app/storage/outputs
+      - ./storage/db:/app/storage/db
+      - ./src:/app/src:ro
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - MODEL_PATH=${MODEL_PATH}
+      - DEVICE=${DEVICE}
+      - DTYPE=${DTYPE}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - WORKERS=${WORKERS}
+      - MODELS_DIR=/app/models
+      - BASE_CHARACTERS_PATH=/app/storage/base_characters
+      - LORA_MODELS_PATH=/app/storage/lora_models
+      - OUTPUT_PATH=/app/storage/outputs
+      - PYTHONPATH=/app/src:/usr/local/lib/python3.10/site-packages:/usr/local/lib/python3/dist-packages
+      - TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    ports:
+      - "2678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${N8N_HOST:-0.0.0.0}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_PORT=5678
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - DB_TYPE=sqlite
+      - DB_SQLITE_PATH=/home/node/.n8n/database.sqlite
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:2678
+      - GENERIC_TIMEZONE=UTC
+      - N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_METRICS_DISABLED=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_HIRING_BANNER_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
+      - N8N_USER_MANAGEMENT_DISABLED=true
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_CORS_ENABLE=true
+    networks:
+      - nca-network
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    ports:
+      - "2000:9000"
+      - "2001:9001"
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_BROWSER_REDIRECT_URL=http://localhost:2001
+    volumes:
+      - minio-data:/data:rw
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    networks:
+      - nca-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.2
+    container_name: kokoro-tts
+    ports:
+      - "2880:8880"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - nca-network
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    ports:
+      - "2306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ALLOW_EMPTY_PASSWORD=no
+      - MYSQL_AUTHENTICATION_PLUGIN=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - nca-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nca-toolkit:
+    image: stephengpope/no-code-architects-toolkit:latest
+    container_name: nca-toolkit
+    ports:
+      - "2080:8080"
+    environment:
+      - API_KEY=${API_KEY}
+      - S3_ENDPOINT_URL=http://localhost:2000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=nca-toolkit
+      - S3_REGION=None
+    depends_on:
+      - minio
+    restart: unless-stopped
+    networks:
+      - nca-network
+
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -16,6 +159,18 @@ services:
     networks:
       - nca-network
     command: serve
+
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    container_name: weaviate
+    ports:
+      - "2500:8080"
+    environment:
+      - QUERY_DEFAULTS=top_k=10
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+    networks:
+      - nca-network
+    restart: unless-stopped
 
 volumes:
   n8n-data:
