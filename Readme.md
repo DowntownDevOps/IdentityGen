@@ -32,29 +32,55 @@ This will:
 
 ### Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+The project uses environment variables for configuration. A `.env.example` file is provided as a template:
 
-```env
-# Model Configuration
-MODEL_PATH=stabilityai/stable-diffusion-xl-base-1.0
-DEVICE=cuda
-DTYPE=float16
-
-# API Configuration
-HOST=0.0.0.0
-PORT=8000
-WORKERS=1
-
-# Generation Defaults
-NUM_INFERENCE_STEPS=30
-GUIDANCE_SCALE=7.5
-STRENGTH=0.8
-
-# Storage Paths
-BASE_CHARACTERS_PATH=/app/storage/base_characters
-LORA_MODELS_PATH=/app/storage/lora_models
-OUTPUT_PATH=/app/storage/outputs
+1. Copy the example file to create your own `.env` file:
+```bash
+cp .env.example .env
 ```
+
+2. Edit the `.env` file to set your own values:
+```bash
+nano .env
+```
+
+3. Replace the placeholder values with your actual configuration:
+```env
+# Database Configuration
+MYSQL_ROOT_PASSWORD=your_secure_root_password
+MYSQL_PASSWORD=your_secure_user_password
+
+# Hugging Face Token
+HUGGINGFACE_TOKEN=your_huggingface_token
+
+# MinIO Configuration
+MINIO_ROOT_PASSWORD=your_minio_password
+
+# NCA Toolkit Configuration
+API_KEY=your_api_key
+S3_ACCESS_KEY=your_s3_access_key
+S3_SECRET_KEY=your_s3_secret_key
+```
+
+The `.env` file is already in the `.gitignore` to prevent accidental commits of sensitive information.
+
+## 🔐 Security and Environment Variables
+
+This project uses environment variables to manage sensitive information like API keys and tokens. To ensure your sensitive data is not accidentally committed to version control:
+
+1. **Use the .env file for sensitive information**:
+   - The project includes a `.env` file for storing sensitive information
+   - This file is already in the `.gitignore` to prevent accidental commits
+   - Add your sensitive tokens and keys to this file
+
+2. **Required sensitive variables**:
+   - `HUGGINGFACE_TOKEN`: Your Hugging Face API token for model downloads
+   - `MYSQL_ROOT_PASSWORD`: Database root password
+   - `MYSQL_PASSWORD`: Database user password
+
+3. **GitHub Secret Scanning**:
+   - GitHub's secret scanning will detect and block pushes containing sensitive information
+   - If you need to push code with example tokens (for documentation), use placeholder values like `YOUR_TOKEN_HERE`
 
 ## 🔌 Service Ports
 
